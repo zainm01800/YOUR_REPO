@@ -14,6 +14,7 @@
     "worker:demo": "tsx src/workers/demo-worker.ts"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.0.11",
     "@prisma/client": "^6.16.2",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",

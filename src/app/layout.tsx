@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import { IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { appConfig } from "@/lib/config";
@@ -30,7 +31,9 @@ export default function RootLayout({
       lang="en"
       className={`${sans.variable} ${mono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <ClerkProvider>
+        <body className="min-h-full flex flex-col">{children}</body>
+      </ClerkProvider>
     </html>
   );
 }
