@@ -236,6 +236,7 @@ To turn it into a proper persistent SaaS deployment, the next implementation ste
 - Column mapping screen
 - Mapping template support
 - Document upload and ZIP support
+- Browser-side OCR for uploaded image receipts with Tesseract.js
 - Local PDF text extraction scaffold
 - Matching engine with explainable scores
 - VAT validation and code resolution

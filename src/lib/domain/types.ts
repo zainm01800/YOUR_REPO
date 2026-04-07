@@ -133,6 +133,14 @@ export interface ExtractedDocument {
   taxLines: DocumentTaxLine[];
 }
 
+export interface ClientExtractedDocumentInput {
+  fileName: string;
+  mimeType: string;
+  rawExtractedText: string;
+  source: "browser_tesseract";
+  confidence?: number;
+}
+
 export interface MatchRationale {
   amountScore: number;
   dateScore: number;

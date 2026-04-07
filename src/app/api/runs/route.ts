@@ -6,7 +6,11 @@ import {
   parseTransactionFile,
 } from "@/lib/transactions/parser";
 import { expandArchive } from "@/lib/uploads/archive";
-import { extractDocumentFromBuffer } from "@/lib/uploads/extractor";
+import {
+  extractDocumentFromBuffer,
+  extractDocumentFromClientPayload,
+} from "@/lib/uploads/extractor";
+import type { ClientExtractedDocumentInput } from "@/lib/domain/types";
 
 export async function GET() {
   const repository = getRepository();
@@ -23,6 +27,12 @@ export async function POST(request: Request) {
   const templateId = String(formData.get("templateId") || "");
   const transactionFile = formData.get("transactionFile");
   const documentEntries = formData.getAll("documentFiles");
+  const clientExtractedDocuments = JSON.parse(
+    String(formData.get("clientExtractedDocuments") || "[]"),
+  ) as ClientExtractedDocumentInput[];
+  const clientExtractedNames = new Set(
+    clientExtractedDocuments.map((document) => document.fileName),
+  );
 
   const run = await repository.createRun({
     name,
@@ -56,6 +66,12 @@ export async function POST(request: Request) {
     }
   }
 
+  run.documents.push(
+    ...clientExtractedDocuments.map((document) =>
+      extractDocumentFromClientPayload(document),
+    ),
+  );
+
   for (const entry of documentEntries) {
     if (!(entry instanceof File) || entry.size === 0) {
       continue;
@@ -73,6 +89,10 @@ export async function POST(request: Request) {
     if (entry.name.toLowerCase().endsWith(".zip")) {
       const expanded = await expandArchive(entry.name, await entry.arrayBuffer());
       for (const item of expanded) {
+        if (clientExtractedNames.has(item.fileName)) {
+          continue;
+        }
+
         const extracted = await extractDocumentFromBuffer(
           item.fileName,
           item.mimeType,
@@ -81,6 +101,10 @@ export async function POST(request: Request) {
         run.documents.push(extracted);
       }
     } else {
+      if (clientExtractedNames.has(entry.name)) {
+        continue;
+      }
+
       const extracted = await extractDocumentFromBuffer(
         entry.name,
         entry.type,
@@ -92,5 +116,5 @@ export async function POST(request: Request) {
 
   await repository.updateRun(run);
 
-  return NextResponse.redirect(new URL(`/runs/${run.id}/mapping`, request.url));
+  return NextResponse.json({ redirectTo: `/runs/${run.id}/mapping` });
 }

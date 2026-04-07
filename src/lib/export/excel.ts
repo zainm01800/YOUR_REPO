@@ -34,7 +34,7 @@ export async function createExcelExport(rows: ReviewRow[]) {
   rows
     .filter((row) => !row.excludedFromExport)
     .forEach((row) => {
-      sheet.addRow({
+      const addedRow = sheet.addRow({
         source: row.source,
         supplier: row.supplier,
         date: row.date,
@@ -50,12 +50,28 @@ export async function createExcelExport(rows: ReviewRow[]) {
         employee: row.employee,
         notes: row.notes,
       });
+      const rowNumber = addedRow.number;
+
+      if (row.net !== undefined || row.vat !== undefined) {
+        addedRow.getCell("G").value = {
+          formula: `IF(COUNTA(E${rowNumber}:F${rowNumber})=0,"",SUM(E${rowNumber}:F${rowNumber}))`,
+          result: row.gross ?? (row.net || 0) + (row.vat || 0),
+        };
+      }
+
+      if (row.net && row.vat !== undefined) {
+        addedRow.getCell("H").value = {
+          formula: `IF(OR(E${rowNumber}="",E${rowNumber}=0),"",F${rowNumber}/E${rowNumber})`,
+          result:
+            row.vatPercent !== undefined ? row.vatPercent / 100 : row.vat / row.net,
+        };
+      }
     });
 
   ["E", "F", "G"].forEach((columnKey) => {
     sheet.getColumn(columnKey).numFmt = "£#,##0.00";
   });
+  sheet.getColumn("H").numFmt = "0.0%";
 
   return workbook.xlsx.writeBuffer();
 }
-
