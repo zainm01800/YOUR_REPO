@@ -1,0 +1,249 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RunStatus {
+  draft
+  awaiting_mapping
+  ready_to_process
+  processing
+  review_required
+  completed
+  exported
+  failed
+}
+
+enum FileKind {
+  transaction_file
+  document
+  archive
+  derived_image
+  export_file
+}
+
+enum MatchStatus {
+  matched
+  probable_match
+  multiple_candidates
+  unmatched
+  duplicate_suspected
+}
+
+enum ReviewActionType {
+  approve
+  edit_field
+  rematch
+  override_vat_code
+  override_gl_code
+  no_receipt_required
+  exclude_from_export
+}
+
+model User {
+  id              String          @id @default(cuid())
+  email           String          @unique
+  name            String
+  passwordHash    String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  memberships     Membership[]
+  reviewActions   ReviewAction[]
+  exportHistories ExportHistory[]
+}
+
+model Workspace {
+  id                String             @id @default(cuid())
+  name              String
+  slug              String             @unique
+  defaultCurrency   String             @default("GBP")
+  countryProfile    String             @default("GB")
+  amountTolerance   Decimal            @db.Decimal(10, 2)
+  dateToleranceDays Int                @default(5)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  memberships       Membership[]
+  runs              ReconciliationRun[]
+  vatRules          VatRule[]
+  glCodeRules       GlCodeRule[]
+  mappingTemplates  MappingTemplate[]
+}
+
+model Membership {
+  id          String    @id @default(cuid())
+  role        String    @default("owner")
+  createdAt   DateTime  @default(now())
+  userId      String
+  workspaceId String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+}
+
+model ReconciliationRun {
+  id                  String            @id @default(cuid())
+  name                String
+  status              RunStatus         @default(draft)
+  entity              String?
+  countryProfile      String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  processedAt         DateTime?
+  workspaceId         String
+  transactionFileName String?
+  notes               String?
+  workspace           Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  uploadedFiles       UploadedFile[]
+  transactions        Transaction[]
+  documents           Document[]
+  matches             MatchDecision[]
+  reviewActions       ReviewAction[]
+  exports             ExportHistory[]
+}
+
+model UploadedFile {
+  id           String            @id @default(cuid())
+  fileName     String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  storageKey   String
+  fileKind     FileKind
+  createdAt    DateTime          @default(now())
+  runId        String
+  run          ReconciliationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id                  String            @id @default(cuid())
+  externalId          String?
+  sourceLineNumber    Int?
+  transactionDate     DateTime?
+  postedDate          DateTime?
+  amount              Decimal           @db.Decimal(12, 2)
+  currency            String?
+  merchant            String?
+  description         String?
+  employee            String?
+  reference           String?
+  vatCode             String?
+  glCode              String?
+  noReceiptRequired   Boolean           @default(false)
+  excludedFromExport  Boolean           @default(false)
+  runId               String
+  run                 ReconciliationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  matches             MatchDecision[]
+}
+
+model Document {
+  id                   String            @id @default(cuid())
+  fileName             String
+  supplier             String?
+  issueDate            DateTime?
+  gross                Decimal?          @db.Decimal(12, 2)
+  net                  Decimal?          @db.Decimal(12, 2)
+  vat                  Decimal?          @db.Decimal(12, 2)
+  vatRateSummary       String?
+  documentNumber       String?
+  countryCode          String?
+  currency             String?
+  rawExtractedText     String?
+  extractionConfidence Decimal?          @db.Decimal(4, 2)
+  duplicateFingerprint String?
+  runId                String
+  run                  ReconciliationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  taxLines             DocumentTaxLine[]
+  matches              MatchDecision[]
+}
+
+model DocumentTaxLine {
+  id          String    @id @default(cuid())
+  label       String?
+  netAmount   Decimal?  @db.Decimal(12, 2)
+  taxAmount   Decimal?  @db.Decimal(12, 2)
+  grossAmount Decimal?  @db.Decimal(12, 2)
+  rate        Decimal?  @db.Decimal(5, 2)
+  recoverable Boolean   @default(true)
+  vatCode     String?
+  documentId  String
+  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model MatchDecision {
+  id            String            @id @default(cuid())
+  status        MatchStatus
+  score         Decimal           @db.Decimal(5, 2)
+  rationale     Json
+  selected      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  transactionId String
+  documentId    String?
+  runId         String
+  transaction   Transaction       @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  document      Document?         @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  run           ReconciliationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model ReviewAction {
+  id            String             @id @default(cuid())
+  actionType    ReviewActionType
+  field         String?
+  beforeValue   String?
+  afterValue    String?
+  note          String?
+  createdAt     DateTime           @default(now())
+  runId         String
+  transactionId String?
+  documentId    String?
+  actorId       String
+  run           ReconciliationRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  actor         User               @relation(fields: [actorId], references: [id], onDelete: Cascade)
+}
+
+model VatRule {
+  id          String    @id @default(cuid())
+  countryCode String
+  rate        Decimal   @db.Decimal(5, 2)
+  taxCode     String
+  recoverable Boolean   @default(true)
+  description String?
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model GlCodeRule {
+  id             String    @id @default(cuid())
+  glCode         String
+  label          String
+  supplierPattern String?
+  keywordPattern String?
+  priority       Int       @default(100)
+  workspaceId    String
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model MappingTemplate {
+  id             String    @id @default(cuid())
+  name           String
+  sourceType     String
+  columnMappings Json
+  createdAt      DateTime  @default(now())
+  workspaceId    String
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model ExportHistory {
+  id        String            @id @default(cuid())
+  format    String
+  fileName  String
+  createdAt DateTime          @default(now())
+  runId     String
+  actorId   String
+  run       ReconciliationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  actor     User              @relation(fields: [actorId], references: [id], onDelete: Cascade)
+}

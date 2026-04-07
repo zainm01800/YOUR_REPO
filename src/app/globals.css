@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-page: #f4efe7;
+  --color-sidebar: #e7ded1;
+  --color-panel: #f8f4ed;
+  --color-border: #ddd0bf;
+  --color-border-strong: #b89d82;
+  --color-foreground: #1b2428;
+  --color-muted-foreground: #5f6b72;
+  --color-accent: #195e41;
+  --color-accent-strong: #0f4e35;
+  --color-accent-soft: rgba(25, 94, 65, 0.12);
+  --color-accent-foreground: #f6f7f3;
+  --color-danger: #9f2a3b;
+  --color-danger-soft: rgba(159, 42, 59, 0.08);
+  --color-danger-border: #e7b9c0;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: #ffffff;
+  --color-foreground: var(--color-foreground);
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(25, 94, 65, 0.08), transparent 35%),
+    linear-gradient(180deg, #f3ede4 0%, #f7f3ec 100%);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  color: var(--color-foreground);
+  font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  background: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
