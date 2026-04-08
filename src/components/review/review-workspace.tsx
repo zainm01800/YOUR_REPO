@@ -676,10 +676,10 @@ export function ReviewWorkspace({
                     </div>
                   </div>
                 )}
-                <div className="text-xs leading-6 text-[var(--color-muted-foreground)]">
-                  Available references: Supplier, Original Value, Gross, Net, VAT, VAT %, VAT Code, GL Code
+                <div className="text-xs leading-5 text-[var(--color-muted-foreground)]">
+                  <span className="font-medium">Available refs:</span> Supplier, Original Value, Gross, Net, VAT, VAT %, VAT Code, GL Code
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-col gap-2">
                   <Button type="button" variant="secondary" onClick={handleAddTemplateColumn}>
                     Add to current template
                   </Button>
@@ -747,7 +747,7 @@ export function ReviewWorkspace({
   }
 
   return (
-    <div className="grid items-start gap-5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid items-start gap-5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
       <div className="min-w-0 space-y-5">
         <div className="grid gap-5 md:grid-cols-4">
           <Card>
@@ -820,8 +820,8 @@ export function ReviewWorkspace({
       </div>
 
       <div className="sticky top-6 max-h-[calc(100vh-110px)] space-y-5 overflow-y-auto pr-1">
-        <div className="grid grid-cols-[84px_minmax(0,1fr)] gap-3">
-          <Card className="space-y-2 p-3">
+        <div className="grid grid-cols-[76px_minmax(0,1fr)] gap-3">
+          <Card className="space-y-1.5 p-2.5">
             {sidebarTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = sidebarTab === tab.id;
@@ -832,7 +832,7 @@ export function ReviewWorkspace({
                   type="button"
                   disabled={tab.disabled}
                   onClick={() => setSidebarTab(tab.id)}
-                  className={`flex w-full flex-col items-center gap-2 rounded-2xl px-2 py-3 text-center text-xs font-semibold transition ${
+                  className={`flex w-full flex-col items-center gap-1.5 rounded-2xl px-1.5 py-2.5 text-center text-xs font-semibold transition ${
                     isActive
                       ? "bg-[var(--color-accent)] text-[var(--color-accent-foreground)]"
                       : "bg-[var(--color-panel)] text-[var(--color-muted-foreground)] hover:bg-white"
