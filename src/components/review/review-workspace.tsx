@@ -19,6 +19,57 @@ import { ReviewTable } from "@/components/review/review-table";
 import { buildRunSummary } from "@/lib/reconciliation/summary";
 import { getReviewCellFilterText } from "@/lib/review-sheet";
 
+const formulaTemplates = [
+  {
+    id: "gross_minus_vat",
+    label: "Gross minus VAT",
+    formula: "=[Gross]-[VAT]",
+    description: "Net value based on gross less VAT",
+  },
+  {
+    id: "gross_plus_vat",
+    label: "Gross plus VAT",
+    formula: "=[Gross]+[VAT]",
+    description: "Combined gross and VAT total",
+  },
+  {
+    id: "vat_rate_from_values",
+    label: "VAT rate from values",
+    formula: "=[VAT]/[Net]",
+    description: "Calculated VAT rate from VAT and net",
+  },
+  {
+    id: "gross_vs_original_delta",
+    label: "Gross variance to original",
+    formula: "=[Gross]-[Original Value]",
+    description: "Difference between reviewed gross and source amount",
+  },
+  {
+    id: "net_vs_original_delta",
+    label: "Net variance to original",
+    formula: "=[Net]-[Original Value]",
+    description: "Difference between reviewed net and source amount",
+  },
+  {
+    id: "recoverable_base",
+    label: "Recoverable base",
+    formula: "=[Net]",
+    description: "Copies the reviewed net amount",
+  },
+  {
+    id: "tax_only",
+    label: "Tax only",
+    formula: "=[VAT]",
+    description: "Copies the VAT amount into a separate analysis column",
+  },
+  {
+    id: "margin_check",
+    label: "Margin check",
+    formula: "=[Gross]-[Net]-[VAT]",
+    description: "Checks whether gross less net less VAT balances to zero",
+  },
+] as const;
+
 const defaultColumns: ReviewGridColumnLayout[] = [
   { key: "supplier", label: "Supplier", visible: true, width: 24 },
   { key: "originalValue", label: "Original Value", visible: true, width: 14 },
@@ -94,7 +145,9 @@ export function ReviewWorkspace({
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [activeFilterColumnKey, setActiveFilterColumnKey] = useState<string | null>(null);
   const [newColumnLabel, setNewColumnLabel] = useState("");
-  const [newColumnFormula, setNewColumnFormula] = useState("=");
+  const [selectedFormulaTemplateId, setSelectedFormulaTemplateId] = useState<string>(
+    formulaTemplates[0].id,
+  );
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -209,7 +262,10 @@ export function ReviewWorkspace({
 
   function handleAddCustomColumn() {
     const label = newColumnLabel.trim();
-    const formula = newColumnFormula.trim();
+    const selectedTemplate = formulaTemplates.find(
+      (template) => template.id === selectedFormulaTemplateId,
+    );
+    const formula = selectedTemplate?.formula;
 
     if (!label || !formula) {
       return;
@@ -227,8 +283,11 @@ export function ReviewWorkspace({
       },
     ]);
     setNewColumnLabel("");
-    setNewColumnFormula("=");
   }
+
+  const selectedFormulaTemplate =
+    formulaTemplates.find((template) => template.id === selectedFormulaTemplateId) ||
+    formulaTemplates[0];
 
   return (
     <div className="grid items-start gap-5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -276,7 +335,7 @@ export function ReviewWorkspace({
           <div>
             <h2 className="text-xl font-semibold">Add column</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-              Add a custom sheet column and write the Excel-style formula you want it to use.
+              Add a custom sheet column using a ready-made spreadsheet formula template.
             </p>
           </div>
           <div className="space-y-3">
@@ -285,13 +344,30 @@ export function ReviewWorkspace({
               value={newColumnLabel}
               onChange={(event) => setNewColumnLabel(event.target.value)}
             />
-            <Input
-              placeholder="Formula, for example =C2-D2 or =SUM(C2:E2)"
-              value={newColumnFormula}
-              onChange={(event) => setNewColumnFormula(event.target.value)}
-            />
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3 text-xs leading-6 text-[var(--color-muted-foreground)]">
-              Use spreadsheet-style references like `=B2-C2`, `=SUM(C2:E2)`, or label references like `=[Gross]-[VAT]`.
+            <label className="space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                Formula template
+              </span>
+              <select
+                className="h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-foreground)]"
+                value={selectedFormulaTemplateId}
+                onChange={(event) => setSelectedFormulaTemplateId(event.target.value)}
+              >
+                {formulaTemplates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3 text-sm leading-6 text-[var(--color-foreground)]">
+              <div className="font-medium">{selectedFormulaTemplate.description}</div>
+              <div className="mt-2 font-mono text-xs text-[var(--color-muted-foreground)]">
+                {selectedFormulaTemplate.formula}
+              </div>
+              <div className="mt-3 text-xs text-[var(--color-muted-foreground)]">
+                Available references: Supplier, Original Value, Gross, Net, VAT, VAT %, VAT Code, GL Code
+              </div>
             </div>
             <div className="flex gap-3">
               <Button type="button" onClick={handleAddCustomColumn}>

@@ -268,7 +268,7 @@ export function ReviewTable({
 
   return (
     <Card className="flex min-w-0 flex-col overflow-hidden p-0">
-      <div className="h-[min(62vh,680px)] min-h-[420px] overflow-hidden">
+      <div className="h-[min(68vh,760px)] min-h-[500px] overflow-hidden">
         <DataGrid
           aria-label="Review spreadsheet"
           className="rdg-light rdg-review-grid h-full"
@@ -336,9 +336,6 @@ export function ReviewTable({
           Saving review changes...
         </div>
       ) : null}
-      <div className="border-t border-[var(--color-border)] bg-[#f8fafb] px-4 py-3 text-xs text-[var(--color-muted-foreground)]">
-        Spreadsheet mode is active: drag headers to reorder, resize columns directly, single-click editable cells to change values, and use the header filter icons to filter the grid.
-      </div>
     </Card>
   );
 }
