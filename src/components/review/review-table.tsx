@@ -122,14 +122,15 @@ export function ReviewTable({
               <th className="px-4 py-3">Gross</th>
               <th className="px-4 py-3">VAT</th>
               <th className="px-4 py-3">Match</th>
-              <th className="px-4 py-3">Codes</th>
+              <th className="px-4 py-3">VAT Code</th>
+              <th className="px-4 py-3">GL Code</th>
               <th className="px-4 py-3">Exceptions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--color-border)]">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-[var(--color-muted-foreground)]">
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-[var(--color-muted-foreground)]">
                   No rows match the current filter.
                 </td>
               </tr>
@@ -223,30 +224,30 @@ export function ReviewTable({
                     </div>
                   </td>
                   <td className="px-4 py-4">
-                    <div className="space-y-1">
-                      <EditableDisplay
-                        cellId={`${row.id}_vatCode`}
-                        activeCell={activeCell}
-                        onActivate={setActiveCell}
-                        onDeactivate={() => setActiveCell(null)}
-                        value={row.vatCode || ""}
-                        onCommit={(value) => onEditField(row.id, "vatCode", value)}
-                        inputClassName="h-8 rounded-xl px-3"
-                        displayClassName="font-medium text-[var(--color-foreground)] hover:text-[var(--color-accent)]"
-                        display={`VAT ${row.vatCode || "Missing"}`}
-                      />
-                      <EditableDisplay
-                        cellId={`${row.id}_glCode`}
-                        activeCell={activeCell}
-                        onActivate={setActiveCell}
-                        onDeactivate={() => setActiveCell(null)}
-                        value={row.glCode || ""}
-                        onCommit={(value) => onEditField(row.id, "glCode", value)}
-                        inputClassName="h-8 rounded-xl px-3"
-                        displayClassName="text-left text-xs text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
-                        display={`GL ${row.glCode || "Missing"}`}
-                      />
-                    </div>
+                    <EditableDisplay
+                      cellId={`${row.id}_vatCode`}
+                      activeCell={activeCell}
+                      onActivate={setActiveCell}
+                      onDeactivate={() => setActiveCell(null)}
+                      value={row.vatCode || ""}
+                      onCommit={(value) => onEditField(row.id, "vatCode", value)}
+                      inputClassName="h-8 rounded-xl px-3"
+                      displayClassName="font-medium text-[var(--color-foreground)] hover:text-[var(--color-accent)]"
+                      display={row.vatCode || "Missing"}
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <EditableDisplay
+                      cellId={`${row.id}_glCode`}
+                      activeCell={activeCell}
+                      onActivate={setActiveCell}
+                      onDeactivate={() => setActiveCell(null)}
+                      value={row.glCode || ""}
+                      onCommit={(value) => onEditField(row.id, "glCode", value)}
+                      inputClassName="h-8 rounded-xl px-3"
+                      displayClassName="text-left text-[var(--color-foreground)] hover:text-[var(--color-accent)]"
+                      display={row.glCode || "Missing"}
+                    />
                   </td>
                   <td className="px-4 py-4">
                     <div className="flex flex-wrap gap-2">
