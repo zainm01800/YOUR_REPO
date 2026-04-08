@@ -21,6 +21,7 @@ export interface CreateRunInput {
   name: string;
   entity?: string;
   countryProfile?: string;
+  defaultCurrency?: string;
   templateId?: string;
   transactionFileName?: string;
 }
@@ -37,4 +38,3 @@ export interface Repository {
   updateRun(run: ReconciliationRun): Promise<ReconciliationRun>;
   saveReviewMutation(input: ReviewMutationInput): Promise<void>;
 }
-

@@ -24,6 +24,7 @@ export async function POST(request: Request) {
   const name = String(formData.get("name") || "New reconciliation run");
   const entity = String(formData.get("entity") || "");
   const countryProfile = String(formData.get("countryProfile") || "GB");
+  const defaultCurrency = String(formData.get("defaultCurrency") || "GBP");
   const templateId = String(formData.get("templateId") || "");
   const transactionFile = formData.get("transactionFile");
   const documentEntries = formData.getAll("documentFiles");
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
     name,
     entity,
     countryProfile,
+    defaultCurrency,
     templateId: templateId || undefined,
     transactionFileName:
       transactionFile instanceof File ? transactionFile.name : undefined,
@@ -52,7 +54,7 @@ export async function POST(request: Request) {
       const mapping = selectedTemplate?.columnMappings || detectDefaultMapping(parsed.headers);
       run.previewHeaders = parsed.headers;
       run.savedColumnMappings = mapping;
-      run.transactions = mapTransactions(parsed, mapping);
+      run.transactions = mapTransactions(parsed, mapping, defaultCurrency);
       run.uploadedFiles.push({
         id: `file_${Date.now()}_transactions`,
         fileName: transactionFile.name,

@@ -52,6 +52,22 @@ export interface Workspace {
   dateToleranceDays: number;
 }
 
+export interface CountryOption {
+  code: string;
+  label: string;
+  currency: string;
+}
+
+export interface RunSetupPreset {
+  id: string;
+  name: string;
+  entity?: string;
+  countryProfile: string;
+  defaultCurrency: string;
+  templateId?: string;
+  notes?: string;
+}
+
 export interface MappingTemplate {
   id: string;
   name: string;
@@ -180,6 +196,29 @@ export interface ExportRecord {
   createdAt: string;
 }
 
+export type ExportColumnKey =
+  | "source"
+  | "supplier"
+  | "date"
+  | "currency"
+  | "net"
+  | "vat"
+  | "gross"
+  | "vatPercent"
+  | "vatCode"
+  | "glCode"
+  | "matchStatus"
+  | "originalDescription"
+  | "employee"
+  | "notes";
+
+export interface ExportColumnLayout {
+  key: ExportColumnKey;
+  label: string;
+  visible: boolean;
+  width?: number;
+}
+
 export interface RunProcessingSummary {
   transactions: number;
   documents: number;
@@ -199,6 +238,7 @@ export interface ReconciliationRun {
   processedAt?: string;
   entity?: string;
   countryProfile?: string;
+  defaultCurrency?: string;
   transactionFileName?: string;
   previewHeaders?: string[];
   savedColumnMappings?: Record<string, string>;

@@ -26,6 +26,7 @@ export function parseTransactionFile(buffer: ArrayBuffer) {
 export function mapTransactions(
   parsed: ParsedTransactionFile,
   columnMappings: Record<string, string>,
+  fallbackCurrency = "GBP",
 ) {
   return parsed.records.map<TransactionRecord>((record, index) => ({
     id: `txn_import_${index + 1}_${slugify(String(record[columnMappings.reference] || index))}`,
@@ -37,7 +38,7 @@ export function mapTransactions(
       record[columnMappings.description] || record[columnMappings.merchant] || "",
     ),
     employee: String(record[columnMappings.employee] || "") || undefined,
-    currency: String(record[columnMappings.currency] || "GBP"),
+    currency: String(record[columnMappings.currency] || fallbackCurrency),
     reference: String(record[columnMappings.reference] || "") || undefined,
   }));
 }

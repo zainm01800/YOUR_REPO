@@ -86,6 +86,7 @@ export const mockRepository: Repository = {
       createdAt: new Date().toISOString(),
       entity: input.entity,
       countryProfile: input.countryProfile || store.workspace.countryProfile,
+      defaultCurrency: input.defaultCurrency || store.workspace.defaultCurrency,
       transactionFileName: input.transactionFileName,
       previewHeaders: ["Date", "Amount", "Merchant", "Description", "Currency"],
       savedColumnMappings:
@@ -163,4 +164,3 @@ export async function getCurrentUser(): Promise<User> {
 export async function getCurrentWorkspace(): Promise<Workspace> {
   return mockRepository.getWorkspace();
 }
-

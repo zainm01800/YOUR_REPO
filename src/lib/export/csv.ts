@@ -1,21 +1,5 @@
-import type { ReviewRow } from "@/lib/domain/types";
-
-const exportHeaders = [
-  "Source",
-  "Supplier",
-  "Date",
-  "Currency",
-  "Net",
-  "VAT",
-  "Gross",
-  "VAT %",
-  "VAT Code",
-  "GL Code",
-  "Match Status",
-  "Original Description",
-  "Employee",
-  "Notes",
-];
+import type { ExportColumnLayout, ReviewRow } from "@/lib/domain/types";
+import { getExportCellValue, getVisibleExportLayout, normaliseExportLayout } from "@/lib/export/layout";
 
 function escapeCell(value: string | number | undefined) {
   if (value === undefined || value === null) {
@@ -26,28 +10,18 @@ function escapeCell(value: string | number | undefined) {
   return /[",\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
 }
 
-export function createCsvExport(rows: ReviewRow[]) {
+export function createCsvExport(
+  rows: ReviewRow[],
+  layout?: ExportColumnLayout[],
+) {
+  const visibleLayout = getVisibleExportLayout(normaliseExportLayout(layout));
   const lines = [
-    exportHeaders.join(","),
+    visibleLayout.map((column) => escapeCell(column.label)).join(","),
     ...rows
       .filter((row) => !row.excludedFromExport)
       .map((row) =>
-        [
-          row.source,
-          row.supplier,
-          row.date,
-          row.currency,
-          row.net,
-          row.vat,
-          row.gross,
-          row.vatPercent,
-          row.vatCode,
-          row.glCode,
-          row.matchStatus,
-          row.originalDescription,
-          row.employee,
-          row.notes,
-        ]
+        visibleLayout
+          .map((column) => getExportCellValue(row, column.key))
           .map(escapeCell)
           .join(","),
       ),
@@ -55,4 +29,3 @@ export function createCsvExport(rows: ReviewRow[]) {
 
   return lines.join("\n");
 }
-

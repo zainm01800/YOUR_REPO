@@ -260,6 +260,7 @@ const run: ReconciliationRun = {
   processedAt: "2026-04-07T18:32:00.000Z",
   entity: "Northstar Holdings Ltd",
   countryProfile: "GB",
+  defaultCurrency: "GBP",
   transactionFileName: "april-card-export.csv",
   previewHeaders: [
     "Transaction Date",
@@ -507,6 +508,7 @@ const secondRun: ReconciliationRun = {
   processedAt: "2026-03-29T10:20:00.000Z",
   entity: "Northstar Holdings Ltd",
   countryProfile: "GB",
+  defaultCurrency: "GBP",
   transactionFileName: "march-ap.csv",
   previewHeaders: ["Date", "Amount", "Payee", "Memo", "Currency", "Reference"],
   savedColumnMappings: templates[1].columnMappings,
