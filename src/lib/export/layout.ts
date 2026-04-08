@@ -5,6 +5,19 @@ import type {
 } from "@/lib/domain/types";
 import { formatPercent } from "@/lib/utils";
 
+function formatExcelPreviewDate(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  }).format(parsed);
+}
+
 export const defaultExportLayout: ExportColumnLayout[] = [
   { key: "source", label: "Source", visible: true, width: 24 },
   { key: "supplier", label: "Supplier", visible: true, width: 24 },
@@ -108,6 +121,9 @@ export function getExportCellValue(row: ReviewRow, key: ExportColumnKey) {
 
 export function getPreviewCellValue(row: ReviewRow, key: ExportColumnKey) {
   const value = getExportCellValue(row, key);
+  if (key === "date" && typeof value === "string") {
+    return formatExcelPreviewDate(value);
+  }
   if (key === "vatPercent" && typeof value === "number") {
     return formatPercent(value);
   }
@@ -134,4 +150,3 @@ export function normaliseExportLayout(
       : { ...baseColumn };
   });
 }
-

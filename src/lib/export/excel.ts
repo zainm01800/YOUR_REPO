@@ -1,6 +1,10 @@
 import ExcelJS from "exceljs";
 import type { ExportColumnLayout, ReviewRow } from "@/lib/domain/types";
-import { getExportCellValue, getVisibleExportLayout, normaliseExportLayout } from "@/lib/export/layout";
+import {
+  getExportCellValue,
+  getVisibleExportLayout,
+  normaliseExportLayout,
+} from "@/lib/export/layout";
 
 function getExcelColumnName(columnNumber: number) {
   let dividend = columnNumber;
@@ -47,16 +51,35 @@ export async function createExcelExport(
     .forEach((row) => {
       const addedRow = sheet.addRow(
         Object.fromEntries(
-          visibleLayout.map((column) => [column.key, getExportCellValue(row, column.key)]),
+          visibleLayout.map((column) => {
+            const cellValue = getExportCellValue(row, column.key);
+
+            if (column.key === "date" && typeof cellValue === "string") {
+              const parsedDate = new Date(cellValue);
+              return [
+                column.key,
+                Number.isNaN(parsedDate.getTime()) ? cellValue : parsedDate,
+              ];
+            }
+
+            return [column.key, cellValue];
+          }),
         ),
       );
       const rowNumber = addedRow.number;
       const netIndex = visibleLayout.findIndex((column) => column.key === "net");
       const vatIndex = visibleLayout.findIndex((column) => column.key === "vat");
       const grossIndex = visibleLayout.findIndex((column) => column.key === "gross");
-      const vatPercentIndex = visibleLayout.findIndex((column) => column.key === "vatPercent");
+      const vatPercentIndex = visibleLayout.findIndex(
+        (column) => column.key === "vatPercent",
+      );
 
-      if (grossIndex >= 0 && netIndex >= 0 && vatIndex >= 0 && (row.net !== undefined || row.vat !== undefined)) {
+      if (
+        grossIndex >= 0 &&
+        netIndex >= 0 &&
+        vatIndex >= 0 &&
+        (row.net !== undefined || row.vat !== undefined)
+      ) {
         const netColumn = getExcelColumnName(netIndex + 1);
         const vatColumn = getExcelColumnName(vatIndex + 1);
         const grossCell = addedRow.getCell(grossIndex + 1);
@@ -66,7 +89,13 @@ export async function createExcelExport(
         };
       }
 
-      if (vatPercentIndex >= 0 && netIndex >= 0 && vatIndex >= 0 && row.net && row.vat !== undefined) {
+      if (
+        vatPercentIndex >= 0 &&
+        netIndex >= 0 &&
+        vatIndex >= 0 &&
+        row.net &&
+        row.vat !== undefined
+      ) {
         const netColumn = getExcelColumnName(netIndex + 1);
         const vatColumn = getExcelColumnName(vatIndex + 1);
         const vatPercentCell = addedRow.getCell(vatPercentIndex + 1);
@@ -81,10 +110,13 @@ export async function createExcelExport(
   visibleLayout.forEach((column, index) => {
     const excelColumn = sheet.getColumn(index + 1);
     if (column.key === "net" || column.key === "vat" || column.key === "gross") {
-      excelColumn.numFmt = "£#,##0.00";
+      excelColumn.numFmt = "#,##0.00";
     }
     if (column.key === "vatPercent") {
       excelColumn.numFmt = "0.0%";
+    }
+    if (column.key === "date") {
+      excelColumn.numFmt = "dd/mm/yy";
     }
   });
 
