@@ -10,10 +10,10 @@ export default async function ReviewPage({
   searchParams,
 }: {
   params: Promise<{ runId: string }>;
-  searchParams: Promise<{ row?: string; filter?: string }>;
+  searchParams: Promise<{ row?: string }>;
 }) {
   const { runId } = await params;
-  const { row, filter } = await searchParams;
+  const { row } = await searchParams;
   const repository = getRepository();
   const [run, rows] = await Promise.all([
     repository.getRun(runId),
@@ -44,7 +44,6 @@ export default async function ReviewPage({
       <ReviewWorkspace
         run={run}
         initialRows={rows}
-        initialFilter={filter}
         initialRowId={row}
       />
     </>

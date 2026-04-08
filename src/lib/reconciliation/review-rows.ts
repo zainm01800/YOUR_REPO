@@ -128,6 +128,8 @@ export function buildReviewRows(
       supplier: document?.supplier || transaction.merchant,
       date: document?.issueDate || transaction.transactionDate,
       currency: document?.currency || transaction.currency,
+      originalAmount: transaction.amount,
+      originalCurrency: transaction.currency,
       net: document?.net,
       vat: document?.vat,
       gross: document?.gross || transaction.amount,

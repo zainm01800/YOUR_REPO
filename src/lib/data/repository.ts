@@ -16,6 +16,7 @@ export interface ReviewMutationInput {
   field?: string;
   value?: string;
   note?: string;
+  payload?: Record<string, unknown>;
 }
 
 export interface CreateRunInput {

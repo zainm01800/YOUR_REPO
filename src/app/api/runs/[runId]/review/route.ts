@@ -11,6 +11,7 @@ export async function POST(request: Request) {
     field?: string;
     value?: string;
     note?: string;
+    payload?: Record<string, unknown>;
   };
 
   await repository.saveReviewMutation(body);

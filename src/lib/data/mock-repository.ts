@@ -44,6 +44,40 @@ function syncPrimaryTaxLine(document?: ReconciliationRun["documents"][number]) {
       : 0;
 }
 
+function createReviewLinkedMatch(
+  transactionId: string,
+  documentId?: string,
+  status: "matched" | "probable_match" | "unmatched" = "matched",
+) {
+  return {
+    id: `match_${Date.now()}`,
+    transactionId,
+    documentId,
+    status,
+    score: status === "matched" ? 90 : status === "probable_match" ? 70 : 0,
+    selected: true,
+    rationale: {
+      amountScore: status === "matched" ? 40 : 25,
+      dateScore: 15,
+      supplierScore: 15,
+      filenameScore: 5,
+      employeeScore: 0,
+      currencyScore: 5,
+      notes: ["Updated during review workspace."],
+    },
+  } satisfies ReconciliationRun["matches"][number];
+}
+
+function getLinkStatus(transactionAmount: number, documentGross?: number) {
+  if (documentGross === undefined) {
+    return "unmatched" as const;
+  }
+
+  return Math.abs(transactionAmount - documentGross) <= 1.5
+    ? ("matched" as const)
+    : ("probable_match" as const);
+}
+
 function getRunOrThrow(runId: string) {
   const run = store.runs.find((candidate) => candidate.id === runId);
 
@@ -184,6 +218,17 @@ export const mockRepository: Repository = {
           }
           break;
         }
+        case "net": {
+          const nextNet = parseOptionalNumber(input.value);
+          if (document) {
+            document.net = nextNet;
+            if (document.gross !== undefined && nextNet !== undefined) {
+              document.vat = Number((document.gross - nextNet).toFixed(2));
+            }
+            syncPrimaryTaxLine(document);
+          }
+          break;
+        }
         case "vat": {
           const nextVat = parseOptionalNumber(input.value);
           if (document) {
@@ -218,6 +263,105 @@ export const mockRepository: Repository = {
 
     if (transaction && input.actionType === "override_vat_code" && input.value) {
       transaction.vatCode = input.value;
+    }
+
+    if (transaction && input.actionType === "rematch") {
+      const incomingDocument = input.payload?.newDocument as
+        | {
+            fileName?: string;
+            supplier?: string;
+            issueDate?: string;
+            gross?: number;
+            net?: number;
+            vat?: number;
+            currency?: string;
+            rawExtractedText?: string;
+          }
+        | undefined;
+      let nextDocumentId =
+        typeof input.payload?.documentId === "string"
+          ? (input.payload.documentId as string)
+          : undefined;
+
+      if (incomingDocument?.fileName) {
+        const gross =
+          typeof incomingDocument.gross === "number" ? incomingDocument.gross : undefined;
+        const vat =
+          typeof incomingDocument.vat === "number" ? incomingDocument.vat : undefined;
+        const net =
+          typeof incomingDocument.net === "number"
+            ? incomingDocument.net
+            : gross !== undefined && vat !== undefined
+              ? Number((gross - vat).toFixed(2))
+              : gross;
+        const createdDocument: ReconciliationRun["documents"][number] = {
+          id: `doc_manual_${Date.now()}`,
+          fileName: incomingDocument.fileName,
+          supplier: incomingDocument.supplier || transaction.merchant,
+          issueDate: incomingDocument.issueDate || transaction.transactionDate,
+          gross,
+          net,
+          vat,
+          vatRateSummary:
+            net && vat !== undefined ? `${((vat / net) * 100).toFixed(1)}%` : "0%",
+          documentNumber: incomingDocument.fileName.replace(/\.[^.]+$/, "").toUpperCase(),
+          countryCode: run.countryProfile,
+          currency: incomingDocument.currency || transaction.currency,
+          rawExtractedText: incomingDocument.rawExtractedText || "Added during review.",
+          confidence: 0.78,
+          duplicateFingerprint: `manual-${Date.now()}`,
+          taxLines: gross
+            ? [
+                {
+                  id: `tax_manual_${Date.now()}`,
+                  label: "Manual review attachment",
+                  netAmount: net || gross,
+                  taxAmount: vat || 0,
+                  grossAmount: gross,
+                  rate: net && vat !== undefined ? Number(((vat / net) * 100).toFixed(1)) : 0,
+                  recoverable: true,
+                },
+              ]
+            : [],
+        };
+
+        run.documents.unshift(createdDocument);
+        run.uploadedFiles.unshift({
+          id: `file_doc_${Date.now()}`,
+          fileName: createdDocument.fileName,
+          originalName: createdDocument.fileName,
+          mimeType: "application/octet-stream",
+          sizeBytes: 0,
+          fileKind: "document",
+        });
+        nextDocumentId = createdDocument.id;
+      }
+
+      run.matches.forEach((candidate) => {
+        if (candidate.transactionId === transaction.id) {
+          candidate.selected = false;
+        }
+      });
+
+      const linkedDocument = nextDocumentId
+        ? run.documents.find((candidate) => candidate.id === nextDocumentId)
+        : undefined;
+      const nextStatus = getLinkStatus(transaction.amount, linkedDocument?.gross);
+      const currentMatch = run.matches.find(
+        (candidate) => candidate.transactionId === transaction.id,
+      );
+
+      if (currentMatch) {
+        currentMatch.selected = true;
+        currentMatch.documentId = nextDocumentId;
+        currentMatch.status = nextStatus;
+        currentMatch.score = nextStatus === "matched" ? 90 : nextStatus === "probable_match" ? 70 : 0;
+        currentMatch.rationale.notes = ["Updated during review workspace."];
+      } else {
+        run.matches.push(
+          createReviewLinkedMatch(transaction.id, nextDocumentId, nextStatus),
+        );
+      }
     }
 
     if (transaction && input.actionType === "exclude_from_export") {

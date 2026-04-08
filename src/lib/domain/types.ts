@@ -219,21 +219,25 @@ export interface ExportColumnLayout {
   width?: number;
 }
 
-export type ReviewGridColumnKey =
+export type ReviewBaseColumnKey =
   | "supplier"
+  | "originalValue"
   | "gross"
+  | "net"
   | "vat"
   | "vatPercent"
-  | "match"
   | "vatCode"
-  | "glCode"
-  | "exceptions";
+  | "glCode";
+
+export type ReviewGridColumnKey = ReviewBaseColumnKey | `custom_${string}`;
 
 export interface ReviewGridColumnLayout {
   key: ReviewGridColumnKey;
   label: string;
   visible: boolean;
   width?: number;
+  kind?: "base" | "custom";
+  formula?: string;
 }
 
 export interface RunProcessingSummary {
@@ -281,6 +285,8 @@ export interface ReviewRow {
   supplier: string;
   date?: string;
   currency: string;
+  originalAmount: number;
+  originalCurrency: string;
   net?: number;
   vat?: number;
   gross?: number;

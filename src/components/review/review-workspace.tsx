@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowDown, ArrowUp } from "lucide-react";
 import type {
   ReconciliationRun,
   ReviewActionType,
@@ -12,30 +11,23 @@ import type {
 } from "@/lib/domain/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { DocumentAttachmentPanel } from "@/components/review/document-attachment-panel";
 import { ReviewActions } from "@/components/review/review-actions";
 import { ReviewDetailPanel } from "@/components/review/review-detail-panel";
 import { ReviewTable } from "@/components/review/review-table";
 import { buildRunSummary } from "@/lib/reconciliation/summary";
-
-const filterOptions = [
-  { label: "All", value: "all" },
-  { label: "Unmatched", value: "unmatched" },
-  { label: "Mismatched", value: "mismatched" },
-  { label: "Duplicates", value: "duplicates" },
-  { label: "Low confidence", value: "low-confidence" },
-  { label: "Missing VAT", value: "missing-vat" },
-  { label: "Missing GL", value: "missing-gl" },
-] as const;
+import { getReviewCellFilterText } from "@/lib/review-sheet";
 
 const defaultColumns: ReviewGridColumnLayout[] = [
   { key: "supplier", label: "Supplier", visible: true, width: 24 },
+  { key: "originalValue", label: "Original Value", visible: true, width: 14 },
   { key: "gross", label: "Gross", visible: true, width: 12 },
+  { key: "net", label: "Net", visible: true, width: 12 },
   { key: "vat", label: "VAT", visible: true, width: 12 },
   { key: "vatPercent", label: "VAT %", visible: true, width: 10 },
-  { key: "match", label: "Match", visible: true, width: 16 },
   { key: "vatCode", label: "VAT Code", visible: true, width: 12 },
   { key: "glCode", label: "GL Code", visible: true, width: 12 },
-  { key: "exceptions", label: "Exceptions", visible: true, width: 22 },
 ];
 
 function moveColumn(
@@ -49,29 +41,6 @@ function moveColumn(
   return next;
 }
 
-function applyFilter(rows: ReviewRow[], filter: string) {
-  return rows.filter((candidate) => {
-    switch (filter) {
-      case "unmatched":
-        return candidate.matchStatus === "unmatched";
-      case "duplicates":
-        return candidate.matchStatus === "duplicate_suspected";
-      case "missing-gl":
-        return candidate.exceptions.some((exception) => exception.code === "missing_gl_code");
-      case "missing-vat":
-        return candidate.exceptions.some((exception) => exception.code === "missing_vat_code");
-      case "low-confidence":
-        return candidate.exceptions.some(
-          (exception) => exception.code === "low_confidence_extraction",
-        );
-      case "mismatched":
-        return candidate.exceptions.some((exception) => exception.code === "amount_mismatch");
-      default:
-        return true;
-    }
-  });
-}
-
 function patchRowValue(row: ReviewRow, field: string, value: string): ReviewRow {
   switch (field) {
     case "supplier":
@@ -80,6 +49,14 @@ function patchRowValue(row: ReviewRow, field: string, value: string): ReviewRow 
       return { ...row, date: value };
     case "gross":
       return { ...row, gross: value.trim() ? Number(value) : undefined };
+    case "net": {
+      const net = value.trim() ? Number(value) : undefined;
+      const nextVat =
+        row.gross !== undefined && net !== undefined
+          ? Number((row.gross - net).toFixed(2))
+          : row.vat;
+      return { ...row, net, vat: nextVat };
+    }
     case "vat": {
       const vat = value.trim() ? Number(value) : undefined;
       const nextNet =
@@ -104,28 +81,25 @@ function patchRowValue(row: ReviewRow, field: string, value: string): ReviewRow 
 export function ReviewWorkspace({
   run,
   initialRows,
-  initialFilter,
   initialRowId,
 }: {
   run: ReconciliationRun;
   initialRows: ReviewRow[];
-  initialFilter?: string;
   initialRowId?: string;
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
-  const [activeFilter, setActiveFilter] = useState(initialFilter || "all");
   const [selectedRowId, setSelectedRowId] = useState(initialRowId || initialRows[0]?.id || "");
   const [columns, setColumns] = useState(defaultColumns);
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [activeFilterColumnKey, setActiveFilterColumnKey] = useState<string | null>(null);
+  const [newColumnLabel, setNewColumnLabel] = useState("");
+  const [newColumnFormula, setNewColumnFormula] = useState("=");
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     setRows(initialRows);
   }, [initialRows]);
-
-  useEffect(() => {
-    setActiveFilter(initialFilter || "all");
-  }, [initialFilter]);
 
   useEffect(() => {
     if (initialRowId) {
@@ -134,8 +108,27 @@ export function ReviewWorkspace({
   }, [initialRowId]);
 
   const filteredRows = useMemo(
-    () => applyFilter(rows, activeFilter),
-    [activeFilter, rows],
+    () =>
+      rows.filter((row, index) =>
+        Object.entries(columnFilters).every(([columnKey, filterValue]) => {
+          if (!filterValue.trim()) {
+            return true;
+          }
+
+          const column = columns.find((candidate) => candidate.key === columnKey);
+          if (!column) {
+            return true;
+          }
+
+          return getReviewCellFilterText(
+            row,
+            column,
+            columns.filter((candidate) => candidate.visible),
+            index + 2,
+          ).includes(filterValue.toLowerCase());
+        }),
+      ),
+    [columnFilters, columns, rows],
   );
 
   useEffect(() => {
@@ -214,6 +207,29 @@ export function ReviewWorkspace({
     );
   }
 
+  function handleAddCustomColumn() {
+    const label = newColumnLabel.trim();
+    const formula = newColumnFormula.trim();
+
+    if (!label || !formula) {
+      return;
+    }
+
+    setColumns((current) => [
+      ...current,
+      {
+        key: `custom_${Date.now()}`,
+        label,
+        visible: true,
+        width: 14,
+        kind: "custom",
+        formula,
+      },
+    ]);
+    setNewColumnLabel("");
+    setNewColumnFormula("=");
+  }
+
   return (
     <div className="grid items-start gap-5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="min-w-0 space-y-5">
@@ -240,8 +256,17 @@ export function ReviewWorkspace({
           rows={filteredRows}
           columns={columns}
           selectedRowId={selectedRowId}
+          columnFilters={columnFilters}
+          activeFilterColumnKey={activeFilterColumnKey}
           onSelectRow={setSelectedRowId}
           onEditField={handleEditField}
+          onMoveColumn={(fromIndex, toIndex) =>
+            setColumns((current) => moveColumn(current, fromIndex, toIndex))
+          }
+          onFilterChange={(columnKey, value) =>
+            setColumnFilters((current) => ({ ...current, [columnKey]: value }))
+          }
+          onToggleFilterMenu={setActiveFilterColumnKey}
           pending={pending}
         />
       </div>
@@ -249,104 +274,48 @@ export function ReviewWorkspace({
       <div className="sticky top-6 max-h-[calc(100vh-110px)] space-y-5 overflow-y-auto pr-1">
         <Card className="space-y-4">
           <div>
-            <h2 className="text-xl font-semibold">Sheet controls</h2>
+            <h2 className="text-xl font-semibold">Add column</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-              Treat the review table like a working sheet. Set the active filter, hide columns, or move them around without leaving the screen.
+              Add a custom sheet column and write the Excel-style formula you want it to use.
             </p>
           </div>
-
-          <div className="space-y-2">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-              Active filter
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {filterOptions.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => setActiveFilter(item.value)}
-                  className={`rounded-full px-3 py-2 text-sm font-medium transition ${
-                    activeFilter === item.value
-                      ? "bg-[var(--color-accent)] text-[var(--color-accent-foreground)]"
-                      : "bg-[var(--color-panel)] text-[var(--color-muted-foreground)] hover:bg-white"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-                Visible columns
-              </div>
+            <Input
+              placeholder="Column label"
+              value={newColumnLabel}
+              onChange={(event) => setNewColumnLabel(event.target.value)}
+            />
+            <Input
+              placeholder="Formula, for example =C2-D2 or =SUM(C2:E2)"
+              value={newColumnFormula}
+              onChange={(event) => setNewColumnFormula(event.target.value)}
+            />
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3 text-xs leading-6 text-[var(--color-muted-foreground)]">
+              Use spreadsheet-style references like `=B2-C2`, `=SUM(C2:E2)`, or label references like `=[Gross]-[VAT]`.
+            </div>
+            <div className="flex gap-3">
+              <Button type="button" onClick={handleAddCustomColumn}>
+                Add column
+              </Button>
               <Button
                 type="button"
                 variant="secondary"
-                className="h-9 px-3"
                 onClick={() => setColumns(defaultColumns)}
               >
-                Reset
+                Reset base columns
               </Button>
-            </div>
-            <div className="space-y-2">
-              {columns.map((column, index) => (
-                <div
-                  key={column.key}
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 text-sm font-medium text-[var(--color-foreground)]">
-                      <input
-                        type="checkbox"
-                        checked={column.visible}
-                        onChange={(event) =>
-                          setColumns((current) =>
-                            current.map((item) =>
-                              item.key === column.key
-                                ? { ...item, visible: event.target.checked }
-                                : item,
-                            ),
-                          )
-                        }
-                      />
-                      {column.label}
-                    </label>
-                    <div className="ml-auto flex gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-8 px-2"
-                        disabled={index === 0}
-                        onClick={() =>
-                          setColumns((current) => moveColumn(current, index, index - 1))
-                        }
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-8 px-2"
-                        disabled={index === columns.length - 1}
-                        onClick={() =>
-                          setColumns((current) => moveColumn(current, index, index + 1))
-                        }
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </Card>
 
         {selectedRow ? (
           <>
+            <DocumentAttachmentPanel
+              key={`documents_${selectedRow.id}`}
+              runId={run.id}
+              row={selectedRow}
+              documents={run.documents}
+            />
             <ReviewDetailPanel row={selectedRow} run={run} />
             <Card className="space-y-4">
               <div>

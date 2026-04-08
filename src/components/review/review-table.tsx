@@ -1,15 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type {
-  ReviewGridColumnLayout,
-  ReviewRow,
-} from "@/lib/domain/types";
-import { formatCurrency, formatPercent } from "@/lib/utils";
-import { MatchStatusPill } from "@/components/ui/status-pill";
-import { Badge } from "@/components/ui/badge";
+import { Filter, GripVertical, X } from "lucide-react";
+import type { ReviewGridColumnLayout, ReviewRow } from "@/lib/domain/types";
+import { formatCurrency } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getReviewCellDisplayValue } from "@/lib/review-sheet";
 
 function InlineCellInput({
   value,
@@ -49,6 +46,7 @@ function InlineCellInput({
           event.currentTarget.blur();
         }
       }}
+      autoFocus
     />
   );
 }
@@ -119,16 +117,35 @@ function getExcelColumnName(columnNumber: number) {
 function renderCell({
   row,
   column,
+  columns,
+  rowNumber,
   activeCell,
   setActiveCell,
   onEditField,
 }: {
   row: ReviewRow;
   column: ReviewGridColumnLayout;
+  columns: ReviewGridColumnLayout[];
+  rowNumber: number;
   activeCell: string | null;
   setActiveCell: (cellId: string | null) => void;
   onEditField: (rowId: string, field: string, value: string) => void;
 }) {
+  if (column.kind === "custom") {
+    return (
+      <div>
+        <div className="text-[var(--color-foreground)]">
+          {getReviewCellDisplayValue(row, column, columns, rowNumber)}
+        </div>
+        {column.formula ? (
+          <div className="mt-1 truncate font-mono text-[11px] text-[var(--color-muted-foreground)]">
+            {column.formula}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   switch (column.key) {
     case "supplier":
       return (
@@ -156,112 +173,59 @@ function renderCell({
           />
         </div>
       );
+    case "originalValue":
+      return (
+        <div>
+          <div className="text-[var(--color-foreground)]">
+            {formatCurrency(row.originalAmount, row.originalCurrency)}
+          </div>
+          <div className="mt-1 text-xs text-[var(--color-muted-foreground)]">
+            {row.originalCurrency}
+          </div>
+        </div>
+      );
     case "gross":
+    case "net":
+    case "vat":
       return (
         <div>
           <EditableDisplay
-            cellId={`${row.id}_gross`}
+            cellId={`${row.id}_${column.key}`}
             activeCell={activeCell}
             onActivate={setActiveCell}
             onDeactivate={() => setActiveCell(null)}
             type="number"
-            value={row.gross ?? ""}
-            onCommit={(value) => onEditField(row.id, "gross", value)}
-            inputClassName="h-8 w-28 rounded-xl px-3"
+            value={row[column.key] ?? ""}
+            onCommit={(value) => onEditField(row.id, column.key, value)}
+            inputClassName="h-8 w-24 rounded-xl px-3"
             displayClassName="text-left"
-            display={formatCurrency(row.gross || 0, row.currency)}
+            display={getReviewCellDisplayValue(row, column, columns, rowNumber)}
           />
           <div className="mt-1 text-xs text-[var(--color-muted-foreground)]">
             {row.currency}
           </div>
         </div>
       );
-    case "vat":
-      return (
-        <div>
-          <EditableDisplay
-            cellId={`${row.id}_vat`}
-            activeCell={activeCell}
-            onActivate={setActiveCell}
-            onDeactivate={() => setActiveCell(null)}
-            type="number"
-            value={row.vat ?? ""}
-            onCommit={(value) => onEditField(row.id, "vat", value)}
-            inputClassName="h-8 w-24 rounded-xl px-3"
-            displayClassName="text-left"
-            display={
-              row.vat !== undefined
-                ? formatCurrency(row.vat, row.currency)
-                : "Pending"
-            }
-          />
-        </div>
-      );
     case "vatPercent":
       return (
-        <div className="text-sm text-[var(--color-foreground)]">
-          {row.vatPercent !== undefined ? formatPercent(row.vatPercent) : "No rate"}
-        </div>
-      );
-    case "match":
-      return (
-        <div>
-          <MatchStatusPill status={row.matchStatus} />
-          <div className="mt-2 text-xs text-[var(--color-muted-foreground)]">
-            {Math.round(row.confidence * 100)}% confidence
-          </div>
+        <div className="text-[var(--color-foreground)]">
+          {getReviewCellDisplayValue(row, column, columns, rowNumber)}
         </div>
       );
     case "vatCode":
-      return (
-        <EditableDisplay
-          cellId={`${row.id}_vatCode`}
-          activeCell={activeCell}
-          onActivate={setActiveCell}
-          onDeactivate={() => setActiveCell(null)}
-          value={row.vatCode || ""}
-          onCommit={(value) => onEditField(row.id, "vatCode", value)}
-          inputClassName="h-8 rounded-xl px-3"
-          displayClassName="text-left text-[var(--color-foreground)] hover:text-[var(--color-accent)]"
-          display={row.vatCode || "Missing"}
-        />
-      );
     case "glCode":
       return (
         <EditableDisplay
-          cellId={`${row.id}_glCode`}
+          cellId={`${row.id}_${column.key}`}
           activeCell={activeCell}
           onActivate={setActiveCell}
           onDeactivate={() => setActiveCell(null)}
-          value={row.glCode || ""}
-          onCommit={(value) => onEditField(row.id, "glCode", value)}
+          value={row[column.key] || ""}
+          onCommit={(value) => onEditField(row.id, column.key, value)}
           inputClassName="h-8 rounded-xl px-3"
           displayClassName="text-left text-[var(--color-foreground)] hover:text-[var(--color-accent)]"
-          display={row.glCode || "Missing"}
+          display={getReviewCellDisplayValue(row, column, columns, rowNumber)}
         />
-      );
-    case "exceptions":
-      return (
-        <div className="flex flex-wrap gap-2">
-          {row.exceptions.length === 0 ? (
-            <Badge tone="success">Clear</Badge>
-          ) : (
-            row.exceptions.map((exception) => (
-              <Badge
-                key={`${row.id}_${exception.code}`}
-                tone={
-                  exception.severity === "high"
-                    ? "danger"
-                    : exception.severity === "medium"
-                      ? "warning"
-                      : "neutral"
-                }
-              >
-                {exception.code.replace(/_/g, " ")}
-              </Badge>
-            ))
-          )}
-        </div>
       );
   }
 }
@@ -270,18 +234,29 @@ export function ReviewTable({
   rows,
   columns,
   selectedRowId,
+  columnFilters,
+  activeFilterColumnKey,
   onSelectRow,
   onEditField,
+  onMoveColumn,
+  onFilterChange,
+  onToggleFilterMenu,
   pending,
 }: {
   rows: ReviewRow[];
   columns: ReviewGridColumnLayout[];
   selectedRowId?: string;
+  columnFilters: Record<string, string>;
+  activeFilterColumnKey?: string | null;
   onSelectRow: (rowId: string) => void;
   onEditField: (rowId: string, field: string, value: string) => void;
+  onMoveColumn: (fromIndex: number, toIndex: number) => void;
+  onFilterChange: (columnKey: string, value: string) => void;
+  onToggleFilterMenu: (columnKey: string | null) => void;
   pending?: boolean;
 }) {
   const [activeCell, setActiveCell] = useState<string | null>(null);
+  const [draggedColumnIndex, setDraggedColumnIndex] = useState<number | null>(null);
   const visibleColumns = columns.filter((column) => column.visible);
 
   return (
@@ -305,20 +280,72 @@ export function ReviewTable({
             <div className="flex h-12 w-14 shrink-0 items-center justify-center border-r border-[var(--color-border)] bg-[#f3f5f7] text-xs font-semibold text-[#61707b]">
               1
             </div>
-            {visibleColumns.map((column) => (
+            {visibleColumns.map((column, index) => (
               <div
                 key={column.key}
-                className="flex h-12 items-center border-r border-[var(--color-border)] px-4 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]"
+                draggable
+                onDragStart={() => setDraggedColumnIndex(index)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => {
+                  if (draggedColumnIndex !== null && draggedColumnIndex !== index) {
+                    onMoveColumn(draggedColumnIndex, index);
+                  }
+                  setDraggedColumnIndex(null);
+                }}
+                onDragEnd={() => setDraggedColumnIndex(null)}
+                className="relative flex h-14 items-center gap-2 border-r border-[var(--color-border)] px-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]"
                 style={{ width: `${(column.width || 16) * 11}px` }}
               >
-                {column.label}
+                <GripVertical className="h-4 w-4 shrink-0 text-[#90a0aa]" />
+                <span className="truncate">{column.label}</span>
+                <button
+                  type="button"
+                  className={`ml-auto rounded-lg p-1 transition ${
+                    columnFilters[column.key]
+                      ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+                      : "text-[#90a0aa] hover:bg-white"
+                  }`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleFilterMenu(
+                      activeFilterColumnKey === column.key ? null : column.key,
+                    );
+                  }}
+                >
+                  <Filter className="h-4 w-4" />
+                </button>
+
+                {activeFilterColumnKey === column.key ? (
+                  <div className="absolute left-3 right-3 top-[calc(100%-4px)] z-20 rounded-2xl border border-[var(--color-border)] bg-white p-3 shadow-[0_18px_48px_rgba(15,23,31,0.12)]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+                        Filter {column.label}
+                      </div>
+                      {columnFilters[column.key] ? (
+                        <button
+                          type="button"
+                          className="rounded-lg p-1 text-[var(--color-muted-foreground)] hover:bg-[var(--color-panel)]"
+                          onClick={() => onFilterChange(column.key, "")}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                    </div>
+                    <Input
+                      className="mt-2 h-9 rounded-xl px-3"
+                      placeholder="Filter value"
+                      value={columnFilters[column.key] || ""}
+                      onChange={(event) => onFilterChange(column.key, event.target.value)}
+                    />
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
 
           {rows.length === 0 ? (
             <div className="px-6 py-10 text-sm text-[var(--color-muted-foreground)]">
-              No rows match the current filter.
+              No rows match the current filters.
             </div>
           ) : (
             rows.map((row, rowIndex) => (
@@ -343,6 +370,8 @@ export function ReviewTable({
                     {renderCell({
                       row,
                       column,
+                      columns: visibleColumns,
+                      rowNumber: rowIndex + 2,
                       activeCell,
                       setActiveCell,
                       onEditField,
@@ -359,6 +388,9 @@ export function ReviewTable({
           Saving review changes...
         </div>
       ) : null}
+      <div className="border-t border-[var(--color-border)] bg-[#f8fafb] px-4 py-3 text-xs text-[var(--color-muted-foreground)]">
+        Drag headers to reorder columns. Use the filter icon in a header to filter like a spreadsheet.
+      </div>
     </Card>
   );
 }
