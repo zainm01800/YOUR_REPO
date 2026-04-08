@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Filter, X } from "lucide-react";
 import {
@@ -184,6 +184,34 @@ function toGridColumnWidth(column: ReviewGridColumnLayout) {
   return Math.max(110, (column.width || 12) * 12);
 }
 
+function createEmptyGridRow(index: number): EmptyGridRow {
+  return {
+    id: `empty_${index}`,
+    transactionId: "",
+    source: "",
+    supplier: "",
+    date: undefined,
+    currency: "",
+    originalAmount: 0,
+    originalCurrency: "",
+    net: undefined,
+    vat: undefined,
+    gross: undefined,
+    vatPercent: undefined,
+    vatCode: undefined,
+    glCode: undefined,
+    matchStatus: "unmatched",
+    confidence: 0,
+    originalDescription: "",
+    employee: undefined,
+    notes: undefined,
+    approved: false,
+    excludedFromExport: false,
+    exceptions: [],
+    __isEmpty: true,
+  };
+}
+
 export function ReviewTable({
   rows,
   columns,
@@ -209,44 +237,46 @@ export function ReviewTable({
   onToggleFilterMenu: (columnKey: string | null) => void;
   pending?: boolean;
 }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [targetVisibleRows, setTargetVisibleRows] = useState(18);
   const visibleColumns = useMemo(
     () => columns.filter((column) => column.visible),
     [columns],
   );
-  const targetVisibleRows = 18;
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const updateVisibleRows = () => {
+      const nextHeight = container.clientHeight;
+      const usableHeight = Math.max(nextHeight - 46, 0);
+      const requiredRows = Math.ceil(usableHeight / 54) + 2;
+      setTargetVisibleRows(Math.max(requiredRows, rows.length + 1, 18));
+    };
+
+    updateVisibleRows();
+
+    const observer = new ResizeObserver(updateVisibleRows);
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [rows.length]);
+
   const displayRows = useMemo(
     () =>
       rows.length >= targetVisibleRows
         ? rows
         : [
             ...rows,
-            ...Array.from({ length: targetVisibleRows - rows.length }, (_, index) => ({
-              id: `empty_${index}`,
-              transactionId: "",
-              source: "",
-              supplier: "",
-              date: undefined,
-              currency: "",
-              originalAmount: 0,
-              originalCurrency: "",
-              net: undefined,
-              vat: undefined,
-              gross: undefined,
-              vatPercent: undefined,
-              vatCode: undefined,
-              glCode: undefined,
-              matchStatus: "unmatched" as const,
-              confidence: 0,
-              originalDescription: "",
-              employee: undefined,
-              notes: undefined,
-              approved: false,
-              excludedFromExport: false,
-              exceptions: [],
-              __isEmpty: true,
-            })),
+            ...Array.from(
+              { length: targetVisibleRows - rows.length },
+              (_, index) => createEmptyGridRow(index),
+            ),
           ],
-    [rows],
+    [rows, targetVisibleRows],
   );
 
   const gridColumns = useMemo(() => {
@@ -270,7 +300,16 @@ export function ReviewTable({
     for (const column of visibleColumns) {
       const editable =
         column.kind !== "custom" &&
-        ["supplier", "gross", "net", "vat", "vatCode", "glCode"].includes(column.key);
+        [
+          "supplier",
+          "originalValue",
+          "gross",
+          "net",
+          "vat",
+          "vatPercent",
+          "vatCode",
+          "glCode",
+        ].includes(column.key);
 
       spreadsheetColumns.push({
         key: column.key,
@@ -285,7 +324,7 @@ export function ReviewTable({
           closeOnExternalRowChange: true,
         },
         renderEditCell:
-          column.key === "gross" || column.key === "net" || column.key === "vat"
+          ["originalValue", "gross", "net", "vat", "vatPercent"].includes(column.key)
             ? NumberEditor
             : editable
               ? SimpleTextEditor
@@ -316,7 +355,7 @@ export function ReviewTable({
 
   return (
     <Card className="flex min-w-0 flex-col overflow-hidden p-0">
-      <div className="h-[min(68vh,760px)] min-h-[500px] overflow-hidden">
+      <div ref={containerRef} className="h-[min(68vh,760px)] min-h-[500px] overflow-hidden">
         <DataGrid
           aria-label="Review spreadsheet"
           className="rdg-light rdg-review-grid h-full"
@@ -380,7 +419,16 @@ export function ReviewTable({
             onSelectRow(args.row.id);
 
             if (
-              ["supplier", "gross", "net", "vat", "vatCode", "glCode"].includes(
+              [
+                "supplier",
+                "originalValue",
+                "gross",
+                "net",
+                "vat",
+                "vatPercent",
+                "vatCode",
+                "glCode",
+              ].includes(
                 String(args.column.key),
               )
             ) {

@@ -240,6 +240,13 @@ export interface ReviewGridColumnLayout {
   formula?: string;
 }
 
+export interface ReviewTableTemplate {
+  id: string;
+  name: string;
+  columns: ReviewGridColumnLayout[];
+  locked?: boolean;
+}
+
 export interface RunProcessingSummary {
   transactions: number;
   documents: number;

@@ -198,6 +198,13 @@ export const mockRepository: Repository = {
             transaction.merchant = input.value;
           }
           break;
+        case "originalValue": {
+          const nextOriginalAmount = parseOptionalNumber(input.value);
+          if (nextOriginalAmount !== undefined) {
+            transaction.amount = nextOriginalAmount;
+          }
+          break;
+        }
         case "date":
           if (document) {
             document.issueDate = input.value;
@@ -236,6 +243,26 @@ export const mockRepository: Repository = {
             if (document.gross !== undefined && nextVat !== undefined) {
               document.net = Number((document.gross - nextVat).toFixed(2));
             }
+            syncPrimaryTaxLine(document);
+          }
+          break;
+        }
+        case "vatPercent": {
+          const nextRate = parseOptionalNumber(input.value);
+          if (document && nextRate !== undefined) {
+            const primaryTaxLine = document.taxLines[0];
+            if (primaryTaxLine) {
+              primaryTaxLine.rate = nextRate;
+            }
+
+            if (document.net !== undefined) {
+              document.vat = Number((document.net * (nextRate / 100)).toFixed(2));
+              document.gross = Number(((document.net || 0) + (document.vat || 0)).toFixed(2));
+            } else if (document.gross !== undefined) {
+              document.net = Number((document.gross / (1 + nextRate / 100)).toFixed(2));
+              document.vat = Number((document.gross - document.net).toFixed(2));
+            }
+
             syncPrimaryTaxLine(document);
           }
           break;

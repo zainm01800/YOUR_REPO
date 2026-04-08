@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Redo2, RotateCcw, Save, Undo2 } from "lucide-react";
 import type {
   ReconciliationRun,
   ReviewActionType,
   ReviewGridColumnLayout,
   ReviewRow,
+  ReviewTableTemplate,
 } from "@/lib/domain/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,14 @@ import { ReviewDetailPanel } from "@/components/review/review-detail-panel";
 import { ReviewTable } from "@/components/review/review-table";
 import { buildRunSummary } from "@/lib/reconciliation/summary";
 import { getReviewCellFilterText } from "@/lib/review-sheet";
+import {
+  cloneReviewColumns,
+  createDefaultReviewTemplate,
+  defaultReviewTemplateId,
+  normaliseReviewTemplates,
+  reviewTemplateStorageKey,
+} from "@/lib/review-templates";
+import { deepClone, slugify } from "@/lib/utils";
 
 const formulaTemplates = [
   {
@@ -100,16 +109,24 @@ const formulaTemplates = [
   },
 ] as const;
 
-const defaultColumns: ReviewGridColumnLayout[] = [
-  { key: "supplier", label: "Supplier", visible: true, width: 24 },
-  { key: "originalValue", label: "Original Value", visible: true, width: 14 },
-  { key: "gross", label: "Gross", visible: true, width: 12 },
-  { key: "net", label: "Net", visible: true, width: 12 },
-  { key: "vat", label: "VAT", visible: true, width: 12 },
-  { key: "vatPercent", label: "VAT %", visible: true, width: 10 },
-  { key: "vatCode", label: "VAT Code", visible: true, width: 12 },
-  { key: "glCode", label: "GL Code", visible: true, width: 12 },
-];
+const editableFieldKeys = [
+  "supplier",
+  "originalValue",
+  "gross",
+  "net",
+  "vat",
+  "vatPercent",
+  "vatCode",
+  "glCode",
+] as const;
+
+type EditableFieldKey = (typeof editableFieldKeys)[number];
+
+type WorkspaceSnapshot = {
+  rows: ReviewRow[];
+  columns: ReviewGridColumnLayout[];
+  selectedTemplateId: string;
+};
 
 function moveColumn(
   columns: ReviewGridColumnLayout[],
@@ -122,29 +139,86 @@ function moveColumn(
   return next;
 }
 
+function toOptionalNumber(value: string) {
+  if (!value.trim()) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function patchRowValue(row: ReviewRow, field: string, value: string): ReviewRow {
   switch (field) {
     case "supplier":
       return { ...row, supplier: value };
+    case "originalValue": {
+      const originalAmount = toOptionalNumber(value);
+      return originalAmount === undefined ? row : { ...row, originalAmount };
+    }
     case "date":
       return { ...row, date: value };
-    case "gross":
-      return { ...row, gross: value.trim() ? Number(value) : undefined };
-    case "net": {
-      const net = value.trim() ? Number(value) : undefined;
+    case "gross": {
+      const gross = toOptionalNumber(value);
+      if (gross === undefined) {
+        return { ...row, gross: undefined };
+      }
+
       const nextVat =
-        row.gross !== undefined && net !== undefined
-          ? Number((row.gross - net).toFixed(2))
-          : row.vat;
-      return { ...row, net, vat: nextVat };
+        row.net !== undefined ? Number((gross - row.net).toFixed(2)) : row.vat;
+      const nextVatPercent =
+        row.net !== undefined && nextVat !== undefined && row.net !== 0
+          ? Number(((nextVat / row.net) * 100).toFixed(1))
+          : row.vatPercent;
+      return { ...row, gross, vat: nextVat, vatPercent: nextVatPercent };
+    }
+    case "net": {
+      const net = toOptionalNumber(value);
+      if (net === undefined) {
+        return { ...row, net: undefined };
+      }
+
+      const nextVat =
+        row.gross !== undefined ? Number((row.gross - net).toFixed(2)) : row.vat;
+      const nextVatPercent =
+        nextVat !== undefined && net !== 0
+          ? Number(((nextVat / net) * 100).toFixed(1))
+          : row.vatPercent;
+      return { ...row, net, vat: nextVat, vatPercent: nextVatPercent };
     }
     case "vat": {
-      const vat = value.trim() ? Number(value) : undefined;
+      const vat = toOptionalNumber(value);
+      if (vat === undefined) {
+        return { ...row, vat: undefined };
+      }
+
       const nextNet =
-        row.gross !== undefined && vat !== undefined
-          ? Number((row.gross - vat).toFixed(2))
-          : row.net;
-      return { ...row, vat, net: nextNet };
+        row.gross !== undefined ? Number((row.gross - vat).toFixed(2)) : row.net;
+      const nextVatPercent =
+        nextNet !== undefined && nextNet !== 0
+          ? Number(((vat / nextNet) * 100).toFixed(1))
+          : row.vatPercent;
+      return { ...row, vat, net: nextNet, vatPercent: nextVatPercent };
+    }
+    case "vatPercent": {
+      const vatPercent = toOptionalNumber(value);
+      if (vatPercent === undefined) {
+        return { ...row, vatPercent: undefined };
+      }
+
+      if (row.net !== undefined) {
+        const vat = Number((row.net * (vatPercent / 100)).toFixed(2));
+        const gross = Number((row.net + vat).toFixed(2));
+        return { ...row, vatPercent, vat, gross };
+      }
+
+      if (row.gross !== undefined) {
+        const net = Number((row.gross / (1 + vatPercent / 100)).toFixed(2));
+        const vat = Number((row.gross - net).toFixed(2));
+        return { ...row, vatPercent, net, vat };
+      }
+
+      return { ...row, vatPercent };
     }
     case "glCode":
       return { ...row, glCode: value };
@@ -159,6 +233,23 @@ function patchRowValue(row: ReviewRow, field: string, value: string): ReviewRow 
   }
 }
 
+function getFieldValue(row: ReviewRow, field: EditableFieldKey) {
+  switch (field) {
+    case "originalValue":
+      return row.originalAmount;
+    default:
+      return row[field];
+  }
+}
+
+function toFieldPayloadValue(value: string | number | undefined) {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  return String(value);
+}
+
 export function ReviewWorkspace({
   run,
   initialRows,
@@ -168,17 +259,25 @@ export function ReviewWorkspace({
   initialRows: ReviewRow[];
   initialRowId?: string;
 }) {
-  const router = useRouter();
   const [rows, setRows] = useState(initialRows);
   const [selectedRowId, setSelectedRowId] = useState(initialRowId || initialRows[0]?.id || "");
-  const [columns, setColumns] = useState(defaultColumns);
+  const [templates, setTemplates] = useState<ReviewTableTemplate[]>(() =>
+    normaliseReviewTemplates(),
+  );
+  const [selectedTemplateId, setSelectedTemplateId] = useState(defaultReviewTemplateId);
+  const [columns, setColumns] = useState<ReviewGridColumnLayout[]>(() =>
+    cloneReviewColumns(createDefaultReviewTemplate().columns),
+  );
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [activeFilterColumnKey, setActiveFilterColumnKey] = useState<string | null>(null);
+  const [templateName, setTemplateName] = useState("");
   const [newColumnLabel, setNewColumnLabel] = useState("");
   const [selectedFormulaTemplateId, setSelectedFormulaTemplateId] = useState<string>(
     formulaTemplates[0].id,
   );
   const [customFormula, setCustomFormula] = useState("");
+  const [historyPast, setHistoryPast] = useState<WorkspaceSnapshot[]>([]);
+  const [historyFuture, setHistoryFuture] = useState<WorkspaceSnapshot[]>([]);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -190,6 +289,39 @@ export function ReviewWorkspace({
       setSelectedRowId(initialRowId);
     }
   }, [initialRowId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const storedTemplates = window.localStorage.getItem(reviewTemplateStorageKey);
+    if (!storedTemplates) {
+      const defaults = normaliseReviewTemplates();
+      setTemplates(defaults);
+      setTemplateName(defaults[0].name);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedTemplates) as ReviewTableTemplate[];
+      const nextTemplates = normaliseReviewTemplates(parsed);
+      setTemplates(nextTemplates);
+      setTemplateName(nextTemplates[0].name);
+    } catch {
+      const defaults = normaliseReviewTemplates();
+      setTemplates(defaults);
+      setTemplateName(defaults[0].name);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(reviewTemplateStorageKey, JSON.stringify(templates));
+  }, [templates]);
 
   const filteredRows = useMemo(
     () =>
@@ -231,6 +363,31 @@ export function ReviewWorkspace({
     rows.find((candidate) => candidate.id === selectedRowId) ||
     filteredRows[0];
   const summary = buildRunSummary(rows);
+  const selectedFormulaTemplate =
+    formulaTemplates.find((template) => template.id === selectedFormulaTemplateId) ||
+    formulaTemplates[0];
+
+  function createSnapshot(): WorkspaceSnapshot {
+    return {
+      rows: deepClone(rows),
+      columns: deepClone(columns),
+      selectedTemplateId,
+    };
+  }
+
+  function commitSnapshot(snapshot: WorkspaceSnapshot) {
+    setRows(snapshot.rows);
+    setColumns(snapshot.columns);
+    setSelectedTemplateId(snapshot.selectedTemplateId);
+
+    const matchingTemplate = templates.find((template) => template.id === snapshot.selectedTemplateId);
+    setTemplateName(matchingTemplate?.name || "Default");
+  }
+
+  function rememberCurrentState() {
+    setHistoryPast((current) => [...current.slice(-39), createSnapshot()]);
+    setHistoryFuture([]);
+  }
 
   async function submitMutation(
     rowId: string,
@@ -249,19 +406,52 @@ export function ReviewWorkspace({
         value,
       }),
     });
-    router.refresh();
+  }
+
+  function syncRowsToServer(previousRows: ReviewRow[], nextRows: ReviewRow[]) {
+    const previousById = new Map(previousRows.map((row) => [row.id, row]));
+
+    startTransition(async () => {
+      const tasks: Promise<void>[] = [];
+
+      for (const nextRow of nextRows) {
+        const previousRow = previousById.get(nextRow.id);
+        if (!previousRow) {
+          continue;
+        }
+
+        for (const field of editableFieldKeys) {
+          const previousValue = getFieldValue(previousRow, field);
+          const nextValue = getFieldValue(nextRow, field);
+
+          if (previousValue === nextValue) {
+            continue;
+          }
+
+          tasks.push(
+            submitMutation(
+              nextRow.id,
+              "edit_field",
+              toFieldPayloadValue(nextValue),
+              field,
+            ),
+          );
+        }
+      }
+
+      await Promise.all(tasks);
+    });
   }
 
   function handleEditField(rowId: string, field: string, value: string) {
-    setRows((current) =>
-      current.map((row) =>
-        row.id === rowId ? patchRowValue(row, field, value) : row,
-      ),
+    const previousRows = deepClone(rows);
+    const nextRows = previousRows.map((row) =>
+      row.id === rowId ? patchRowValue(row, field, value) : row,
     );
 
-    startTransition(async () => {
-      await submitMutation(rowId, "edit_field", value, field);
-    });
+    rememberCurrentState();
+    setRows(nextRows);
+    syncRowsToServer(previousRows, nextRows);
   }
 
   function handleActionComplete(actionType: ReviewActionType, value?: string) {
@@ -291,20 +481,72 @@ export function ReviewWorkspace({
     );
   }
 
-  function handleAddCustomColumn() {
+  function handleSelectTemplate(templateId: string) {
+    const nextTemplate = templates.find((template) => template.id === templateId);
+    if (!nextTemplate) {
+      return;
+    }
+
+    rememberCurrentState();
+    setSelectedTemplateId(nextTemplate.id);
+    setTemplateName(nextTemplate.name);
+    setColumns(cloneReviewColumns(nextTemplate.columns));
+  }
+
+  function handleSaveTemplate() {
+    const name = templateName.trim();
+    if (!name) {
+      return;
+    }
+
+    const nextColumns = cloneReviewColumns(columns);
+    setTemplates((current) => {
+      const nextTemplates = normaliseReviewTemplates(current);
+      const selectedTemplate = nextTemplates.find((template) => template.id === selectedTemplateId);
+      const shouldUpdateCurrent =
+        selectedTemplateId !== defaultReviewTemplateId &&
+        selectedTemplate &&
+        selectedTemplate.name === name;
+
+      const updatedTemplates = shouldUpdateCurrent
+        ? nextTemplates.map((template) =>
+            template.id === selectedTemplateId
+              ? { ...template, name, columns: nextColumns }
+              : template,
+          )
+        : [
+            ...nextTemplates,
+            {
+              id: `template_${slugify(name)}_${Date.now()}`,
+              name,
+              columns: nextColumns,
+            },
+          ];
+
+      const normalisedTemplates = normaliseReviewTemplates(updatedTemplates);
+      const activeTemplate =
+        normalisedTemplates.find((template) =>
+          shouldUpdateCurrent ? template.id === selectedTemplateId : template.name === name,
+        ) || normalisedTemplates[0];
+
+      setSelectedTemplateId(activeTemplate.id);
+      setTemplateName(activeTemplate.name);
+      return normalisedTemplates;
+    });
+  }
+
+  function handleAddTemplateColumn() {
     const label = newColumnLabel.trim();
-    const selectedTemplate = formulaTemplates.find(
-      (template) => template.id === selectedFormulaTemplateId,
-    );
     const formula =
-      selectedTemplate?.id === "custom"
+      selectedFormulaTemplate.id === "custom"
         ? customFormula.trim()
-        : selectedTemplate?.formula;
+        : selectedFormulaTemplate.formula;
 
     if (!label || !formula) {
       return;
     }
 
+    rememberCurrentState();
     setColumns((current) => [
       ...current,
       {
@@ -320,9 +562,35 @@ export function ReviewWorkspace({
     setCustomFormula("");
   }
 
-  const selectedFormulaTemplate =
-    formulaTemplates.find((template) => template.id === selectedFormulaTemplateId) ||
-    formulaTemplates[0];
+  function handleUndo() {
+    const previousSnapshot = historyPast.at(-1);
+    if (!previousSnapshot) {
+      return;
+    }
+
+    const currentSnapshot = createSnapshot();
+    const previousRows = rows;
+
+    setHistoryPast((current) => current.slice(0, -1));
+    setHistoryFuture((current) => [...current, currentSnapshot]);
+    commitSnapshot(previousSnapshot);
+    syncRowsToServer(previousRows, previousSnapshot.rows);
+  }
+
+  function handleRedo() {
+    const nextSnapshot = historyFuture.at(-1);
+    if (!nextSnapshot) {
+      return;
+    }
+
+    const currentSnapshot = createSnapshot();
+    const previousRows = rows;
+
+    setHistoryFuture((current) => current.slice(0, -1));
+    setHistoryPast((current) => [...current, currentSnapshot]);
+    commitSnapshot(nextSnapshot);
+    syncRowsToServer(previousRows, nextSnapshot.rows);
+  }
 
   return (
     <div className="grid items-start gap-5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -346,6 +614,37 @@ export function ReviewWorkspace({
           </Card>
         </div>
 
+        <Card className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+              Sheet controls
+            </div>
+            <div className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+              {templates.find((template) => template.id === selectedTemplateId)?.name || "Default"} template active
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={historyPast.length === 0}
+              onClick={handleUndo}
+            >
+              <Undo2 className="mr-2 h-4 w-4" />
+              Undo
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={historyFuture.length === 0}
+              onClick={handleRedo}
+            >
+              <Redo2 className="mr-2 h-4 w-4" />
+              Redo
+            </Button>
+          </div>
+        </Card>
+
         <ReviewTable
           rows={filteredRows}
           columns={columns}
@@ -354,9 +653,10 @@ export function ReviewWorkspace({
           activeFilterColumnKey={activeFilterColumnKey}
           onSelectRow={setSelectedRowId}
           onEditField={handleEditField}
-          onMoveColumn={(fromIndex, toIndex) =>
-            setColumns((current) => moveColumn(current, fromIndex, toIndex))
-          }
+          onMoveColumn={(fromIndex, toIndex) => {
+            rememberCurrentState();
+            setColumns((current) => moveColumn(current, fromIndex, toIndex));
+          }}
           onFilterChange={(columnKey, value) =>
             setColumnFilters((current) => ({ ...current, [columnKey]: value }))
           }
@@ -368,63 +668,88 @@ export function ReviewWorkspace({
       <div className="sticky top-6 max-h-[calc(100vh-110px)] space-y-5 overflow-y-auto pr-1">
         <Card className="space-y-4">
           <div>
-            <h2 className="text-xl font-semibold">Add column</h2>
+            <h2 className="text-xl font-semibold">Add template</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-              Add a custom sheet column using a ready-made spreadsheet formula template.
+              Start from the current sheet, add your own columns, and save the layout as a reusable template.
             </p>
           </div>
           <div className="space-y-3">
-            <Input
-              placeholder="Column label"
-              value={newColumnLabel}
-              onChange={(event) => setNewColumnLabel(event.target.value)}
-            />
             <label className="space-y-2">
               <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                Formula template
+                Active template
               </span>
               <select
                 className="h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-foreground)]"
-                value={selectedFormulaTemplateId}
-                onChange={(event) => setSelectedFormulaTemplateId(event.target.value)}
+                value={selectedTemplateId}
+                onChange={(event) => handleSelectTemplate(event.target.value)}
               >
-                {formulaTemplates.map((template) => (
+                {templates.map((template) => (
                   <option key={template.id} value={template.id}>
-                    {template.label}
+                    {template.name}
                   </option>
                 ))}
               </select>
             </label>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3 text-sm leading-6 text-[var(--color-foreground)]">
-              <div className="font-medium">{selectedFormulaTemplate.description}</div>
-              {selectedFormulaTemplate.id === "custom" ? (
+            <Input
+              placeholder="Template name"
+              value={templateName}
+              onChange={(event) => setTemplateName(event.target.value)}
+            />
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                Add a derived column
+              </div>
+              <div className="mt-3 space-y-3">
                 <Input
-                  className="mt-3"
-                  placeholder="Example: =[Gross]-[VAT]"
-                  value={customFormula}
-                  onChange={(event) => setCustomFormula(event.target.value)}
+                  placeholder="Column label"
+                  value={newColumnLabel}
+                  onChange={(event) => setNewColumnLabel(event.target.value)}
                 />
-              ) : (
-                <div className="mt-2 font-mono text-xs text-[var(--color-muted-foreground)]">
-                  {selectedFormulaTemplate.formula}
+                <select
+                  className="h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-foreground)]"
+                  value={selectedFormulaTemplateId}
+                  onChange={(event) => setSelectedFormulaTemplateId(event.target.value)}
+                >
+                  {formulaTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.label}
+                    </option>
+                  ))}
+                </select>
+                {selectedFormulaTemplate.id === "custom" ? (
+                  <Input
+                    placeholder="Example: [Gross]-[VAT]"
+                    value={customFormula}
+                    onChange={(event) => setCustomFormula(event.target.value)}
+                  />
+                ) : (
+                  <div className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
+                    <div className="font-medium text-[var(--color-foreground)]">
+                      {selectedFormulaTemplate.description}
+                    </div>
+                    <div className="mt-2 font-mono text-xs">
+                      {selectedFormulaTemplate.formula}
+                    </div>
+                  </div>
+                )}
+                <div className="text-xs leading-6 text-[var(--color-muted-foreground)]">
+                  Available references: Supplier, Original Value, Gross, Net, VAT, VAT %, VAT Code, GL Code
                 </div>
-              )}
-              <div className="mt-3 text-xs text-[var(--color-muted-foreground)]">
-                Available references: Supplier, Original Value, Gross, Net, VAT, VAT %, VAT Code, GL Code
+                <div className="flex flex-wrap gap-3">
+                  <Button type="button" variant="secondary" onClick={handleAddTemplateColumn}>
+                    Add to current template
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => handleSelectTemplate(defaultReviewTemplateId)}>
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Reset to default
+                  </Button>
+                </div>
               </div>
             </div>
-            <div className="flex gap-3">
-              <Button type="button" onClick={handleAddCustomColumn}>
-                Add column
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setColumns(defaultColumns)}
-              >
-                Reset base columns
-              </Button>
-            </div>
+            <Button type="button" onClick={handleSaveTemplate}>
+              <Save className="mr-2 h-4 w-4" />
+              Save template
+            </Button>
           </div>
         </Card>
 

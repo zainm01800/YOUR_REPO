@@ -1,8 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Download, RotateCcw } from "lucide-react";
-import type { ExportColumnLayout, ReviewRow } from "@/lib/domain/types";
+import type {
+  ExportColumnLayout,
+  ReviewRow,
+  ReviewTableTemplate,
+} from "@/lib/domain/types";
 import {
   defaultExportLayout,
   exportLayoutPresets,
@@ -14,6 +18,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  mapReviewTemplateToExportLayout,
+  normaliseReviewTemplates,
+  reviewTemplateStorageKey,
+} from "@/lib/review-templates";
 
 function moveColumn(
   columns: ExportColumnLayout[],
@@ -74,12 +83,33 @@ export function ExportLayoutDesigner({
   runId: string;
   rows: ReviewRow[];
 }) {
+  const [reviewTemplates, setReviewTemplates] = useState<ReviewTableTemplate[]>(() =>
+    normaliseReviewTemplates(),
+  );
   const [layout, setLayout] = useState<ExportColumnLayout[]>(
     normaliseExportLayout(defaultExportLayout),
   );
   const [isDownloading, setIsDownloading] = useState(false);
   const visibleLayout = useMemo(() => getVisibleExportLayout(layout), [layout]);
   const previewRows = rows.filter((row) => !row.excludedFromExport).slice(0, 5);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const storedTemplates = window.localStorage.getItem(reviewTemplateStorageKey);
+    if (!storedTemplates) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedTemplates) as ReviewTableTemplate[];
+      setReviewTemplates(normaliseReviewTemplates(parsed));
+    } catch {
+      setReviewTemplates(normaliseReviewTemplates());
+    }
+  }, []);
 
   function updateColumn(
     index: number,
@@ -99,6 +129,17 @@ export function ExportLayoutDesigner({
     }
 
     setLayout(normaliseExportLayout(preset.layout));
+  }
+
+  function applyReviewTemplate(templateId: string) {
+    const template = reviewTemplates.find((candidate) => candidate.id === templateId);
+    if (!template) {
+      return;
+    }
+
+    setLayout((current) =>
+      normaliseExportLayout(mapReviewTemplateToExportLayout(template, current)),
+    );
   }
 
   async function download(format: "csv" | "xlsx") {
@@ -164,6 +205,22 @@ export function ExportLayoutDesigner({
             {exportLayoutPresets.map((preset) => (
               <option key={preset.id} value={preset.id}>
                 {preset.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-medium">Start from a saved review template</span>
+          <select
+            className="h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm"
+            onChange={(event) => applyReviewTemplate(event.target.value)}
+            defaultValue=""
+          >
+            <option value="">Choose a review template</option>
+            {reviewTemplates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name}
               </option>
             ))}
           </select>
