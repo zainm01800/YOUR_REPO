@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+import { Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { ReviewRow, ReconciliationRun } from "@/lib/domain/types";
@@ -10,10 +14,40 @@ export function ReviewDetailPanel({
   row: ReviewRow;
   run: ReconciliationRun;
 }) {
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [explaining, setExplaining] = useState(false);
+
   const document = run.documents.find((candidate) => candidate.id === row.documentId);
   const transaction = run.transactions.find(
     (candidate) => candidate.id === row.transactionId,
   );
+
+  async function handleExplain() {
+    setExplaining(true);
+    setExplanation(null);
+    try {
+      const res = await fetch("/api/ai/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          supplier: row.supplier,
+          exceptions: row.exceptions,
+          gross: row.gross,
+          net: row.net,
+          vat: row.vat,
+          vatCode: row.vatCode,
+          glCode: row.glCode,
+          currency: row.currency,
+        }),
+      });
+      const data = await res.json();
+      setExplanation(data.explanation ?? data.error ?? "No explanation returned.");
+    } catch {
+      setExplanation("Failed to reach AI service.");
+    } finally {
+      setExplaining(false);
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -49,6 +83,47 @@ export function ReviewDetailPanel({
           </div>
         </dl>
       </Card>
+
+      {row.exceptions.length > 0 && (
+        <Card className="space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                Exceptions
+              </p>
+              <h3 className="mt-2 text-xl font-semibold text-[var(--color-foreground)]">
+                {row.exceptions.length} flag{row.exceptions.length !== 1 ? "s" : ""}
+              </h3>
+            </div>
+            <button
+              type="button"
+              disabled={explaining}
+              onClick={handleExplain}
+              className="flex shrink-0 items-center gap-1.5 text-xs text-[var(--color-accent)] hover:underline disabled:opacity-50"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {explaining ? "Explaining…" : "Explain with AI"}
+            </button>
+          </div>
+          <div className="space-y-2">
+            {row.exceptions.map((ex, i) => (
+              <div key={i} className="rounded-2xl bg-[var(--color-panel)] px-4 py-3 text-sm">
+                <div className="font-semibold text-[var(--color-foreground)]">{ex.code.replace(/_/g, " ")}</div>
+                <div className="mt-0.5 text-[var(--color-muted-foreground)]">{ex.message}</div>
+              </div>
+            ))}
+          </div>
+          {explanation && (
+            <div className="rounded-2xl border border-[var(--color-accent-soft)] bg-[var(--color-accent-soft)] p-4 text-sm leading-6 text-[var(--color-foreground)]">
+              <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-accent)]">
+                <Sparkles className="h-3 w-3" />
+                AI explanation
+              </div>
+              {explanation}
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card className="space-y-4">
         <div className="flex items-center justify-between">

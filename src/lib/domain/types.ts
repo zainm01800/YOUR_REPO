@@ -319,6 +319,7 @@ export interface DashboardSnapshot {
     status: RunStatus;
     createdAt: string;
     processedAt?: string;
+    entity?: string;
     summary: RunProcessingSummary;
   }>;
   templates: MappingTemplate[];

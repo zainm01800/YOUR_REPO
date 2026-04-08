@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { FileSpreadsheet, Files, ListTree, Redo2, RotateCcw, Save, Undo2 } from "lucide-react";
+import { FileSpreadsheet, Files, ListTree, Redo2, Undo2 } from "lucide-react";
 import type {
   ReconciliationRun,
   ReviewActionType,
@@ -12,7 +12,6 @@ import type {
 } from "@/lib/domain/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { DocumentAttachmentPanel } from "@/components/review/document-attachment-panel";
 import { ReviewActions } from "@/components/review/review-actions";
 import { ReviewDetailPanel } from "@/components/review/review-detail-panel";
@@ -26,88 +25,7 @@ import {
   normaliseReviewTemplates,
   reviewTemplateStorageKey,
 } from "@/lib/review-templates";
-import { deepClone, slugify } from "@/lib/utils";
-
-const formulaTemplates = [
-  {
-    id: "net_from_gross_vat",
-    label: "Net from gross and VAT",
-    formula: "=[Gross]-[VAT]",
-    description: "Creates a net value column from reviewed gross minus VAT",
-  },
-  {
-    id: "gross_from_net_vat",
-    label: "Gross from net and VAT",
-    formula: "=[Net]+[VAT]",
-    description: "Builds a tax-inclusive total from net plus VAT",
-  },
-  {
-    id: "variance_to_original",
-    label: "Variance to original amount",
-    formula: "=[Gross]-[Original Value]",
-    description: "Shows whether the reviewed gross differs from the source transaction value",
-  },
-  {
-    id: "net_variance_to_original",
-    label: "Net variance to original",
-    formula: "=[Net]-[Original Value]",
-    description: "Compares the reviewed net amount against the original transaction value",
-  },
-  {
-    id: "vat_rate_from_values",
-    label: "Effective VAT rate",
-    formula: "=[VAT]/[Net]",
-    description: "Calculates the effective VAT rate from VAT divided by net",
-  },
-  {
-    id: "vat_share_of_gross",
-    label: "VAT share of gross",
-    formula: "=[VAT]/[Gross]",
-    description: "Shows how much of the gross amount is tax",
-  },
-  {
-    id: "recoverable_vat_check",
-    label: "Recoverable VAT value",
-    formula: "=[VAT]",
-    description: "Copies the VAT amount into a dedicated recoverable tax column",
-  },
-  {
-    id: "taxable_base",
-    label: "Taxable base",
-    formula: "=[Net]",
-    description: "Copies the net amount into a dedicated taxable-base column",
-  },
-  {
-    id: "gross_to_net_ratio",
-    label: "Gross to net ratio",
-    formula: "=[Gross]/[Net]",
-    description: "Useful for checking unusual invoice structures or tax anomalies",
-  },
-  {
-    id: "vat_to_original_ratio",
-    label: "VAT against original amount",
-    formula: "=[VAT]/[Original Value]",
-    description: "Shows the VAT share against the original transaction amount",
-  },
-  {
-    id: "net_to_original_ratio",
-    label: "Net against original amount",
-    formula: "=[Net]/[Original Value]",
-    description: "Shows the net share against the source transaction value",
-  },
-  {
-    id: "amount_check",
-    label: "Amount balance check",
-    formula: "=[Gross]-[Net]-[VAT]",
-    description: "Checks that gross minus net minus VAT balances to zero",
-  },
-  {
-    id: "custom",
-    label: "Custom formula",
-    formula: "",
-    description: "Write your own formula using the available column references",
-  },
-] as const;
+import { deepClone } from "@/lib/utils";
 
 const editableFieldKeys = [
   "supplier",
@@ -272,12 +190,6 @@ export function ReviewWorkspace({
   );
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [activeFilterColumnKey, setActiveFilterColumnKey] = useState<string | null>(null);
-  const [templateName, setTemplateName] = useState("");
-  const [newColumnLabel, setNewColumnLabel] = useState("");
-  const [selectedFormulaTemplateId, setSelectedFormulaTemplateId] = useState<string>(
-    formulaTemplates[0].id,
-  );
-  const [customFormula, setCustomFormula] = useState("");
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("template");
   const [historyPast, setHistoryPast] = useState<WorkspaceSnapshot[]>([]);
   const [historyFuture, setHistoryFuture] = useState<WorkspaceSnapshot[]>([]);
@@ -300,21 +212,15 @@ export function ReviewWorkspace({
 
     const storedTemplates = window.localStorage.getItem(reviewTemplateStorageKey);
     if (!storedTemplates) {
-      const defaults = normaliseReviewTemplates();
-      setTemplates(defaults);
-      setTemplateName(defaults[0].name);
+      setTemplates(normaliseReviewTemplates());
       return;
     }
 
     try {
       const parsed = JSON.parse(storedTemplates) as ReviewTableTemplate[];
-      const nextTemplates = normaliseReviewTemplates(parsed);
-      setTemplates(nextTemplates);
-      setTemplateName(nextTemplates[0].name);
+      setTemplates(normaliseReviewTemplates(parsed));
     } catch {
-      const defaults = normaliseReviewTemplates();
-      setTemplates(defaults);
-      setTemplateName(defaults[0].name);
+      setTemplates(normaliseReviewTemplates());
     }
   }, []);
 
@@ -366,9 +272,6 @@ export function ReviewWorkspace({
     rows.find((candidate) => candidate.id === selectedRowId) ||
     filteredRows[0];
   const summary = buildRunSummary(rows);
-  const selectedFormulaTemplate =
-    formulaTemplates.find((template) => template.id === selectedFormulaTemplateId) ||
-    formulaTemplates[0];
 
   function createSnapshot(): WorkspaceSnapshot {
     return {
@@ -382,9 +285,6 @@ export function ReviewWorkspace({
     setRows(snapshot.rows);
     setColumns(snapshot.columns);
     setSelectedTemplateId(snapshot.selectedTemplateId);
-
-    const matchingTemplate = templates.find((template) => template.id === snapshot.selectedTemplateId);
-    setTemplateName(matchingTemplate?.name || "Default");
   }
 
   function rememberCurrentState() {
@@ -492,77 +392,7 @@ export function ReviewWorkspace({
 
     rememberCurrentState();
     setSelectedTemplateId(nextTemplate.id);
-    setTemplateName(nextTemplate.name);
     setColumns(cloneReviewColumns(nextTemplate.columns));
-  }
-
-  function handleSaveTemplate() {
-    const name = templateName.trim();
-    if (!name) {
-      return;
-    }
-
-    const nextColumns = cloneReviewColumns(columns);
-    setTemplates((current) => {
-      const nextTemplates = normaliseReviewTemplates(current);
-      const selectedTemplate = nextTemplates.find((template) => template.id === selectedTemplateId);
-      const shouldUpdateCurrent =
-        selectedTemplateId !== defaultReviewTemplateId &&
-        selectedTemplate &&
-        selectedTemplate.name === name;
-
-      const updatedTemplates = shouldUpdateCurrent
-        ? nextTemplates.map((template) =>
-            template.id === selectedTemplateId
-              ? { ...template, name, columns: nextColumns }
-              : template,
-          )
-        : [
-            ...nextTemplates,
-            {
-              id: `template_${slugify(name)}_${Date.now()}`,
-              name,
-              columns: nextColumns,
-            },
-          ];
-
-      const normalisedTemplates = normaliseReviewTemplates(updatedTemplates);
-      const activeTemplate =
-        normalisedTemplates.find((template) =>
-          shouldUpdateCurrent ? template.id === selectedTemplateId : template.name === name,
-        ) || normalisedTemplates[0];
-
-      setSelectedTemplateId(activeTemplate.id);
-      setTemplateName(activeTemplate.name);
-      return normalisedTemplates;
-    });
-  }
-
-  function handleAddTemplateColumn() {
-    const label = newColumnLabel.trim();
-    const formula =
-      selectedFormulaTemplate.id === "custom"
-        ? customFormula.trim()
-        : selectedFormulaTemplate.formula;
-
-    if (!label || !formula) {
-      return;
-    }
-
-    rememberCurrentState();
-    setColumns((current) => [
-      ...current,
-      {
-        key: `custom_${Date.now()}`,
-        label,
-        visible: true,
-        width: 14,
-        kind: "custom",
-        formula,
-      },
-    ]);
-    setNewColumnLabel("");
-    setCustomFormula("");
   }
 
   function handleUndo() {
@@ -602,7 +432,7 @@ export function ReviewWorkspace({
     disabled?: boolean;
   }> = [
     { id: "template", label: "Template", icon: FileSpreadsheet },
-    { id: "documents", label: "Documents", icon: Files, disabled: !selectedRow },
+    { id: "documents", label: "Docs", icon: Files, disabled: !selectedRow },
     { id: "detail", label: "Detail", icon: ListTree, disabled: !selectedRow },
     { id: "actions", label: "Actions", icon: Undo2, disabled: !selectedRow },
   ];
@@ -614,91 +444,30 @@ export function ReviewWorkspace({
           <div>
             <h2 className="text-xl font-semibold">Template</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-              Start from the current sheet, add your own columns, and save the layout as a reusable template.
+              Choose a saved template to control which columns appear in the review table.
             </p>
           </div>
-          <div className="space-y-3">
-            <label className="space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                Active template
-              </span>
-              <select
-                className="h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-foreground)]"
-                value={selectedTemplateId}
-                onChange={(event) => handleSelectTemplate(event.target.value)}
-              >
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Input
-              placeholder="Template name"
-              value={templateName}
-              onChange={(event) => setTemplateName(event.target.value)}
-            />
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                Add a derived column
-              </div>
-              <div className="mt-3 space-y-3">
-                <Input
-                  placeholder="Column label"
-                  value={newColumnLabel}
-                  onChange={(event) => setNewColumnLabel(event.target.value)}
-                />
-                <select
-                  className="h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-foreground)]"
-                  value={selectedFormulaTemplateId}
-                  onChange={(event) => setSelectedFormulaTemplateId(event.target.value)}
-                >
-                  {formulaTemplates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.label}
-                    </option>
-                  ))}
-                </select>
-                {selectedFormulaTemplate.id === "custom" ? (
-                  <Input
-                    placeholder="Example: [Gross]-[VAT]"
-                    value={customFormula}
-                    onChange={(event) => setCustomFormula(event.target.value)}
-                  />
-                ) : (
-                  <div className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
-                    <div className="font-medium text-[var(--color-foreground)]">
-                      {selectedFormulaTemplate.description}
-                    </div>
-                    <div className="mt-2 font-mono text-xs">
-                      {selectedFormulaTemplate.formula}
-                    </div>
-                  </div>
-                )}
-                <div className="text-xs leading-5 text-[var(--color-muted-foreground)]">
-                  <span className="font-medium">Available refs:</span> Supplier, Original Value, Gross, Net, VAT, VAT %, VAT Code, GL Code
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Button type="button" variant="secondary" onClick={handleAddTemplateColumn}>
-                    Add to current template
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => handleSelectTemplate(defaultReviewTemplateId)}
-                  >
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    Reset to default
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <Button type="button" onClick={handleSaveTemplate}>
-              <Save className="mr-2 h-4 w-4" />
-              Save template
+          <label className="space-y-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+              Active template
+            </span>
+            <select
+              className="h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-foreground)]"
+              value={selectedTemplateId}
+              onChange={(event) => handleSelectTemplate(event.target.value)}
+            >
+              {templates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Link href="/templates">
+            <Button type="button" variant="secondary" className="w-full">
+              Manage templates
             </Button>
-          </div>
+          </Link>
         </Card>
       );
     }
@@ -719,7 +488,9 @@ export function ReviewWorkspace({
           key={`documents_${selectedRow.id}`}
           runId={run.id}
           row={selectedRow}
+          rows={rows}
           documents={run.documents}
+          onSelectRow={setSelectedRowId}
         />
       );
     }
@@ -747,28 +518,28 @@ export function ReviewWorkspace({
   }
 
   return (
-    <div className="grid items-start gap-5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
-      <div className="min-w-0 space-y-5">
-        <div className="grid gap-5 md:grid-cols-4">
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="min-w-0 overflow-x-hidden space-y-6">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
-            <div className="text-sm text-[var(--color-muted-foreground)]">Matched</div>
-            <div className="mt-2 text-3xl font-semibold">{summary.matched}</div>
+            <div className="text-sm font-medium text-[var(--color-muted-foreground)]">Matched</div>
+            <div className="mt-3 text-4xl font-semibold">{summary.matched}</div>
           </Card>
           <Card>
-            <div className="text-sm text-[var(--color-muted-foreground)]">Needs review</div>
-            <div className="mt-2 text-3xl font-semibold">{summary.exceptions}</div>
+            <div className="text-sm font-medium text-[var(--color-muted-foreground)]">Needs review</div>
+            <div className="mt-3 text-4xl font-semibold">{summary.exceptions}</div>
           </Card>
           <Card>
-            <div className="text-sm text-[var(--color-muted-foreground)]">Duplicates</div>
-            <div className="mt-2 text-3xl font-semibold">{summary.duplicates}</div>
+            <div className="text-sm font-medium text-[var(--color-muted-foreground)]">Duplicates</div>
+            <div className="mt-3 text-4xl font-semibold">{summary.duplicates}</div>
           </Card>
           <Card>
-            <div className="text-sm text-[var(--color-muted-foreground)]">Unmatched</div>
-            <div className="mt-2 text-3xl font-semibold">{summary.unmatched}</div>
+            <div className="text-sm font-medium text-[var(--color-muted-foreground)]">Unmatched</div>
+            <div className="mt-3 text-4xl font-semibold">{summary.unmatched}</div>
           </Card>
         </div>
 
-        <Card className="flex flex-wrap items-center justify-between gap-3">
+        <Card className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
               Sheet controls
@@ -819,47 +590,49 @@ export function ReviewWorkspace({
         />
       </div>
 
-      <div className="sticky top-6 max-h-[calc(100vh-110px)] space-y-5 overflow-y-auto pr-1">
-        <div className="grid grid-cols-[76px_minmax(0,1fr)] gap-3">
-          <Card className="space-y-1.5 p-2.5">
-            {sidebarTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = sidebarTab === tab.id;
+      <div className="sticky top-6 flex h-[calc(100vh-3rem)] flex-col gap-4">
+        <Card className="flex shrink-0 gap-1 p-1.5">
+          {sidebarTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = sidebarTab === tab.id;
 
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  disabled={tab.disabled}
-                  onClick={() => setSidebarTab(tab.id)}
-                  className={`flex w-full flex-col items-center gap-1.5 rounded-2xl px-1.5 py-2.5 text-center text-xs font-semibold transition ${
-                    isActive
-                      ? "bg-[var(--color-accent)] text-[var(--color-accent-foreground)]"
-                      : "bg-[var(--color-panel)] text-[var(--color-muted-foreground)] hover:bg-white"
-                  } ${tab.disabled ? "cursor-not-allowed opacity-50" : ""}`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </Card>
-          <div>{renderSidebarPanel()}</div>
-        </div>
-
-        <Card className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">Next step</h2>
-              <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-                When the selected row looks right, move the run to export.
-              </p>
-            </div>
-            <Link href={`/runs/${run.id}/export`}>
-              <Button>Export run</Button>
-            </Link>
-          </div>
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                disabled={tab.disabled}
+                onClick={() => setSidebarTab(tab.id)}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 text-xs font-semibold transition ${
+                  isActive
+                    ? "bg-[var(--color-accent)] text-[var(--color-accent-foreground)]"
+                    : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-panel)]"
+                } ${tab.disabled ? "cursor-not-allowed opacity-50" : ""}`}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </Card>
+
+        <div className="flex-1 overflow-y-auto">
+          <div className="space-y-4">
+            {renderSidebarPanel()}
+            <Card className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold">Next step</h2>
+                  <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
+                    When the selected row looks right, move the run to export.
+                  </p>
+                </div>
+                <Link href={`/runs/${run.id}/export`}>
+                  <Button>Export run</Button>
+                </Link>
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

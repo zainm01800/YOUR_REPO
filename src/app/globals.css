@@ -94,6 +94,15 @@ textarea {
   background: rgba(25, 94, 65, 0.12);
 }
 
+.rdg-review-grid .rdg-vat-zero {
+  background: #fff7ed !important;
+  color: #c2410c;
+}
+
+.rdg-review-grid .rdg-review-row-selected > .rdg-vat-zero {
+  background: #ffedd5 !important;
+}
+
 .rdg-review-grid .rdg-review-row-number,
 .rdg-review-grid .rdg-review-header-number {
   background: #f3f5f7;

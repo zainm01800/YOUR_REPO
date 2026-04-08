@@ -35,13 +35,13 @@ export default async function ProcessingPage({
       <div className="grid gap-5 lg:grid-cols-[1fr_0.8fr]">
         <Card className="space-y-5">
           {steps.map((step, index) => (
-            <div key={step} className="flex items-start gap-4 rounded-2xl bg-[var(--color-panel)] p-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-semibold text-[var(--color-accent)]">
+            <div key={step} className="flex items-start gap-5 rounded-2xl bg-[var(--color-panel)] p-5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold text-[var(--color-accent)] shadow-sm">
                 {index + 1}
               </div>
               <div>
                 <h3 className="font-semibold text-[var(--color-foreground)]">{step}</h3>
-                <p className="mt-1 text-sm leading-6 text-[var(--color-muted-foreground)]">
+                <p className="mt-1.5 text-sm leading-6 text-[var(--color-muted-foreground)]">
                   Designed so the worker can be swapped from mock/demo mode to a real OCR provider later.
                 </p>
               </div>

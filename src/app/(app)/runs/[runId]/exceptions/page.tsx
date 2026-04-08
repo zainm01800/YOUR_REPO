@@ -53,7 +53,7 @@ export default async function ExceptionsPage({
                 <Button variant="secondary">Open row</Button>
               </Link>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2.5">
               {row.exceptions.map((exception) => (
                 <Badge
                   key={`${row.id}_${exception.code}`}

@@ -19,7 +19,7 @@ export function MappingGrid({
   selected?: Record<string, string>;
 }) {
   return (
-    <Card className="space-y-4">
+    <Card className="space-y-5">
       <div>
         <h2 className="text-xl font-semibold text-[var(--color-foreground)]">
           Column mapping
@@ -28,7 +28,7 @@ export function MappingGrid({
           Map the incoming file once, then save it as a reusable template for future runs.
         </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2">
         {fields.map((field) => (
           <label key={field} className="space-y-2 text-sm">
             <span className="font-medium capitalize text-[var(--color-foreground)]">

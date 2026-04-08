@@ -14,9 +14,9 @@ const proofPoints = [
 
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-12 px-4 py-6 sm:px-6 lg:px-10">
-      <section className="rounded-[36px] border border-[var(--color-border)] bg-white px-6 py-8 shadow-[0_30px_120px_rgba(15,23,31,0.08)] lg:px-10 lg:py-10">
-        <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-16 px-4 py-8 sm:px-6 lg:px-10">
+      <section className="rounded-[36px] border border-[var(--color-border)] bg-white px-6 py-10 shadow-[0_30px_120px_rgba(15,23,31,0.08)] lg:px-12 lg:py-12">
+        <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[var(--color-muted-foreground)]">
               Reconciliation + validation + review workflow
@@ -30,7 +30,7 @@ export default function Home() {
               VAT, flag what needs attention, and export clean data without stitching
               everything together manually.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-8 flex flex-wrap gap-4">
               <Link href="/sign-up">
                 <Button className="gap-2">
                   Start demo workspace

@@ -289,7 +289,7 @@ export function NewRunForm({
   return (
     <Card className="space-y-6">
       <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
-        <div className="space-y-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-5">
+        <div className="space-y-5 rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
           <div>
             <h2 className="text-xl font-semibold text-[var(--color-foreground)]">
               Run presets
@@ -323,7 +323,7 @@ export function NewRunForm({
             />
           </label>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 pt-1">
             <Button type="button" variant="secondary" onClick={saveCurrentPreset}>
               <Save className="mr-2 h-4 w-4" />
               Save preset

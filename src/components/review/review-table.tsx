@@ -168,13 +168,21 @@ function getColumnCellContent(
       );
     case "gross":
     case "net":
-    case "vat":
       return (
         <div className="space-y-1 py-1">
           <div>{displayValue}</div>
           <div className="text-xs text-[var(--color-muted-foreground)]">{row.currency}</div>
         </div>
       );
+    case "vat": {
+      const isZeroVat = row.vat === 0 || (row.vat === undefined && row.gross !== undefined);
+      return (
+        <div className="space-y-1 py-1">
+          <div>{isZeroVat && row.vat === 0 ? `0.00 ${row.currency}` : displayValue}</div>
+          <div className="text-xs opacity-60">{row.currency}</div>
+        </div>
+      );
+    }
     default:
       return <div className="flex h-full items-center">{String(displayValue)}</div>;
   }
@@ -311,6 +319,7 @@ export function ReviewTable({
           "glCode",
         ].includes(column.key);
 
+      const isVatColumn = column.key === "vat";
       spreadsheetColumns.push({
         key: column.key,
         name: column.label,
@@ -319,6 +328,10 @@ export function ReviewTable({
         resizable: true,
         draggable: true,
         editable,
+        cellClass: isVatColumn
+          ? (row: GridRow) =>
+              !isEmptyGridRow(row) && row.vat === 0 ? "rdg-vat-zero" : undefined
+          : undefined,
         editorOptions: {
           commitOnOutsideClick: true,
           closeOnExternalRowChange: true,

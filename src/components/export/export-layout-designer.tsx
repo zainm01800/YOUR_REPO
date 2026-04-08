@@ -230,7 +230,7 @@ export function ExportLayoutDesigner({
           {layout.map((column, index) => (
             <div
               key={column.key}
-              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-4"
+              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-5"
             >
               <div className="flex flex-wrap items-center gap-3">
                 <label className="flex items-center gap-2 text-sm font-medium">
@@ -327,7 +327,7 @@ export function ExportLayoutDesigner({
               This mirrors the returned workbook layout with visible widths, header styling, `dd/mm/yy` dates, and generated formula columns.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             <Badge tone="info">Frozen header</Badge>
             <Badge tone="success">Formula cells</Badge>
             <Badge tone="neutral">{visibleLayout.length} visible columns</Badge>

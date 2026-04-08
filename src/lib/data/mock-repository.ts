@@ -104,6 +104,7 @@ export const mockRepository: Repository = {
       status: run.status,
       createdAt: run.createdAt,
       processedAt: run.processedAt,
+      entity: run.entity,
       summary: buildRunSummary(
         buildReviewRows(run, store.vatRules, store.glRules),
       ),
