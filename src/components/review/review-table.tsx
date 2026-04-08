@@ -253,8 +253,8 @@ export function ReviewTable({
     const updateVisibleRows = () => {
       const nextHeight = container.clientHeight;
       const usableHeight = Math.max(nextHeight - 46, 0);
-      const requiredRows = Math.ceil(usableHeight / 54) + 2;
-      setTargetVisibleRows(Math.max(requiredRows, rows.length + 1, 18));
+      const requiredRows = Math.ceil(usableHeight / 54) + 4;
+      setTargetVisibleRows(Math.max(requiredRows, rows.length + 2, 20));
     };
 
     updateVisibleRows();
@@ -359,6 +359,7 @@ export function ReviewTable({
         <DataGrid
           aria-label="Review spreadsheet"
           className="rdg-light rdg-review-grid h-full"
+          style={{ height: "100%", width: "100%" }}
           columns={gridColumns}
           rows={displayRows}
           rowHeight={54}

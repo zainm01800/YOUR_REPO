@@ -63,6 +63,9 @@ textarea {
   --rdg-summary-border-color: var(--color-border);
   --rdg-selection-color: rgba(25, 94, 65, 0.18);
   --rdg-font-size: 14px;
+  block-size: 100% !important;
+  inline-size: 100% !important;
+  min-block-size: 100% !important;
   color: var(--color-foreground);
 }
 

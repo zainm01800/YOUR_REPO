@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Redo2, RotateCcw, Save, Undo2 } from "lucide-react";
+import { FileSpreadsheet, Files, ListTree, Redo2, RotateCcw, Save, Undo2 } from "lucide-react";
 import type {
   ReconciliationRun,
   ReviewActionType,
@@ -127,6 +127,8 @@ type WorkspaceSnapshot = {
   columns: ReviewGridColumnLayout[];
   selectedTemplateId: string;
 };
+
+type SidebarTab = "template" | "documents" | "detail" | "actions";
 
 function moveColumn(
   columns: ReviewGridColumnLayout[],
@@ -276,6 +278,7 @@ export function ReviewWorkspace({
     formulaTemplates[0].id,
   );
   const [customFormula, setCustomFormula] = useState("");
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("template");
   const [historyPast, setHistoryPast] = useState<WorkspaceSnapshot[]>([]);
   const [historyFuture, setHistoryFuture] = useState<WorkspaceSnapshot[]>([]);
   const [pending, startTransition] = useTransition();
@@ -592,6 +595,157 @@ export function ReviewWorkspace({
     syncRowsToServer(previousRows, nextSnapshot.rows);
   }
 
+  const sidebarTabs: Array<{
+    id: SidebarTab;
+    label: string;
+    icon: typeof FileSpreadsheet;
+    disabled?: boolean;
+  }> = [
+    { id: "template", label: "Template", icon: FileSpreadsheet },
+    { id: "documents", label: "Documents", icon: Files, disabled: !selectedRow },
+    { id: "detail", label: "Detail", icon: ListTree, disabled: !selectedRow },
+    { id: "actions", label: "Actions", icon: Undo2, disabled: !selectedRow },
+  ];
+
+  function renderSidebarPanel() {
+    if (sidebarTab === "template") {
+      return (
+        <Card className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">Template</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
+              Start from the current sheet, add your own columns, and save the layout as a reusable template.
+            </p>
+          </div>
+          <div className="space-y-3">
+            <label className="space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                Active template
+              </span>
+              <select
+                className="h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-foreground)]"
+                value={selectedTemplateId}
+                onChange={(event) => handleSelectTemplate(event.target.value)}
+              >
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Input
+              placeholder="Template name"
+              value={templateName}
+              onChange={(event) => setTemplateName(event.target.value)}
+            />
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                Add a derived column
+              </div>
+              <div className="mt-3 space-y-3">
+                <Input
+                  placeholder="Column label"
+                  value={newColumnLabel}
+                  onChange={(event) => setNewColumnLabel(event.target.value)}
+                />
+                <select
+                  className="h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-foreground)]"
+                  value={selectedFormulaTemplateId}
+                  onChange={(event) => setSelectedFormulaTemplateId(event.target.value)}
+                >
+                  {formulaTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.label}
+                    </option>
+                  ))}
+                </select>
+                {selectedFormulaTemplate.id === "custom" ? (
+                  <Input
+                    placeholder="Example: [Gross]-[VAT]"
+                    value={customFormula}
+                    onChange={(event) => setCustomFormula(event.target.value)}
+                  />
+                ) : (
+                  <div className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
+                    <div className="font-medium text-[var(--color-foreground)]">
+                      {selectedFormulaTemplate.description}
+                    </div>
+                    <div className="mt-2 font-mono text-xs">
+                      {selectedFormulaTemplate.formula}
+                    </div>
+                  </div>
+                )}
+                <div className="text-xs leading-6 text-[var(--color-muted-foreground)]">
+                  Available references: Supplier, Original Value, Gross, Net, VAT, VAT %, VAT Code, GL Code
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Button type="button" variant="secondary" onClick={handleAddTemplateColumn}>
+                    Add to current template
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => handleSelectTemplate(defaultReviewTemplateId)}
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Reset to default
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <Button type="button" onClick={handleSaveTemplate}>
+              <Save className="mr-2 h-4 w-4" />
+              Save template
+            </Button>
+          </div>
+        </Card>
+      );
+    }
+
+    if (!selectedRow) {
+      return (
+        <Card>
+          <p className="text-sm leading-6 text-[var(--color-muted-foreground)]">
+            No rows match the current filter.
+          </p>
+        </Card>
+      );
+    }
+
+    if (sidebarTab === "documents") {
+      return (
+        <DocumentAttachmentPanel
+          key={`documents_${selectedRow.id}`}
+          runId={run.id}
+          row={selectedRow}
+          documents={run.documents}
+        />
+      );
+    }
+
+    if (sidebarTab === "detail") {
+      return <ReviewDetailPanel row={selectedRow} run={run} />;
+    }
+
+    return (
+      <Card className="space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold">Manual overrides</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
+            Finance remains in control of approvals, VAT coding, GL coding, and export inclusion.
+          </p>
+        </div>
+        <ReviewActions
+          key={selectedRow.id}
+          runId={run.id}
+          row={selectedRow}
+          onActionComplete={handleActionComplete}
+        />
+      </Card>
+    );
+  }
+
   return (
     <div className="grid items-start gap-5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="min-w-0 space-y-5">
@@ -666,124 +820,32 @@ export function ReviewWorkspace({
       </div>
 
       <div className="sticky top-6 max-h-[calc(100vh-110px)] space-y-5 overflow-y-auto pr-1">
-        <Card className="space-y-4">
-          <div>
-            <h2 className="text-xl font-semibold">Add template</h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-              Start from the current sheet, add your own columns, and save the layout as a reusable template.
-            </p>
-          </div>
-          <div className="space-y-3">
-            <label className="space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                Active template
-              </span>
-              <select
-                className="h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-foreground)]"
-                value={selectedTemplateId}
-                onChange={(event) => handleSelectTemplate(event.target.value)}
-              >
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Input
-              placeholder="Template name"
-              value={templateName}
-              onChange={(event) => setTemplateName(event.target.value)}
-            />
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                Add a derived column
-              </div>
-              <div className="mt-3 space-y-3">
-                <Input
-                  placeholder="Column label"
-                  value={newColumnLabel}
-                  onChange={(event) => setNewColumnLabel(event.target.value)}
-                />
-                <select
-                  className="h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-foreground)]"
-                  value={selectedFormulaTemplateId}
-                  onChange={(event) => setSelectedFormulaTemplateId(event.target.value)}
-                >
-                  {formulaTemplates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.label}
-                    </option>
-                  ))}
-                </select>
-                {selectedFormulaTemplate.id === "custom" ? (
-                  <Input
-                    placeholder="Example: [Gross]-[VAT]"
-                    value={customFormula}
-                    onChange={(event) => setCustomFormula(event.target.value)}
-                  />
-                ) : (
-                  <div className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
-                    <div className="font-medium text-[var(--color-foreground)]">
-                      {selectedFormulaTemplate.description}
-                    </div>
-                    <div className="mt-2 font-mono text-xs">
-                      {selectedFormulaTemplate.formula}
-                    </div>
-                  </div>
-                )}
-                <div className="text-xs leading-6 text-[var(--color-muted-foreground)]">
-                  Available references: Supplier, Original Value, Gross, Net, VAT, VAT %, VAT Code, GL Code
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Button type="button" variant="secondary" onClick={handleAddTemplateColumn}>
-                    Add to current template
-                  </Button>
-                  <Button type="button" variant="secondary" onClick={() => handleSelectTemplate(defaultReviewTemplateId)}>
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    Reset to default
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <Button type="button" onClick={handleSaveTemplate}>
-              <Save className="mr-2 h-4 w-4" />
-              Save template
-            </Button>
-          </div>
-        </Card>
+        <div className="grid grid-cols-[84px_minmax(0,1fr)] gap-3">
+          <Card className="space-y-2 p-3">
+            {sidebarTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = sidebarTab === tab.id;
 
-        {selectedRow ? (
-          <>
-            <DocumentAttachmentPanel
-              key={`documents_${selectedRow.id}`}
-              runId={run.id}
-              row={selectedRow}
-              documents={run.documents}
-            />
-            <ReviewDetailPanel row={selectedRow} run={run} />
-            <Card className="space-y-4">
-              <div>
-                <h2 className="text-xl font-semibold">Manual overrides</h2>
-                <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-                  Finance remains in control of approvals, VAT coding, GL coding, and export inclusion.
-                </p>
-              </div>
-              <ReviewActions
-                key={selectedRow.id}
-                runId={run.id}
-                row={selectedRow}
-                onActionComplete={handleActionComplete}
-              />
-            </Card>
-          </>
-        ) : (
-          <Card>
-            <p className="text-sm leading-6 text-[var(--color-muted-foreground)]">
-              No rows match the current filter.
-            </p>
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  disabled={tab.disabled}
+                  onClick={() => setSidebarTab(tab.id)}
+                  className={`flex w-full flex-col items-center gap-2 rounded-2xl px-2 py-3 text-center text-xs font-semibold transition ${
+                    isActive
+                      ? "bg-[var(--color-accent)] text-[var(--color-accent-foreground)]"
+                      : "bg-[var(--color-panel)] text-[var(--color-muted-foreground)] hover:bg-white"
+                  } ${tab.disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </Card>
-        )}
+          <div>{renderSidebarPanel()}</div>
+        </div>
 
         <Card className="space-y-4">
           <div className="flex items-center justify-between gap-3">
