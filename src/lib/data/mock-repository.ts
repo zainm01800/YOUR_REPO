@@ -19,6 +19,31 @@ import { buildRunSummary } from "@/lib/reconciliation/summary";
 
 const store = deepClone(demoStore);
 
+function parseOptionalNumber(value?: string) {
+  if (!value?.trim()) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function syncPrimaryTaxLine(document?: ReconciliationRun["documents"][number]) {
+  const primaryTaxLine = document?.taxLines[0];
+
+  if (!document || !primaryTaxLine) {
+    return;
+  }
+
+  primaryTaxLine.taxAmount = document.vat || 0;
+  primaryTaxLine.netAmount = document.net || 0;
+  primaryTaxLine.grossAmount = document.gross || 0;
+  primaryTaxLine.rate =
+    document.net && document.vat !== undefined
+      ? Number(((document.vat / document.net) * 100).toFixed(1))
+      : 0;
+}
+
 function getRunOrThrow(runId: string) {
   const run = store.runs.find((candidate) => candidate.id === runId);
 
@@ -120,6 +145,72 @@ export const mockRepository: Repository = {
     const transaction = run.transactions.find(
       (candidate) => `row_${candidate.id}` === input.rowId,
     );
+    const selectedMatch = transaction
+      ? run.matches.find(
+          (candidate) =>
+            candidate.transactionId === transaction.id && candidate.selected,
+        )
+      : undefined;
+    const document = selectedMatch?.documentId
+      ? run.documents.find((candidate) => candidate.id === selectedMatch.documentId)
+      : undefined;
+
+    if (transaction && input.actionType === "edit_field" && input.field) {
+      switch (input.field) {
+        case "supplier":
+          if (document) {
+            document.supplier = input.value;
+          } else if (input.value) {
+            transaction.merchant = input.value;
+          }
+          break;
+        case "date":
+          if (document) {
+            document.issueDate = input.value;
+          } else if (input.value) {
+            transaction.transactionDate = input.value;
+          }
+          break;
+        case "gross": {
+          const nextGross = parseOptionalNumber(input.value);
+          if (document) {
+            document.gross = nextGross;
+            if (nextGross !== undefined && document.vat !== undefined) {
+              document.net = Number((nextGross - document.vat).toFixed(2));
+            }
+            syncPrimaryTaxLine(document);
+          } else if (nextGross !== undefined) {
+            transaction.amount = nextGross;
+          }
+          break;
+        }
+        case "vat": {
+          const nextVat = parseOptionalNumber(input.value);
+          if (document) {
+            document.vat = nextVat;
+            if (document.gross !== undefined && nextVat !== undefined) {
+              document.net = Number((document.gross - nextVat).toFixed(2));
+            }
+            syncPrimaryTaxLine(document);
+          }
+          break;
+        }
+        case "glCode":
+          transaction.glCode = input.value;
+          break;
+        case "vatCode":
+          transaction.vatCode = input.value;
+          break;
+        case "originalDescription":
+          transaction.description = input.value || "";
+          break;
+        case "notes":
+          if (selectedMatch) {
+            selectedMatch.rationale.notes = input.value ? [input.value] : [];
+          }
+          break;
+      }
+    }
 
     if (transaction && input.actionType === "override_gl_code" && input.value) {
       transaction.glCode = input.value;
@@ -146,7 +237,9 @@ export const mockRepository: Repository = {
           ? "glCode"
           : input.actionType === "override_vat_code"
             ? "vatCode"
-            : undefined,
+            : input.actionType === "edit_field"
+              ? input.field
+              : undefined,
       afterValue: input.value,
       note: input.note,
       createdAt: new Date().toISOString(),

@@ -8,6 +8,7 @@ export async function POST(request: Request) {
     runId: string;
     rowId: string;
     actionType: ReviewActionType;
+    field?: string;
     value?: string;
     note?: string;
   };
@@ -15,4 +16,3 @@ export async function POST(request: Request) {
   await repository.saveReviewMutation(body);
   return NextResponse.json({ ok: true });
 }
-

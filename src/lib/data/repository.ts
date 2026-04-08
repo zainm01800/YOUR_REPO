@@ -13,6 +13,7 @@ export interface ReviewMutationInput {
   runId: string;
   rowId: string;
   actionType: ReviewActionType;
+  field?: string;
   value?: string;
   note?: string;
 }

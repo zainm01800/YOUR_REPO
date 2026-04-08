@@ -23,19 +23,21 @@ export function ReviewDetailPanel({
             Transaction detail
           </p>
           <h3 className="mt-2 text-xl font-semibold text-[var(--color-foreground)]">
-            {transaction?.merchant}
+            {transaction?.merchant || row.supplier}
           </h3>
         </div>
         <dl className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <dt className="text-[var(--color-muted-foreground)]">Amount</dt>
             <dd className="mt-1 font-semibold">
-              {formatCurrency(transaction?.amount || 0, transaction?.currency)}
+              {formatCurrency(transaction?.amount || row.gross || 0, transaction?.currency || row.currency)}
             </dd>
           </div>
           <div>
             <dt className="text-[var(--color-muted-foreground)]">Date</dt>
-            <dd className="mt-1 font-semibold">{formatDate(transaction?.transactionDate)}</dd>
+            <dd className="mt-1 font-semibold">
+              {formatDate(transaction?.transactionDate || row.date)}
+            </dd>
           </div>
           <div>
             <dt className="text-[var(--color-muted-foreground)]">Employee</dt>
@@ -65,22 +67,22 @@ export function ReviewDetailPanel({
             <dl className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <dt className="text-[var(--color-muted-foreground)]">Supplier</dt>
-                <dd className="mt-1 font-semibold">{document.supplier}</dd>
+                <dd className="mt-1 font-semibold">{row.supplier}</dd>
               </div>
               <div>
                 <dt className="text-[var(--color-muted-foreground)]">Issue date</dt>
-                <dd className="mt-1 font-semibold">{formatDate(document.issueDate)}</dd>
+                <dd className="mt-1 font-semibold">{formatDate(row.date || document.issueDate)}</dd>
               </div>
               <div>
                 <dt className="text-[var(--color-muted-foreground)]">Gross</dt>
                 <dd className="mt-1 font-semibold">
-                  {formatCurrency(document.gross || 0, document.currency)}
+                  {formatCurrency(row.gross ?? document.gross ?? 0, row.currency || document.currency)}
                 </dd>
               </div>
               <div>
                 <dt className="text-[var(--color-muted-foreground)]">VAT</dt>
                 <dd className="mt-1 font-semibold">
-                  {formatCurrency(document.vat || 0, document.currency)}
+                  {formatCurrency(row.vat ?? document.vat ?? 0, row.currency || document.currency)}
                 </dd>
               </div>
             </dl>
@@ -97,4 +99,3 @@ export function ReviewDetailPanel({
     </div>
   );
 }
-

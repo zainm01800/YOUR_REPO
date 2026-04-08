@@ -2,11 +2,19 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { ReviewRow } from "@/lib/domain/types";
+import type { ReviewActionType, ReviewRow } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function ReviewActions({ runId, row }: { runId: string; row: ReviewRow }) {
+export function ReviewActions({
+  runId,
+  row,
+  onActionComplete,
+}: {
+  runId: string;
+  row: ReviewRow;
+  onActionComplete?: (actionType: ReviewActionType, value?: string) => void;
+}) {
   const [glCode, setGlCode] = useState(row.glCode || "");
   const [vatCode, setVatCode] = useState(row.vatCode || "");
   const [pending, startTransition] = useTransition();
@@ -23,13 +31,18 @@ export function ReviewActions({ runId, row }: { runId: string; row: ReviewRow })
         value,
       }),
     });
+    onActionComplete?.(actionType as ReviewActionType, value);
     router.refresh();
   }
 
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Input value={glCode} onChange={(event) => setGlCode(event.target.value)} />
+        <Input
+          key={`gl_${row.id}_${row.glCode || ""}`}
+          value={glCode}
+          onChange={(event) => setGlCode(event.target.value)}
+        />
         <Button
           variant="secondary"
           disabled={pending}
@@ -43,7 +56,11 @@ export function ReviewActions({ runId, row }: { runId: string; row: ReviewRow })
         </Button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Input value={vatCode} onChange={(event) => setVatCode(event.target.value)} />
+        <Input
+          key={`vat_${row.id}_${row.vatCode || ""}`}
+          value={vatCode}
+          onChange={(event) => setVatCode(event.target.value)}
+        />
         <Button
           variant="secondary"
           disabled={pending}
@@ -94,4 +111,3 @@ export function ReviewActions({ runId, row }: { runId: string; row: ReviewRow })
     </div>
   );
 }
-
