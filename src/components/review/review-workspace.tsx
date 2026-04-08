@@ -28,14 +28,14 @@ const filterOptions = [
 ] as const;
 
 const defaultColumns: ReviewGridColumnLayout[] = [
-  { key: "supplier", label: "Supplier", visible: true, width: 28 },
-  { key: "gross", label: "Gross", visible: true, width: 14 },
-  { key: "vat", label: "VAT", visible: true, width: 14 },
-  { key: "vatPercent", label: "VAT %", visible: true, width: 12 },
-  { key: "match", label: "Match", visible: true, width: 18 },
-  { key: "vatCode", label: "VAT Code", visible: true, width: 14 },
-  { key: "glCode", label: "GL Code", visible: true, width: 14 },
-  { key: "exceptions", label: "Exceptions", visible: true, width: 28 },
+  { key: "supplier", label: "Supplier", visible: true, width: 24 },
+  { key: "gross", label: "Gross", visible: true, width: 12 },
+  { key: "vat", label: "VAT", visible: true, width: 12 },
+  { key: "vatPercent", label: "VAT %", visible: true, width: 10 },
+  { key: "match", label: "Match", visible: true, width: 16 },
+  { key: "vatCode", label: "VAT Code", visible: true, width: 12 },
+  { key: "glCode", label: "GL Code", visible: true, width: 12 },
+  { key: "exceptions", label: "Exceptions", visible: true, width: 22 },
 ];
 
 function moveColumn(
@@ -215,8 +215,8 @@ export function ReviewWorkspace({
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1.18fr_0.82fr]">
-      <div className="space-y-5">
+    <div className="grid items-start gap-5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="min-w-0 space-y-5">
         <div className="grid gap-5 md:grid-cols-4">
           <Card>
             <div className="text-sm text-[var(--color-muted-foreground)]">Matched</div>
@@ -246,7 +246,7 @@ export function ReviewWorkspace({
         />
       </div>
 
-      <div className="space-y-5">
+      <div className="sticky top-6 max-h-[calc(100vh-110px)] space-y-5 overflow-y-auto pr-1">
         <Card className="space-y-4">
           <div>
             <h2 className="text-xl font-semibold">Sheet controls</h2>

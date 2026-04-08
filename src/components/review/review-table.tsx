@@ -14,11 +14,13 @@ import { Input } from "@/components/ui/input";
 function InlineCellInput({
   value,
   onCommit,
+  onClose,
   type = "text",
   className,
 }: {
   value?: string | number;
   onCommit: (nextValue: string) => void;
+  onClose?: () => void;
   type?: "text" | "number" | "date";
   className?: string;
 }) {
@@ -36,7 +38,10 @@ function InlineCellInput({
       value={draft}
       className={className || "h-8 rounded-xl px-3"}
       onChange={(event) => setDraft(event.target.value)}
-      onBlur={commit}
+      onBlur={() => {
+        commit();
+        onClose?.();
+      }}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => {
         if (event.key === "Enter") {
@@ -77,10 +82,8 @@ function EditableDisplay({
         key={cellId}
         type={type}
         value={value ?? ""}
-        onCommit={(nextValue) => {
-          onCommit(nextValue);
-          onDeactivate();
-        }}
+        onCommit={onCommit}
+        onClose={onDeactivate}
         className={inputClassName}
       />
     );
@@ -129,7 +132,7 @@ function renderCell({
   switch (column.key) {
     case "supplier":
       return (
-        <div className="space-y-1">
+        <div className="min-w-0">
           <EditableDisplay
             cellId={`${row.id}_supplier`}
             activeCell={activeCell}
@@ -138,19 +141,18 @@ function renderCell({
             value={row.supplier}
             onCommit={(value) => onEditField(row.id, "supplier", value)}
             inputClassName="h-8 rounded-xl px-3 font-semibold"
-            displayClassName="font-semibold text-[var(--color-foreground)] hover:text-[var(--color-accent)]"
-            display={row.supplier}
-          />
-          <EditableDisplay
-            cellId={`${row.id}_description`}
-            activeCell={activeCell}
-            onActivate={setActiveCell}
-            onDeactivate={() => setActiveCell(null)}
-            value={row.originalDescription}
-            onCommit={(value) => onEditField(row.id, "originalDescription", value)}
-            inputClassName="h-8 rounded-xl px-3 text-xs"
-            displayClassName="max-w-xs text-left text-xs leading-5 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
-            display={row.originalDescription}
+            displayClassName="max-w-full truncate text-left text-sm text-[var(--color-foreground)] hover:text-[var(--color-accent)]"
+            display={
+              <span className="block truncate">
+                <span className="font-semibold">{row.supplier}</span>
+                {row.originalDescription ? (
+                  <span className="text-[var(--color-muted-foreground)]">
+                    {" "}
+                    - {row.originalDescription}
+                  </span>
+                ) : null}
+              </span>
+            }
           />
         </div>
       );
@@ -283,8 +285,8 @@ export function ReviewTable({
   const visibleColumns = columns.filter((column) => column.visible);
 
   return (
-    <Card className="overflow-hidden p-0">
-      <div className="overflow-x-auto">
+    <Card className="flex min-w-0 flex-col overflow-hidden p-0">
+      <div className="h-[min(62vh,680px)] min-h-[420px] overflow-auto">
         <div className="min-w-max">
           <div className="flex border-b border-[var(--color-border)] bg-[#eef2f5]">
             <div className="w-14 shrink-0 border-r border-[var(--color-border)] bg-[#e5eaee]" />
@@ -292,7 +294,7 @@ export function ReviewTable({
               <div
                 key={`${column.key}_letter`}
                 className="flex h-10 items-center justify-center border-r border-[var(--color-border)] text-xs font-semibold text-[#61707b]"
-                style={{ width: `${(column.width || 16) * 12}px` }}
+                style={{ width: `${(column.width || 16) * 11}px` }}
               >
                 {getExcelColumnName(index + 1)}
               </div>
@@ -307,7 +309,7 @@ export function ReviewTable({
               <div
                 key={column.key}
                 className="flex h-12 items-center border-r border-[var(--color-border)] px-4 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]"
-                style={{ width: `${(column.width || 16) * 12}px` }}
+                style={{ width: `${(column.width || 16) * 11}px` }}
               >
                 {column.label}
               </div>
@@ -336,7 +338,7 @@ export function ReviewTable({
                   <div
                     key={`${row.id}_${column.key}`}
                     className="min-h-20 border-r border-[var(--color-border)] px-4 py-4 align-top text-sm last:border-r-0"
-                    style={{ width: `${(column.width || 16) * 12}px` }}
+                    style={{ width: `${(column.width || 16) * 11}px` }}
                   >
                     {renderCell({
                       row,
