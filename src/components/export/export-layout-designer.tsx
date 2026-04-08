@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 function moveColumn(
   columns: ExportColumnLayout[],
@@ -23,6 +24,47 @@ function moveColumn(
   const [column] = next.splice(fromIndex, 1);
   next.splice(toIndex, 0, column);
   return next;
+}
+
+function getExcelColumnName(columnNumber: number) {
+  let dividend = columnNumber;
+  let columnName = "";
+
+  while (dividend > 0) {
+    const modulo = (dividend - 1) % 26;
+    columnName = String.fromCharCode(65 + modulo) + columnName;
+    dividend = Math.floor((dividend - modulo) / 26);
+  }
+
+  return columnName;
+}
+
+function getFormulaPreview(
+  visibleLayout: ExportColumnLayout[],
+  columnKey: ExportColumnLayout["key"],
+  rowNumber: number,
+) {
+  const currentIndex = visibleLayout.findIndex((column) => column.key === columnKey);
+  const netIndex = visibleLayout.findIndex((column) => column.key === "net");
+  const vatIndex = visibleLayout.findIndex((column) => column.key === "vat");
+
+  if (currentIndex < 0 || netIndex < 0 || vatIndex < 0) {
+    return null;
+  }
+
+  const currentColumn = getExcelColumnName(currentIndex + 1);
+  const netColumn = getExcelColumnName(netIndex + 1);
+  const vatColumn = getExcelColumnName(vatIndex + 1);
+
+  if (columnKey === "gross") {
+    return `${currentColumn}${rowNumber} = ${netColumn}${rowNumber} + ${vatColumn}${rowNumber}`;
+  }
+
+  if (columnKey === "vatPercent") {
+    return `${currentColumn}${rowNumber} = ${vatColumn}${rowNumber} / ${netColumn}${rowNumber}`;
+  }
+
+  return null;
 }
 
 export function ExportLayoutDesigner({
@@ -219,44 +261,93 @@ export function ExportLayoutDesigner({
       </Card>
 
       <Card className="space-y-4 overflow-hidden">
-        <div>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
           <h2 className="text-2xl font-semibold text-[var(--color-foreground)]">
-            Export preview
+            Excel-style preview
           </h2>
           <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-            Showing {previewRows.length} preview rows with the current layout.
+            This mirrors the returned workbook layout with visible widths, header styling, and generated formula columns.
           </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge tone="info">Frozen header</Badge>
+            <Badge tone="success">Formula cells</Badge>
+            <Badge tone="neutral">{visibleLayout.length} visible columns</Badge>
+          </div>
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-[var(--color-border)]">
-          <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
-            <thead className="bg-[var(--color-panel)]">
-              <tr>
-                {visibleLayout.map((column) => (
-                  <th
-                    key={column.key}
-                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]"
-                  >
-                    {column.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--color-border)]">
-              {previewRows.map((row) => (
-                <tr key={row.id}>
-                  {visibleLayout.map((column) => (
-                    <td key={`${row.id}_${column.key}`} className="px-4 py-3 align-top">
-                      {String(getPreviewCellValue(row, column.key))}
-                    </td>
-                  ))}
-                </tr>
+        <div className="overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+          <div className="min-w-max">
+            <div className="flex border-b border-[var(--color-border)] bg-[#eef2f5]">
+              <div className="w-14 shrink-0 border-r border-[var(--color-border)] bg-[#e5eaee]" />
+              {visibleLayout.map((column, index) => (
+                <div
+                  key={`${column.key}_letter`}
+                  className="flex h-10 items-center justify-center border-r border-[var(--color-border)] text-xs font-semibold text-[#61707b]"
+                  style={{ width: `${(column.width || 16) * 10}px` }}
+                >
+                  {getExcelColumnName(index + 1)}
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            <div className="flex border-b border-[var(--color-border)] bg-[#d4e4da]">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center border-r border-[var(--color-border)] bg-[#e5eaee] text-xs font-semibold text-[#61707b]">
+                1
+              </div>
+              {visibleLayout.map((column) => (
+                <div
+                  key={`${column.key}_header`}
+                  className="flex h-14 items-center border-r border-[var(--color-border)] px-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#17343f]"
+                  style={{ width: `${(column.width || 16) * 10}px` }}
+                >
+                  {column.label}
+                </div>
+              ))}
+            </div>
+
+            {previewRows.map((row, rowIndex) => {
+              const excelRowNumber = rowIndex + 2;
+
+              return (
+                <div
+                  key={row.id}
+                  className="flex border-b border-[var(--color-border)] last:border-b-0"
+                >
+                  <div className="flex min-h-16 w-14 shrink-0 items-center justify-center border-r border-[var(--color-border)] bg-[#f6f8fa] text-xs font-semibold text-[#61707b]">
+                    {excelRowNumber}
+                  </div>
+                  {visibleLayout.map((column) => {
+                    const formulaPreview = getFormulaPreview(
+                      visibleLayout,
+                      column.key,
+                      excelRowNumber,
+                    );
+
+                    return (
+                      <div
+                        key={`${row.id}_${column.key}`}
+                        className="min-h-16 border-r border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-foreground)] last:border-r-0"
+                        style={{ width: `${(column.width || 16) * 10}px` }}
+                      >
+                        <div className="truncate">
+                          {String(getPreviewCellValue(row, column.key))}
+                        </div>
+                        {formulaPreview ? (
+                          <div className="mt-1 truncate font-mono text-[11px] text-[var(--color-muted-foreground)]">
+                            ={formulaPreview.split(" = ")[1]}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </Card>
     </div>
   );
 }
-
