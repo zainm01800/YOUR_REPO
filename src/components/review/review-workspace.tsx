@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { ReconciliationRun, ReviewActionType, ReviewRow } from "@/lib/domain/types";
+import { ArrowDown, ArrowUp } from "lucide-react";
+import type {
+  ReconciliationRun,
+  ReviewActionType,
+  ReviewGridColumnLayout,
+  ReviewRow,
+} from "@/lib/domain/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ReviewActions } from "@/components/review/review-actions";
@@ -20,6 +26,28 @@ const filterOptions = [
   { label: "Missing VAT", value: "missing-vat" },
   { label: "Missing GL", value: "missing-gl" },
 ] as const;
+
+const defaultColumns: ReviewGridColumnLayout[] = [
+  { key: "supplier", label: "Supplier", visible: true, width: 28 },
+  { key: "gross", label: "Gross", visible: true, width: 14 },
+  { key: "vat", label: "VAT", visible: true, width: 14 },
+  { key: "vatPercent", label: "VAT %", visible: true, width: 12 },
+  { key: "match", label: "Match", visible: true, width: 18 },
+  { key: "vatCode", label: "VAT Code", visible: true, width: 14 },
+  { key: "glCode", label: "GL Code", visible: true, width: 14 },
+  { key: "exceptions", label: "Exceptions", visible: true, width: 28 },
+];
+
+function moveColumn(
+  columns: ReviewGridColumnLayout[],
+  fromIndex: number,
+  toIndex: number,
+) {
+  const next = [...columns];
+  const [column] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, column);
+  return next;
+}
 
 function applyFilter(rows: ReviewRow[], filter: string) {
   return rows.filter((candidate) => {
@@ -88,6 +116,7 @@ export function ReviewWorkspace({
   const [rows, setRows] = useState(initialRows);
   const [activeFilter, setActiveFilter] = useState(initialFilter || "all");
   const [selectedRowId, setSelectedRowId] = useState(initialRowId || initialRows[0]?.id || "");
+  const [columns, setColumns] = useState(defaultColumns);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -207,25 +236,9 @@ export function ReviewWorkspace({
           </Card>
         </div>
 
-        <Card className="flex flex-wrap gap-3">
-          {filterOptions.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => setActiveFilter(item.value)}
-              className={`rounded-full px-3 py-2 text-sm font-medium transition ${
-                activeFilter === item.value
-                  ? "bg-[var(--color-accent)] text-[var(--color-accent-foreground)]"
-                  : "bg-[var(--color-panel)] text-[var(--color-muted-foreground)] hover:bg-white"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </Card>
-
         <ReviewTable
           rows={filteredRows}
+          columns={columns}
           selectedRowId={selectedRowId}
           onSelectRow={setSelectedRowId}
           onEditField={handleEditField}
@@ -234,6 +247,104 @@ export function ReviewWorkspace({
       </div>
 
       <div className="space-y-5">
+        <Card className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">Sheet controls</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
+              Treat the review table like a working sheet. Set the active filter, hide columns, or move them around without leaving the screen.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              Active filter
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {filterOptions.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setActiveFilter(item.value)}
+                  className={`rounded-full px-3 py-2 text-sm font-medium transition ${
+                    activeFilter === item.value
+                      ? "bg-[var(--color-accent)] text-[var(--color-accent-foreground)]"
+                      : "bg-[var(--color-panel)] text-[var(--color-muted-foreground)] hover:bg-white"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+                Visible columns
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-9 px-3"
+                onClick={() => setColumns(defaultColumns)}
+              >
+                Reset
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {columns.map((column, index) => (
+                <div
+                  key={column.key}
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm font-medium text-[var(--color-foreground)]">
+                      <input
+                        type="checkbox"
+                        checked={column.visible}
+                        onChange={(event) =>
+                          setColumns((current) =>
+                            current.map((item) =>
+                              item.key === column.key
+                                ? { ...item, visible: event.target.checked }
+                                : item,
+                            ),
+                          )
+                        }
+                      />
+                      {column.label}
+                    </label>
+                    <div className="ml-auto flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-8 px-2"
+                        disabled={index === 0}
+                        onClick={() =>
+                          setColumns((current) => moveColumn(current, index, index - 1))
+                        }
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-8 px-2"
+                        disabled={index === columns.length - 1}
+                        onClick={() =>
+                          setColumns((current) => moveColumn(current, index, index + 1))
+                        }
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+
         {selectedRow ? (
           <>
             <ReviewDetailPanel row={selectedRow} run={run} />

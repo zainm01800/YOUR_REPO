@@ -219,6 +219,23 @@ export interface ExportColumnLayout {
   width?: number;
 }
 
+export type ReviewGridColumnKey =
+  | "supplier"
+  | "gross"
+  | "vat"
+  | "vatPercent"
+  | "match"
+  | "vatCode"
+  | "glCode"
+  | "exceptions";
+
+export interface ReviewGridColumnLayout {
+  key: ReviewGridColumnKey;
+  label: string;
+  visible: boolean;
+  width?: number;
+}
+
 export interface RunProcessingSummary {
   transactions: number;
   documents: number;
