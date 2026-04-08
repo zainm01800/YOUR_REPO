@@ -16,7 +16,16 @@ import { Input } from "@/components/ui/input";
 import { getReviewCellDisplayValue } from "@/lib/review-sheet";
 import { formatCurrency } from "@/lib/utils";
 
-type GridRow = ReviewRow;
+type EmptyGridRow = Omit<ReviewRow, "matchStatus"> & {
+  __isEmpty: true;
+  matchStatus: "unmatched";
+};
+
+type GridRow = ReviewRow | EmptyGridRow;
+
+function isEmptyGridRow(row: GridRow): row is EmptyGridRow {
+  return "__isEmpty" in row;
+}
 
 function HeaderFilter({
   column,
@@ -135,6 +144,10 @@ function getColumnCellContent(
   columns: ReviewGridColumnLayout[],
   rowNumber: number,
 ): ReactNode {
+  if (isEmptyGridRow(row)) {
+    return null;
+  }
+
   const displayValue = getReviewCellDisplayValue(row, column, columns, rowNumber);
 
   switch (column.key) {
@@ -199,6 +212,41 @@ export function ReviewTable({
   const visibleColumns = useMemo(
     () => columns.filter((column) => column.visible),
     [columns],
+  );
+  const targetVisibleRows = 18;
+  const displayRows = useMemo(
+    () =>
+      rows.length >= targetVisibleRows
+        ? rows
+        : [
+            ...rows,
+            ...Array.from({ length: targetVisibleRows - rows.length }, (_, index) => ({
+              id: `empty_${index}`,
+              transactionId: "",
+              source: "",
+              supplier: "",
+              date: undefined,
+              currency: "",
+              originalAmount: 0,
+              originalCurrency: "",
+              net: undefined,
+              vat: undefined,
+              gross: undefined,
+              vatPercent: undefined,
+              vatCode: undefined,
+              glCode: undefined,
+              matchStatus: "unmatched" as const,
+              confidence: 0,
+              originalDescription: "",
+              employee: undefined,
+              notes: undefined,
+              approved: false,
+              excludedFromExport: false,
+              exceptions: [],
+              __isEmpty: true,
+            })),
+          ],
+    [rows],
   );
 
   const gridColumns = useMemo(() => {
@@ -273,7 +321,7 @@ export function ReviewTable({
           aria-label="Review spreadsheet"
           className="rdg-light rdg-review-grid h-full"
           columns={gridColumns}
-          rows={rows}
+          rows={displayRows}
           rowHeight={54}
           headerRowHeight={46}
           rowKeyGetter={(row) => row.id}
@@ -290,12 +338,13 @@ export function ReviewTable({
             const updatedRow = nextRows[rowIndex];
             const key = String(data.column.key);
 
-            if (!updatedRow || key === "__rowNumber") {
+            if (!updatedRow || key === "__rowNumber" || isEmptyGridRow(updatedRow)) {
               return;
             }
 
-            const rawValue = updatedRow[key as keyof ReviewRow];
-            onEditField(updatedRow.id, key, rawValue?.toString() || "");
+            const reviewRow = updatedRow as ReviewRow;
+            const rawValue = reviewRow[key as keyof ReviewRow];
+            onEditField(reviewRow.id, key, rawValue?.toString() || "");
           }}
           onColumnsReorder={(sourceKey, targetKey) => {
             const sourceIndex = visibleColumns.findIndex(
@@ -310,9 +359,18 @@ export function ReviewTable({
             }
           }}
           rowClass={(row) =>
-            row.id === selectedRowId ? "rdg-review-row-selected" : undefined
+            isEmptyGridRow(row)
+              ? "rdg-review-row-empty"
+              : row.id === selectedRowId
+                ? "rdg-review-row-selected"
+                : undefined
           }
           onCellClick={(args: CellMouseArgs<GridRow>, event: CellMouseEvent) => {
+            if (isEmptyGridRow(args.row)) {
+              event.preventGridDefault();
+              return;
+            }
+
             if (args.column.key === "__rowNumber") {
               event.preventGridDefault();
               onSelectRow(args.row.id);

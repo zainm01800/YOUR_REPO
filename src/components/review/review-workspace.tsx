@@ -21,52 +21,82 @@ import { getReviewCellFilterText } from "@/lib/review-sheet";
 
 const formulaTemplates = [
   {
-    id: "gross_minus_vat",
-    label: "Gross minus VAT",
+    id: "net_from_gross_vat",
+    label: "Net from gross and VAT",
     formula: "=[Gross]-[VAT]",
-    description: "Net value based on gross less VAT",
+    description: "Creates a net value column from reviewed gross minus VAT",
   },
   {
-    id: "gross_plus_vat",
-    label: "Gross plus VAT",
-    formula: "=[Gross]+[VAT]",
-    description: "Combined gross and VAT total",
+    id: "gross_from_net_vat",
+    label: "Gross from net and VAT",
+    formula: "=[Net]+[VAT]",
+    description: "Builds a tax-inclusive total from net plus VAT",
+  },
+  {
+    id: "variance_to_original",
+    label: "Variance to original amount",
+    formula: "=[Gross]-[Original Value]",
+    description: "Shows whether the reviewed gross differs from the source transaction value",
+  },
+  {
+    id: "net_variance_to_original",
+    label: "Net variance to original",
+    formula: "=[Net]-[Original Value]",
+    description: "Compares the reviewed net amount against the original transaction value",
   },
   {
     id: "vat_rate_from_values",
-    label: "VAT rate from values",
+    label: "Effective VAT rate",
     formula: "=[VAT]/[Net]",
-    description: "Calculated VAT rate from VAT and net",
+    description: "Calculates the effective VAT rate from VAT divided by net",
   },
   {
-    id: "gross_vs_original_delta",
-    label: "Gross variance to original",
-    formula: "=[Gross]-[Original Value]",
-    description: "Difference between reviewed gross and source amount",
+    id: "vat_share_of_gross",
+    label: "VAT share of gross",
+    formula: "=[VAT]/[Gross]",
+    description: "Shows how much of the gross amount is tax",
   },
   {
-    id: "net_vs_original_delta",
-    label: "Net variance to original",
-    formula: "=[Net]-[Original Value]",
-    description: "Difference between reviewed net and source amount",
-  },
-  {
-    id: "recoverable_base",
-    label: "Recoverable base",
-    formula: "=[Net]",
-    description: "Copies the reviewed net amount",
-  },
-  {
-    id: "tax_only",
-    label: "Tax only",
+    id: "recoverable_vat_check",
+    label: "Recoverable VAT value",
     formula: "=[VAT]",
-    description: "Copies the VAT amount into a separate analysis column",
+    description: "Copies the VAT amount into a dedicated recoverable tax column",
   },
   {
-    id: "margin_check",
-    label: "Margin check",
+    id: "taxable_base",
+    label: "Taxable base",
+    formula: "=[Net]",
+    description: "Copies the net amount into a dedicated taxable-base column",
+  },
+  {
+    id: "gross_to_net_ratio",
+    label: "Gross to net ratio",
+    formula: "=[Gross]/[Net]",
+    description: "Useful for checking unusual invoice structures or tax anomalies",
+  },
+  {
+    id: "vat_to_original_ratio",
+    label: "VAT against original amount",
+    formula: "=[VAT]/[Original Value]",
+    description: "Shows the VAT share against the original transaction amount",
+  },
+  {
+    id: "net_to_original_ratio",
+    label: "Net against original amount",
+    formula: "=[Net]/[Original Value]",
+    description: "Shows the net share against the source transaction value",
+  },
+  {
+    id: "amount_check",
+    label: "Amount balance check",
     formula: "=[Gross]-[Net]-[VAT]",
-    description: "Checks whether gross less net less VAT balances to zero",
+    description: "Checks that gross minus net minus VAT balances to zero",
+  },
+  {
+    id: "custom",
+    label: "Custom formula",
+    formula: "",
+    description: "Write your own formula using the available column references",
   },
 ] as const;
 
@@ -148,6 +178,7 @@ export function ReviewWorkspace({
   const [selectedFormulaTemplateId, setSelectedFormulaTemplateId] = useState<string>(
     formulaTemplates[0].id,
   );
+  const [customFormula, setCustomFormula] = useState("");
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -265,7 +296,10 @@ export function ReviewWorkspace({
     const selectedTemplate = formulaTemplates.find(
       (template) => template.id === selectedFormulaTemplateId,
     );
-    const formula = selectedTemplate?.formula;
+    const formula =
+      selectedTemplate?.id === "custom"
+        ? customFormula.trim()
+        : selectedTemplate?.formula;
 
     if (!label || !formula) {
       return;
@@ -283,6 +317,7 @@ export function ReviewWorkspace({
       },
     ]);
     setNewColumnLabel("");
+    setCustomFormula("");
   }
 
   const selectedFormulaTemplate =
@@ -362,9 +397,18 @@ export function ReviewWorkspace({
             </label>
             <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3 text-sm leading-6 text-[var(--color-foreground)]">
               <div className="font-medium">{selectedFormulaTemplate.description}</div>
-              <div className="mt-2 font-mono text-xs text-[var(--color-muted-foreground)]">
-                {selectedFormulaTemplate.formula}
-              </div>
+              {selectedFormulaTemplate.id === "custom" ? (
+                <Input
+                  className="mt-3"
+                  placeholder="Example: =[Gross]-[VAT]"
+                  value={customFormula}
+                  onChange={(event) => setCustomFormula(event.target.value)}
+                />
+              ) : (
+                <div className="mt-2 font-mono text-xs text-[var(--color-muted-foreground)]">
+                  {selectedFormulaTemplate.formula}
+                </div>
+              )}
               <div className="mt-3 text-xs text-[var(--color-muted-foreground)]">
                 Available references: Supplier, Original Value, Gross, Net, VAT, VAT %, VAT Code, GL Code
               </div>

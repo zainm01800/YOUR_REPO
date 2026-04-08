@@ -82,6 +82,11 @@ textarea {
   background: white;
 }
 
+.rdg-review-grid .rdg-review-row-empty > .rdg-cell {
+  background: #ffffff;
+  color: transparent;
+}
+
 .rdg-review-grid .rdg-review-row-selected > .rdg-cell {
   background: rgba(25, 94, 65, 0.12);
 }
