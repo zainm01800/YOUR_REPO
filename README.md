@@ -51,10 +51,10 @@ Why `ClearMatch`:
 - Frontend: Next.js 16 App Router, React 19, Tailwind CSS v4
 - API: Next.js route handlers
 - Data model: Prisma schema for PostgreSQL
-- Demo persistence: in-memory repository for local MVP flow
+- Persistence: Prisma + PostgreSQL when `DATABASE_URL` is configured, otherwise in-memory demo mode
 - Exporting: `exceljs` and CSV generation
 - Parsing: `xlsx`, `jszip`, `pdf-parse`
-- Auth: cookie session with `jose`
+- Auth: Clerk
 
 ## Architecture
 
@@ -141,7 +141,16 @@ npm run dev
 
 `http://localhost:3000`
 
-By default the app runs in `DEMO_MODE=true`, which uses the seeded in-memory repository so the full flow works without a database.
+By default the app can run in `DEMO_MODE=true`, which uses the seeded in-memory repository so the full flow works without a database.
+
+If you set:
+
+```bash
+DEMO_MODE=false
+DATABASE_URL=your-postgres-connection-string
+```
+
+the app now switches automatically to the Prisma-backed PostgreSQL repository.
 
 ## Deploy To Vercel With GitHub
 
@@ -174,7 +183,7 @@ For an instant hosted demo:
 - `SESSION_SECRET=replace-with-a-long-random-string`
 - `DEMO_MODE=true`
 
-For production persistence later:
+For production persistence:
 
 - `SESSION_SECRET=replace-with-a-long-random-string`
 - `DEMO_MODE=false`
@@ -212,18 +221,18 @@ npm run db:generate
 npm run db:migrate
 ```
 
-The Prisma schema and migrations are already included. The current repository implementation is demo-first and intentionally isolated behind `src/lib/data`.
+The Prisma schema and migrations are already included, and the app now switches between the demo repository and the Prisma-backed repository through `src/lib/data`.
 
-## Next Step To Make It Fully Multi-User
+## Next Step To Scale Further
 
-The current hosted version is ideal for demos, investor links, early user testing, and landing-page sharing.
+The hosted version can now use PostgreSQL for persistent run data.
 
-To turn it into a proper persistent SaaS deployment, the next implementation step is:
+The next steps for stronger multi-user scale are:
 
-1. Replace the demo repository in `src/lib/data` with a Prisma-backed repository
-2. Provision Postgres, such as Neon or Supabase
-3. Store uploads in object storage
-4. Move document processing into a queue-backed worker
+1. Store uploaded files in object storage
+2. Move document processing into a queue-backed worker
+3. Add database-backed template persistence for review/export layouts
+4. Attach Clerk users and workspaces to persisted database records
 
 ## Finance Workflow Covered In MVP
 
@@ -279,7 +288,7 @@ Exports include:
 
 This MVP is designed to be extended in two directions:
 
-1. Replace the demo repository with a Prisma-backed repository without changing UI pages or route handlers.
+1. Extend the Prisma-backed repository with richer user/workspace ownership and storage-backed uploads.
 2. Replace the local extractor with a stronger OCR or document-intelligence provider while keeping the review, matching, VAT, and export layers intact.
 
 ## Useful Scripts

@@ -72,7 +72,7 @@ export function buildReviewRows(
   vatRules: VatRule[],
   glRules: GlCodeRule[],
 ) {
-  return run.transactions.map<ReviewRow>((transaction) => {
+  return run.transactions.flatMap<ReviewRow>((transaction) => {
     const match = findSelectedMatch(run, transaction.id);
     const document = run.documents.find((candidate) => candidate.id === match?.documentId);
     const taxExceptions = detectVatExceptions(document, vatRules);
@@ -87,16 +87,7 @@ export function buildReviewRows(
       ),
       ...taxExceptions,
     ];
-    const vatCode = transaction.vatCode || resolveVatCode(document, vatRules);
     const glCode = transaction.glCode || suggestGlCode(transaction, glRules, run);
-
-    if (!vatCode && document) {
-      exceptions.push({
-        code: "missing_vat_code",
-        severity: "medium",
-        message: "No VAT code was derived from the configured tax rules.",
-      });
-    }
 
     if (!glCode) {
       exceptions.push({
@@ -118,32 +109,56 @@ export function buildReviewRows(
       });
     }
 
-    const primaryTaxLine = document?.taxLines[0];
+    const taxLines =
+      document?.taxLines && document.taxLines.length > 0 ? document.taxLines : [undefined];
 
-    return {
-      id: `row_${transaction.id}`,
-      transactionId: transaction.id,
-      documentId: document?.id,
-      source: run.transactionFileName || "Manual upload",
-      supplier: document?.supplier || transaction.merchant,
-      date: document?.issueDate || transaction.transactionDate,
-      currency: document?.currency || transaction.currency,
-      originalAmount: transaction.amount,
-      originalCurrency: transaction.currency,
-      net: document?.net,
-      vat: document?.vat,
-      gross: document?.gross || transaction.amount,
-      vatPercent: primaryTaxLine?.rate,
-      vatCode,
-      glCode,
-      matchStatus: match?.status || "unmatched",
-      confidence: document?.confidence || 0,
-      originalDescription: transaction.description,
-      employee: transaction.employee,
-      notes: match?.rationale.notes.join(" "),
-      approved: exceptions.every((exception) => exception.severity !== "high"),
-      excludedFromExport: !!transaction.excludedFromExport,
-      exceptions,
-    };
+    return taxLines.map((taxLine, taxLineIndex) => {
+      const vatCode =
+        transaction.vatCode || resolveVatCode(document, vatRules, taxLine?.rate);
+      const rowExceptions = [...exceptions];
+
+      if (!vatCode && document) {
+        rowExceptions.push({
+          code: "missing_vat_code",
+          severity: "medium",
+          message: "No VAT code was derived from the configured tax rules.",
+        });
+      }
+
+      return {
+        id: taxLine?.id ? `row_${transaction.id}__tax_${taxLine.id}` : `row_${transaction.id}`,
+        transactionId: transaction.id,
+        documentId: document?.id,
+        taxLineId: taxLine?.id,
+        taxLineLabel:
+          taxLine?.label ||
+          (document?.taxLines.length && document.taxLines.length > 1
+            ? `VAT line ${taxLineIndex + 1}`
+            : undefined),
+        source: run.transactionFileName || "Manual upload",
+        supplier: document?.supplier || transaction.merchant,
+        date: document?.issueDate || transaction.transactionDate,
+        currency: document?.currency || transaction.currency,
+        originalAmount: transaction.amount,
+        originalCurrency: transaction.currency,
+        net: taxLine ? taxLine.netAmount : document ? (document.net ?? document.gross ?? undefined) : undefined,
+        vat: taxLine ? taxLine.taxAmount : document ? (document.vat ?? 0) : undefined,
+        gross: taxLine ? taxLine.grossAmount : document?.gross || transaction.amount,
+        vatPercent: taxLine?.rate,
+        vatCode,
+        glCode,
+        matchStatus: match?.status || "unmatched",
+        confidence: document?.confidence || 0,
+        originalDescription:
+          taxLine?.label && document?.taxLines.length && document.taxLines.length > 1
+            ? `${transaction.description} - ${taxLine.label}`
+            : transaction.description,
+        employee: transaction.employee,
+        notes: match?.rationale.notes.join(" "),
+        approved: rowExceptions.every((exception) => exception.severity !== "high"),
+        excludedFromExport: !!transaction.excludedFromExport,
+        exceptions: rowExceptions,
+      };
+    });
   });
 }

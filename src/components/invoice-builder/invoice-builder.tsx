@@ -147,7 +147,7 @@ export function InvoiceBuilder({ runs }: { runs: ReconciliationRun[] }) {
           <div>
             <h2 className="text-xl font-semibold">1. Choose a reconciliation run</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-              Select which run's data will be used to fill the template.
+              Select which run data will be used to fill the template.
             </p>
           </div>
           <Select value={selectedRunId} onChange={(e) => setSelectedRunId(e.target.value)}>

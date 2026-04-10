@@ -52,12 +52,13 @@ export function detectVatExceptions(
 export function resolveVatCode(
   document: ExtractedDocument | undefined,
   vatRules: VatRule[],
+  rateOverride?: number,
 ) {
   if (!document) {
     return undefined;
   }
 
-  const primaryRate = document.taxLines[0]?.rate;
+  const primaryRate = rateOverride ?? document.taxLines[0]?.rate;
   if (primaryRate === undefined) {
     return undefined;
   }
@@ -68,4 +69,3 @@ export function resolveVatCode(
       Math.abs(rule.rate - primaryRate) < 0.001,
   )?.taxCode;
 }
-

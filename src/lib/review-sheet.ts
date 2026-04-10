@@ -154,7 +154,7 @@ export function getReviewCellDisplayValue(
 
   switch (column.key) {
     case "supplier":
-      return `${row.supplier}${row.originalDescription ? ` - ${row.originalDescription}` : ""}`;
+      return row.supplier;
     case "originalValue":
       return formatCurrency(row.originalAmount, row.originalCurrency);
     case "gross":

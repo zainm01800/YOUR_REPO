@@ -14,14 +14,13 @@ export default async function ExportPage({
 }) {
   const { runId } = await params;
   const repository = getRepository();
-  const [run, rows] = await Promise.all([
-    repository.getRun(runId),
-    repository.getRunRows(runId),
-  ]);
+  const run = await repository.getRun(runId);
 
   if (!run) {
     notFound();
   }
+
+  const rows = await repository.getRunRows(runId);
 
   const exportableRows = rows.filter((row) => !row.excludedFromExport);
   const missingGl = exportableRows.filter((r) => !r.glCode).length;
@@ -44,41 +43,41 @@ export default async function ExportPage({
       />
 
       {/* Validation summary */}
-      <Card className={`space-y-4 border-2 ${hasWarnings ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
+      <Card className={`space-y-4 border-2 ${hasWarnings ? "border-[var(--color-danger-border)] bg-[var(--color-danger-soft)]" : "border-[var(--color-accent-soft)] bg-[var(--color-accent-soft)]"}`}>
         <div className="flex items-start gap-3">
           {hasWarnings ? (
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-danger)]" />
           ) : (
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-accent)]" />
           )}
           <div>
-            <h2 className={`text-base font-semibold ${hasWarnings ? "text-amber-900" : "text-emerald-900"}`}>
+            <h2 className={`text-base font-semibold ${hasWarnings ? "text-[var(--color-danger)]" : "text-[var(--color-accent)]"}`}>
               {hasWarnings ? "Review before exporting" : "Ready to export"}
             </h2>
-            <p className={`mt-1 text-sm ${hasWarnings ? "text-amber-800" : "text-emerald-800"}`}>
+            <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
               {exportableRows.length} of {rows.length} rows included in export.
               {unapproved > 0 && ` ${unapproved} row${unapproved > 1 ? "s" : ""} not yet approved.`}
             </p>
           </div>
         </div>
         {hasWarnings && (
-          <div className="flex flex-wrap gap-4 text-sm text-amber-800">
+          <div className="flex flex-wrap gap-4 text-sm text-[var(--color-danger)]">
             {missingGl > 0 && (
-              <span className="flex items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 font-medium">
+              <span className="flex items-center gap-1.5 rounded-lg bg-[var(--color-danger-soft)] px-3 py-1.5 font-medium">
                 {missingGl} row{missingGl > 1 ? "s" : ""} missing GL code
               </span>
             )}
             {missingVat > 0 && (
-              <span className="flex items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 font-medium">
+              <span className="flex items-center gap-1.5 rounded-lg bg-[var(--color-danger-soft)] px-3 py-1.5 font-medium">
                 {missingVat} row{missingVat > 1 ? "s" : ""} missing VAT code
               </span>
             )}
             {unmatched > 0 && (
-              <span className="flex items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 font-medium">
+              <span className="flex items-center gap-1.5 rounded-lg bg-[var(--color-danger-soft)] px-3 py-1.5 font-medium">
                 {unmatched} unmatched row{unmatched > 1 ? "s" : ""}
               </span>
             )}
-            <Link href={`/runs/${run.id}/exceptions`} className="ml-auto font-semibold text-amber-900 underline underline-offset-2">
+            <Link href={`/runs/${run.id}/exceptions`} className="ml-auto font-semibold text-[var(--color-danger)] underline underline-offset-2">
               View exceptions →
             </Link>
           </div>
@@ -95,7 +94,7 @@ export default async function ExportPage({
             Use the <strong>Posting File Builder</strong> to transform this reconciliation into a SAP, Xero, Sage, or custom upload file. Apply a saved output template and download a pre-filled posting file in one click.
           </p>
         </div>
-        <Link href={`/posting-file-builder`}>
+        <Link href={`/runs/${run.id}/posting-file-builder`}>
           <Button>Open Posting File Builder →</Button>
         </Link>
       </Card>

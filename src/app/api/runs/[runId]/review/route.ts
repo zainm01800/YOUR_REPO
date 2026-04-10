@@ -14,6 +14,16 @@ export async function POST(request: Request) {
     payload?: Record<string, unknown>;
   };
 
-  await repository.saveReviewMutation(body);
-  return NextResponse.json({ ok: true });
+  const mutation = await repository.saveReviewMutation(body);
+  const [run, rows] = await Promise.all([
+    repository.getRun(body.runId),
+    repository.getRunRows(body.runId),
+  ]);
+
+  return NextResponse.json({
+    ok: true,
+    mutation,
+    run,
+    rows,
+  });
 }

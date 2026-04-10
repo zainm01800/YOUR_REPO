@@ -85,13 +85,45 @@ textarea {
   background: white;
 }
 
+.rdg-review-grid .rdg-review-group-0 > .rdg-cell {
+  background: rgba(25, 94, 65, 0.035);
+}
+
+.rdg-review-grid .rdg-review-group-1 > .rdg-cell {
+  background: rgba(126, 93, 52, 0.045);
+}
+
+.rdg-review-grid .rdg-review-group-2 > .rdg-cell {
+  background: rgba(27, 36, 40, 0.03);
+}
+
+.rdg-review-grid .rdg-review-group-3 > .rdg-cell {
+  background: rgba(116, 79, 122, 0.04);
+}
+
+.rdg-review-grid .rdg-review-group-4 > .rdg-cell {
+  background: rgba(170, 86, 42, 0.04);
+}
+
+.rdg-review-grid .rdg-review-group-5 > .rdg-cell {
+  background: rgba(59, 94, 122, 0.04);
+}
+
+.rdg-review-grid .rdg-review-group-start > .rdg-cell {
+  border-top: 1px solid rgba(184, 157, 130, 0.9);
+}
+
+.rdg-review-grid .rdg-review-group-end > .rdg-cell {
+  border-bottom: 1px solid rgba(184, 157, 130, 0.9);
+}
+
 .rdg-review-grid .rdg-review-row-empty > .rdg-cell {
   background: #ffffff;
   color: transparent;
 }
 
 .rdg-review-grid .rdg-review-row-selected > .rdg-cell {
-  background: rgba(25, 94, 65, 0.12);
+  background: rgba(25, 94, 65, 0.12) !important;
 }
 
 .rdg-review-grid .rdg-vat-zero {

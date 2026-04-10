@@ -19,6 +19,11 @@ export interface ReviewMutationInput {
   payload?: Record<string, unknown>;
 }
 
+export interface ReviewMutationResult {
+  linkedDocumentId?: string;
+  affectedTransactionIds?: string[];
+}
+
 export interface CreateRunInput {
   name: string;
   entity?: string;
@@ -37,6 +42,7 @@ export interface Repository {
   getTemplates(): Promise<MappingTemplate[]>;
   getVatRules(): Promise<VatRule[]>;
   createRun(input: CreateRunInput): Promise<ReconciliationRun>;
+  deleteRun(runId: string): Promise<void>;
   updateRun(run: ReconciliationRun): Promise<ReconciliationRun>;
-  saveReviewMutation(input: ReviewMutationInput): Promise<void>;
+  saveReviewMutation(input: ReviewMutationInput): Promise<ReviewMutationResult>;
 }

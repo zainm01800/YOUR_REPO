@@ -4,6 +4,10 @@ import { getRepository } from "@/lib/data";
 import { createCsvExport } from "@/lib/export/csv";
 import { createExcelExport } from "@/lib/export/excel";
 import { normaliseExportLayout } from "@/lib/export/layout";
+import {
+  createPostingTemplateWorkbook,
+  type PostingTemplateConfig,
+} from "@/lib/export/posting-template";
 
 function buildExportResponse(
   runId: string,
@@ -28,6 +32,16 @@ function buildExportResponse(
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="${runId}.xlsx"`,
+      },
+    });
+  }
+
+  if (format === "template_xlsx") {
+    return new NextResponse(body, {
+      headers: {
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="${runId}-posting-template.xlsx"`,
       },
     });
   }
@@ -69,13 +83,36 @@ export async function POST(
 ) {
   const { runId } = await context.params;
   const body = (await request.json()) as {
-    format?: "csv" | "xlsx";
+    format?: "csv" | "xlsx" | "template_xlsx";
     layout?: ExportColumnLayout[];
+    templateWorkbookBase64?: string;
+    postingTemplate?: PostingTemplateConfig;
   };
   const format = body.format || "csv";
   const layout = normaliseExportLayout(body.layout);
   const repository = getRepository();
   const rows = await repository.getRunRows(runId);
+
+  if (format === "template_xlsx") {
+    if (!body.templateWorkbookBase64 || !body.postingTemplate) {
+      return NextResponse.json(
+        { error: "Template workbook and posting configuration are required." },
+        { status: 400 },
+      );
+    }
+
+    const workbookBase64 = body.templateWorkbookBase64.includes(",")
+      ? body.templateWorkbookBase64.split(",").at(-1) || ""
+      : body.templateWorkbookBase64;
+    const buffer = Buffer.from(workbookBase64, "base64");
+    const workbook = await createPostingTemplateWorkbook(
+      rows,
+      buffer,
+      body.postingTemplate,
+    );
+
+    return buildExportResponse(runId, format, workbook);
+  }
 
   if (format === "xlsx") {
     return buildExportResponse(runId, format, await createExcelExport(rows, layout));

@@ -153,7 +153,6 @@ export function TemplateEditor() {
   const [aiDescription, setAiDescription] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  const formulaInputRef = useState<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const stored = typeof window !== "undefined" ? window.localStorage.getItem(reviewTemplateStorageKey) : null;
@@ -207,7 +206,14 @@ export function TemplateEditor() {
 
     setEditingColumns((cols) => [
       ...cols,
-      { key: `custom_${Date.now()}` as any, label, visible: true, width: 14, kind: "custom", formula: f },
+      {
+        key: `custom_${Date.now()}` as ReviewGridColumnLayout["key"],
+        label,
+        visible: true,
+        width: 14,
+        kind: "custom",
+        formula: f,
+      },
     ]);
     setNewColumnLabel("");
     setFormula("");

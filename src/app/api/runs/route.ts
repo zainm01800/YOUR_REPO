@@ -8,9 +8,22 @@ import {
 import { expandArchive } from "@/lib/uploads/archive";
 import {
   extractDocumentFromBuffer,
-  extractDocumentFromClientPayload,
+  extractDocumentFromTextWithAI,
 } from "@/lib/uploads/extractor";
-import type { ClientExtractedDocumentInput } from "@/lib/domain/types";
+import type { ClientExtractedDocumentInput, ExtractedDocument, TransactionRecord } from "@/lib/domain/types";
+
+function transactionsFromDocuments(documents: ExtractedDocument[], fallbackCurrency: string): TransactionRecord[] {
+  return documents.map((doc, index) => ({
+    id: `txn_doc_${index + 1}_${doc.id}`,
+    sourceLineNumber: index + 1,
+    transactionDate: doc.issueDate,
+    amount: doc.gross ?? 0,
+    currency: doc.currency ?? fallbackCurrency,
+    merchant: doc.supplier ?? doc.fileName,
+    description: doc.documentNumber ?? doc.fileName,
+    reference: doc.documentNumber,
+  }));
+}
 
 export async function GET() {
   const repository = getRepository();
@@ -19,6 +32,15 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  try {
+    return await handlePost(request);
+  } catch (err) {
+    console.error("[POST /api/runs] Unhandled error:", err);
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
+}
+
+async function handlePost(request: Request) {
   const repository = getRepository();
   const formData = await request.formData();
   const name = String(formData.get("name") || "New reconciliation run");
@@ -68,11 +90,18 @@ export async function POST(request: Request) {
     }
   }
 
-  run.documents.push(
-    ...clientExtractedDocuments.map((document) =>
-      extractDocumentFromClientPayload(document),
+  // Use AI extraction for client-side OCR results (images OCR'd by Tesseract in browser)
+  const aiExtractedClientDocs = await Promise.all(
+    clientExtractedDocuments.map((document) =>
+      extractDocumentFromTextWithAI(
+        document.fileName,
+        document.mimeType,
+        document.rawExtractedText ?? "",
+        document.confidence ?? 0.68,
+      ),
     ),
   );
+  run.documents.push(...aiExtractedClientDocs);
 
   for (const entry of documentEntries) {
     if (!(entry instanceof File) || entry.size === 0) {
@@ -89,31 +118,48 @@ export async function POST(request: Request) {
     });
 
     if (entry.name.toLowerCase().endsWith(".zip")) {
-      const expanded = await expandArchive(entry.name, await entry.arrayBuffer());
-      for (const item of expanded) {
-        if (clientExtractedNames.has(item.fileName)) {
-          continue;
+      try {
+        const expanded = await expandArchive(entry.name, await entry.arrayBuffer());
+        for (const item of expanded) {
+          if (clientExtractedNames.has(item.fileName)) {
+            continue;
+          }
+          try {
+            const extracted = await extractDocumentFromBuffer(
+              item.fileName,
+              item.mimeType,
+              item.buffer,
+            );
+            run.documents.push(extracted);
+          } catch (err) {
+            console.error(`[runs/route] extractDocumentFromBuffer failed for ${item.fileName}:`, err);
+          }
         }
-
-        const extracted = await extractDocumentFromBuffer(
-          item.fileName,
-          item.mimeType,
-          item.buffer,
-        );
-        run.documents.push(extracted);
+      } catch (err) {
+        console.error(`[runs/route] expandArchive failed for ${entry.name}:`, err);
       }
     } else {
       if (clientExtractedNames.has(entry.name)) {
         continue;
       }
 
-      const extracted = await extractDocumentFromBuffer(
-        entry.name,
-        entry.type,
-        await entry.arrayBuffer(),
-      );
-      run.documents.push(extracted);
+      try {
+        const extracted = await extractDocumentFromBuffer(
+          entry.name,
+          entry.type,
+          await entry.arrayBuffer(),
+        );
+        run.documents.push(extracted);
+      } catch (err) {
+        console.error(`[runs/route] extractDocumentFromBuffer failed for ${entry.name}:`, err);
+      }
     }
+  }
+
+  // If no transaction file was uploaded, synthesise one transaction per document
+  // so receipt-only runs still produce a reviewable table.
+  if (run.transactions.length === 0 && run.documents.length > 0) {
+    run.transactions = transactionsFromDocuments(run.documents, defaultCurrency);
   }
 
   await repository.updateRun(run);

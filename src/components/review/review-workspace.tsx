@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { FileSpreadsheet, Files, ListTree, Redo2, Undo2 } from "lucide-react";
+import { CheckCheck, FileSpreadsheet, Files, ListTree, Redo2, SlidersHorizontal, Undo2 } from "lucide-react";
 import type {
   ReconciliationRun,
   ReviewActionType,
@@ -47,6 +47,7 @@ type WorkspaceSnapshot = {
 };
 
 type SidebarTab = "template" | "documents" | "detail" | "actions";
+type SaveState = "idle" | "saving" | "saved";
 
 function moveColumn(
   columns: ReviewGridColumnLayout[],
@@ -180,6 +181,7 @@ export function ReviewWorkspace({
   initialRowId?: string;
 }) {
   const [rows, setRows] = useState(initialRows);
+  const [runDocuments, setRunDocuments] = useState(run.documents);
   const [selectedRowId, setSelectedRowId] = useState(initialRowId || initialRows[0]?.id || "");
   const [templates, setTemplates] = useState<ReviewTableTemplate[]>(() =>
     normaliseReviewTemplates(),
@@ -193,11 +195,16 @@ export function ReviewWorkspace({
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("template");
   const [historyPast, setHistoryPast] = useState<WorkspaceSnapshot[]>([]);
   const [historyFuture, setHistoryFuture] = useState<WorkspaceSnapshot[]>([]);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     setRows(initialRows);
   }, [initialRows]);
+
+  useEffect(() => {
+    setRunDocuments(run.documents);
+  }, [run.documents]);
 
   useEffect(() => {
     if (initialRowId) {
@@ -273,6 +280,11 @@ export function ReviewWorkspace({
     filteredRows[0];
   const summary = buildRunSummary(rows);
 
+  // Approval progress
+  const approvedCount = rows.filter((r) => r.approved).length;
+  const totalCount = rows.length;
+  const approvalPct = totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0;
+
   function createSnapshot(): WorkspaceSnapshot {
     return {
       rows: deepClone(rows),
@@ -314,6 +326,7 @@ export function ReviewWorkspace({
   function syncRowsToServer(previousRows: ReviewRow[], nextRows: ReviewRow[]) {
     const previousById = new Map(previousRows.map((row) => [row.id, row]));
 
+    setSaveState("saving");
     startTransition(async () => {
       const tasks: Promise<void>[] = [];
 
@@ -343,6 +356,8 @@ export function ReviewWorkspace({
       }
 
       await Promise.all(tasks);
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
     });
   }
 
@@ -382,6 +397,25 @@ export function ReviewWorkspace({
         }
       }),
     );
+  }
+
+  async function handleBulkApproveMatched() {
+    const matchedRows = rows.filter(
+      (r) => r.matchStatus === "matched" && !r.approved,
+    );
+    if (matchedRows.length === 0) return;
+
+    setSaveState("saving");
+    await Promise.all(
+      matchedRows.map((r) => submitMutation(r.id, "approve")),
+    );
+    setRows((current) =>
+      current.map((r) =>
+        r.matchStatus === "matched" ? { ...r, approved: true } : r,
+      ),
+    );
+    setSaveState("saved");
+    setTimeout(() => setSaveState("idle"), 2000);
   }
 
   function handleSelectTemplate(templateId: string) {
@@ -425,6 +459,29 @@ export function ReviewWorkspace({
     syncRowsToServer(previousRows, nextSnapshot.rows);
   }
 
+  // Keyboard shortcuts
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().includes("MAC");
+      const ctrlOrCmd = isMac ? event.metaKey : event.ctrlKey;
+      if (!ctrlOrCmd) return;
+      if (event.key === "z" && !event.shiftKey) {
+        event.preventDefault();
+        handleUndo();
+      } else if ((event.key === "z" && event.shiftKey) || event.key === "y") {
+        event.preventDefault();
+        handleRedo();
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [historyPast, historyFuture, rows],
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
   const sidebarTabs: Array<{
     id: SidebarTab;
     label: string;
@@ -434,7 +491,7 @@ export function ReviewWorkspace({
     { id: "template", label: "Template", icon: FileSpreadsheet },
     { id: "documents", label: "Docs", icon: Files, disabled: !selectedRow },
     { id: "detail", label: "Detail", icon: ListTree, disabled: !selectedRow },
-    { id: "actions", label: "Actions", icon: Undo2, disabled: !selectedRow },
+    { id: "actions", label: "Actions", icon: SlidersHorizontal, disabled: !selectedRow },
   ];
 
   function renderSidebarPanel() {
@@ -484,20 +541,43 @@ export function ReviewWorkspace({
 
     if (sidebarTab === "documents") {
       return (
-        <DocumentAttachmentPanel
-          key={`documents_${selectedRow.id}`}
-          runId={run.id}
-          row={selectedRow}
-          rows={rows}
-          documents={run.documents}
-          onSelectRow={setSelectedRowId}
-        />
-      );
-    }
+            <DocumentAttachmentPanel
+              key={`documents_${selectedRow.id}`}
+              runId={run.id}
+              row={selectedRow}
+              rows={rows}
+              documents={runDocuments}
+              onSelectRow={setSelectedRowId}
+              onDocumentLinked={({
+                linkedDocumentId,
+                updatedRows,
+                updatedDocuments,
+                affectedTransactionIds,
+              }) => {
+                setRunDocuments(updatedDocuments);
+                setRows(updatedRows);
 
-    if (sidebarTab === "detail") {
-      return <ReviewDetailPanel row={selectedRow} run={run} />;
-    }
+                const nextSelectedRow =
+                  (linkedDocumentId
+                    ? updatedRows.find((candidate) => candidate.documentId === linkedDocumentId)
+                    : undefined) ||
+                  (affectedTransactionIds && affectedTransactionIds.length > 0
+                    ? updatedRows.find((candidate) =>
+                        affectedTransactionIds.includes(candidate.transactionId),
+                      )
+                    : undefined) ||
+                  updatedRows.find((candidate) => candidate.id === selectedRow.id) ||
+                  updatedRows[0];
+
+                setSelectedRowId(nextSelectedRow?.id || "");
+              }}
+            />
+          );
+        }
+
+        if (sidebarTab === "detail") {
+      return <ReviewDetailPanel row={selectedRow} run={{ ...run, documents: runDocuments }} />;
+        }
 
     return (
       <Card className="space-y-4">
@@ -516,6 +596,14 @@ export function ReviewWorkspace({
       </Card>
     );
   }
+
+  const isMac = typeof navigator !== "undefined" && navigator.platform.toUpperCase().includes("MAC");
+  const undoShortcut = isMac ? "⌘Z" : "Ctrl+Z";
+  const redoShortcut = isMac ? "⌘⇧Z" : "Ctrl+Y";
+
+  const matchedUnapprovedCount = rows.filter(
+    (r) => r.matchStatus === "matched" && !r.approved,
+  ).length;
 
   return (
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -539,6 +627,23 @@ export function ReviewWorkspace({
           </Card>
         </div>
 
+        {/* Approval progress bar */}
+        <Card className="space-y-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-[var(--color-muted-foreground)]">Approval progress</span>
+            <span className={`font-semibold ${approvedCount === totalCount && totalCount > 0 ? "text-[var(--color-accent)]" : "text-[var(--color-foreground)]"}`}>
+              {approvedCount} / {totalCount} approved
+              {approvedCount === totalCount && totalCount > 0 && " ✓"}
+            </span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-panel)]">
+            <div
+              className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-500"
+              style={{ width: `${approvalPct}%` }}
+            />
+          </div>
+        </Card>
+
         <Card className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
@@ -548,25 +653,49 @@ export function ReviewWorkspace({
               {templates.find((template) => template.id === selectedTemplateId)?.name || "Default"} template active
             </div>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Autosave indicator */}
+            <span className={`text-xs font-medium transition-opacity ${saveState === "idle" ? "opacity-0" : "opacity-100"} ${saveState === "saved" ? "text-[var(--color-accent)]" : "text-[var(--color-muted-foreground)]"}`}>
+              {saveState === "saving" && "Saving…"}
+              {saveState === "saved" && "Saved ✓"}
+            </span>
             <Button
               type="button"
               variant="secondary"
               disabled={historyPast.length === 0}
               onClick={handleUndo}
+              title={`Undo (${undoShortcut})`}
             >
               <Undo2 className="mr-2 h-4 w-4" />
               Undo
+              <span className="ml-2 rounded bg-[var(--color-panel)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--color-muted-foreground)]">
+                {undoShortcut}
+              </span>
             </Button>
             <Button
               type="button"
               variant="secondary"
               disabled={historyFuture.length === 0}
               onClick={handleRedo}
+              title={`Redo (${redoShortcut})`}
             >
               <Redo2 className="mr-2 h-4 w-4" />
               Redo
+              <span className="ml-2 rounded bg-[var(--color-panel)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--color-muted-foreground)]">
+                {redoShortcut}
+              </span>
             </Button>
+            {matchedUnapprovedCount > 0 && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleBulkApproveMatched}
+                title="Approve all rows with a confirmed match"
+              >
+                <CheckCheck className="mr-2 h-4 w-4" />
+                Approve matched ({matchedUnapprovedCount})
+              </Button>
+            )}
           </div>
         </Card>
 

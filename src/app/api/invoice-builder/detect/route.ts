@@ -1,6 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 
+function makeUniqueHeaderLabel(baseHeader: string, columnNumber: number, seen: Map<string, number>) {
+  const nextCount = (seen.get(baseHeader) || 0) + 1;
+  seen.set(baseHeader, nextCount);
+
+  if (nextCount === 1) {
+    return baseHeader;
+  }
+
+  return `${baseHeader} [COL ${columnNumber}]`;
+}
+
+function getExcelColumnName(columnNumber: number) {
+  let dividend = columnNumber;
+  let columnName = "";
+
+  while (dividend > 0) {
+    const modulo = (dividend - 1) % 26;
+    columnName = String.fromCharCode(65 + modulo) + columnName;
+    dividend = Math.floor((dividend - modulo) / 26);
+  }
+
+  return columnName;
+}
+
 /**
  * Find the row that contains the actual column headers.
  * Strategy: the header row is the first row (within the first 20) that has
@@ -45,6 +69,18 @@ function detectHeaderRow(sheet: ExcelJS.Worksheet): { headerRowIndex: number; da
   return { headerRowIndex: bestRow, dataStartRow };
 }
 
+function getLastPopulatedRow(sheet: ExcelJS.Worksheet, dataStartRow: number, columns: Array<{ columnNumber: number }>) {
+  for (let rowIndex = sheet.rowCount; rowIndex >= dataStartRow; rowIndex -= 1) {
+    const row = sheet.getRow(rowIndex);
+    const hasValue = columns.some((column) => row.getCell(column.columnNumber).text?.trim());
+    if (hasValue) {
+      return rowIndex;
+    }
+  }
+
+  return dataStartRow;
+}
+
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get("file");
@@ -66,25 +102,44 @@ export async function POST(request: NextRequest) {
   const { headerRowIndex, dataStartRow } = detectHeaderRow(sheet);
   const headerRow = sheet.getRow(headerRowIndex);
   const headers: string[] = [];
+  const columns: Array<{
+    id: string;
+    label: string;
+    columnNumber: number;
+    letter: string;
+  }> = [];
+  const seenHeaders = new Map<string, number>();
 
-  headerRow.eachCell((cell) => {
+  headerRow.eachCell((cell, columnNumber) => {
     const value = cell.text?.trim();
-    if (value) headers.push(value);
+    if (value) {
+      const label = makeUniqueHeaderLabel(value, columnNumber, seenHeaders);
+      headers.push(label);
+      columns.push({
+        id: label,
+        label,
+        columnNumber,
+        letter: getExcelColumnName(columnNumber),
+      });
+    }
   });
 
+  const lastPopulatedRow = getLastPopulatedRow(sheet, dataStartRow, columns);
   const previewRows: string[][] = [];
-  sheet.eachRow((row, rowIndex) => {
-    if (rowIndex <= headerRowIndex || rowIndex > headerRowIndex + 3) return;
-    const cells: string[] = [];
-    row.eachCell((cell) => cells.push(cell.text?.trim() || ""));
-    previewRows.push(cells);
-  });
+  for (let rowIndex = dataStartRow; rowIndex <= lastPopulatedRow; rowIndex += 1) {
+    const row = sheet.getRow(rowIndex);
+    previewRows.push(
+      columns.map((column) => row.getCell(column.columnNumber).text?.trim() || ""),
+    );
+  }
 
   return NextResponse.json({
     headers,
+    columns,
     previewRows,
     sheetName: sheet.name,
     headerRowIndex,
     dataStartRow,
+    lastPopulatedRow,
   });
 }

@@ -288,6 +288,8 @@ export interface ReviewRow {
   id: string;
   transactionId: string;
   documentId?: string;
+  taxLineId?: string;
+  taxLineLabel?: string;
   source: string;
   supplier: string;
   date?: string;

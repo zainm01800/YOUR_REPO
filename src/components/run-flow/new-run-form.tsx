@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import JSZip from "jszip";
 import { createWorker } from "tesseract.js";
-import { LoaderCircle, Save, Trash2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, LoaderCircle, Save, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -147,8 +147,8 @@ function buildInitialValues(
   templates: MappingTemplate[],
 ): RunFormValues {
   return {
-    name: "April card reconciliation",
-    entity: "Northstar Holdings Ltd",
+    name: "",
+    entity: "",
     defaultCurrency: workspace.defaultCurrency,
     countryProfile: workspace.countryProfile,
     templateId: templates[0]?.id || "",
@@ -171,8 +171,15 @@ export function NewRunForm({
   const [presets, setPresets] = useState<RunSetupPreset[]>([]);
   const [selectedPresetId, setSelectedPresetId] = useState("");
   const [presetName, setPresetName] = useState(initialPresetName);
-  const [ocrMessage, setOcrMessage] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: "info" | "success" | "error" } | null>(null);
   const [isPending, setIsPending] = useState(false);
+
+  function setOcrMessage(text: string | null) {
+    if (text === null) { setStatusMessage(null); return; }
+    setStatusMessage({ text, type: "info" });
+  }
+  function setSuccessMessage(text: string) { setStatusMessage({ text, type: "success" }); }
+  function setErrorMessage(text: string) { setStatusMessage({ text, type: "error" }); }
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
 
@@ -202,13 +209,13 @@ export function NewRunForm({
       templateId: preset.templateId || current.templateId,
       notes: preset.notes || "",
     }));
-    setOcrMessage(`Loaded preset "${preset.name}".`);
+    setSuccessMessage(`Loaded preset "${preset.name}".`);
   }
 
   function saveCurrentPreset() {
     const trimmedName = presetName.trim();
     if (!trimmedName) {
-      setOcrMessage("Enter a preset name before saving.");
+      setErrorMessage("Enter a preset name before saving.");
       return;
     }
 
@@ -227,12 +234,12 @@ export function NewRunForm({
     setSelectedPresetId(preset.id);
     setPresetName("");
     writePresetsToStorage(updatedPresets);
-    setOcrMessage(`Saved preset "${preset.name}".`);
+    setSuccessMessage(`Saved preset "${preset.name}".`);
   }
 
   function deleteSelectedPreset() {
     if (!selectedPresetId) {
-      setOcrMessage("Choose a preset to delete first.");
+      setErrorMessage("Choose a preset to delete first.");
       return;
     }
 
@@ -240,7 +247,7 @@ export function NewRunForm({
     setPresets(updatedPresets);
     setSelectedPresetId("");
     writePresetsToStorage(updatedPresets);
-    setOcrMessage("Deleted the selected preset.");
+    setSuccessMessage("Deleted the selected preset.");
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -274,7 +281,13 @@ export function NewRunForm({
       });
 
       if (!response.ok) {
-        setOcrMessage("The upload failed. Please try again.");
+        let detail = "";
+        try {
+          const errBody = await response.json();
+          detail = errBody.error ? ` (${errBody.error})` : "";
+        } catch { /* ignore */ }
+        setErrorMessage(`Upload failed (HTTP ${response.status})${detail}. Please try again.`);
+        console.error("[new-run] Upload failed", response.status, detail);
         return;
       }
 
@@ -348,6 +361,8 @@ export function NewRunForm({
                 name="name"
                 value={values.name}
                 onChange={(event) => updateValue("name", event.target.value)}
+                placeholder="e.g. April 2026 card reconciliation"
+                required
               />
             </label>
             <label className="space-y-2">
@@ -356,6 +371,7 @@ export function NewRunForm({
                 name="entity"
                 value={values.entity}
                 onChange={(event) => updateValue("entity", event.target.value)}
+                placeholder="e.g. Acme Ltd"
               />
             </label>
             <label className="space-y-2">
@@ -396,9 +412,12 @@ export function NewRunForm({
             <label className="space-y-2">
               <span className="text-sm font-medium">Transaction file</span>
               <Input name="transactionFile" type="file" accept=".csv,.xlsx,.xls" />
+              <span className="text-xs leading-5 text-[var(--color-muted-foreground)]">
+                CSV or XLSX bank/card export. If omitted, each uploaded receipt becomes its own row.
+              </span>
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-medium">Receipts or ZIP archive</span>
+              <span className="text-sm font-medium">Receipts or documents</span>
               <Input
                 name="documentFiles"
                 type="file"
@@ -406,7 +425,7 @@ export function NewRunForm({
                 accept=".pdf,.jpg,.jpeg,.png,.webp,.zip"
               />
               <span className="text-xs leading-5 text-[var(--color-muted-foreground)]">
-                Image OCR runs in the user&apos;s browser with Tesseract. PDFs still use the server parser.
+                PDFs, images, or a ZIP archive. OCR runs in the browser for images.
               </span>
             </label>
           </div>
@@ -439,10 +458,22 @@ export function NewRunForm({
             </label>
           </div>
 
-          {ocrMessage ? (
-            <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
-              <LoaderCircle className={`h-4 w-4 ${isPending ? "animate-spin" : ""}`} />
-              <span>{ocrMessage}</span>
+          {statusMessage ? (
+            <div className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm ${
+              statusMessage.type === "error"
+                ? "border-[var(--color-danger-border)] bg-[var(--color-danger-soft)] text-[var(--color-danger)]"
+                : statusMessage.type === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-muted-foreground)]"
+            }`}>
+              {statusMessage.type === "error" ? (
+                <AlertCircle className="h-4 w-4 shrink-0" />
+              ) : statusMessage.type === "success" ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+              ) : (
+                <LoaderCircle className={`h-4 w-4 shrink-0 ${isPending ? "animate-spin" : ""}`} />
+              )}
+              <span>{statusMessage.text}</span>
             </div>
           ) : null}
 

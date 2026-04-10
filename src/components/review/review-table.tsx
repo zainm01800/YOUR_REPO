@@ -23,6 +23,15 @@ type EmptyGridRow = Omit<ReviewRow, "matchStatus"> & {
 
 type GridRow = ReviewRow | EmptyGridRow;
 
+type RowGroupMeta = {
+  colorGroupIndex: number;
+  groupIndex: number;
+  groupKey: string;
+  isFirstInGroup: boolean;
+  isLastInGroup: boolean;
+  isMultiRowGroup: boolean;
+};
+
 function isEmptyGridRow(row: GridRow): row is EmptyGridRow {
   return "__isEmpty" in row;
 }
@@ -143,6 +152,7 @@ function getColumnCellContent(
   column: ReviewGridColumnLayout,
   columns: ReviewGridColumnLayout[],
   rowNumber: number,
+  groupMeta?: RowGroupMeta,
 ): ReactNode {
   if (isEmptyGridRow(row)) {
     return null;
@@ -158,6 +168,9 @@ function getColumnCellContent(
         </div>
       );
     case "originalValue":
+      if (groupMeta?.isMultiRowGroup && !groupMeta.isFirstInGroup) {
+        return null;
+      }
       return (
         <div className="space-y-1 py-1">
           <div>{formatCurrency(row.originalAmount, row.originalCurrency)}</div>
@@ -218,6 +231,20 @@ function createEmptyGridRow(index: number): EmptyGridRow {
     exceptions: [],
     __isEmpty: true,
   };
+}
+
+function getRowGroupKey(row: ReviewRow) {
+  return row.documentId || `transaction_${row.transactionId}`;
+}
+
+function getStableColorGroupIndex(groupKey: string) {
+  let hash = 0;
+
+  for (let index = 0; index < groupKey.length; index += 1) {
+    hash = (hash * 31 + groupKey.charCodeAt(index)) % 7_919;
+  }
+
+  return Math.abs(hash) % 6;
 }
 
 export function ReviewTable({
@@ -287,6 +314,41 @@ export function ReviewTable({
     [rows, targetVisibleRows],
   );
 
+  const rowGroupMeta = useMemo(() => {
+    const meta = new Map<string, RowGroupMeta>();
+    let groupIndex = -1;
+    let currentGroupKey: string | null = null;
+
+    rows.forEach((row, index) => {
+      const groupKey = getRowGroupKey(row);
+
+      if (groupKey !== currentGroupKey) {
+        currentGroupKey = groupKey;
+        groupIndex += 1;
+      }
+
+      const previousRow = rows[index - 1];
+      const nextRow = rows[index + 1];
+      const isFirstInGroup =
+        !previousRow || getRowGroupKey(previousRow) !== groupKey;
+      const isLastInGroup =
+        !nextRow || getRowGroupKey(nextRow) !== groupKey;
+      const isMultiRowGroup =
+        !isFirstInGroup || !isLastInGroup;
+
+      meta.set(row.id, {
+        colorGroupIndex: getStableColorGroupIndex(groupKey),
+        groupIndex,
+        groupKey,
+        isFirstInGroup,
+        isLastInGroup,
+        isMultiRowGroup,
+      });
+    });
+
+    return meta;
+  }, [rows]);
+
   const gridColumns = useMemo(() => {
     const spreadsheetColumns: Column<GridRow>[] = [
       {
@@ -353,7 +415,13 @@ export function ReviewTable({
           />
         ),
         renderCell: ({ row, rowIdx }) =>
-          getColumnCellContent(row, column, visibleColumns, rowIdx + 2),
+          getColumnCellContent(
+            row,
+            column,
+            visibleColumns,
+            rowIdx + 2,
+            isEmptyGridRow(row) ? undefined : rowGroupMeta.get(row.id),
+          ),
       });
     }
 
@@ -363,6 +431,7 @@ export function ReviewTable({
     columnFilters,
     onFilterChange,
     onToggleFilterMenu,
+    rowGroupMeta,
     visibleColumns,
   ]);
 
@@ -411,13 +480,21 @@ export function ReviewTable({
               onMoveColumn(sourceIndex, targetIndex);
             }
           }}
-          rowClass={(row) =>
-            isEmptyGridRow(row)
-              ? "rdg-review-row-empty"
-              : row.id === selectedRowId
-                ? "rdg-review-row-selected"
-                : undefined
-          }
+          rowClass={(row) => {
+            if (isEmptyGridRow(row)) {
+              return "rdg-review-row-empty";
+            }
+
+            const meta = rowGroupMeta.get(row.id);
+            const classes = [
+              `rdg-review-group-${meta?.colorGroupIndex || 0}`,
+              meta?.isFirstInGroup ? "rdg-review-group-start" : "",
+              meta?.isLastInGroup ? "rdg-review-group-end" : "",
+              row.id === selectedRowId ? "rdg-review-row-selected" : "",
+            ].filter(Boolean);
+
+            return classes.join(" ");
+          }}
           onCellClick={(args: CellMouseArgs<GridRow>, event: CellMouseEvent) => {
             if (isEmptyGridRow(args.row)) {
               event.preventGridDefault();

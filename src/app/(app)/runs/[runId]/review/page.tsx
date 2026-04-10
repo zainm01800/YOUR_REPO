@@ -15,14 +15,13 @@ export default async function ReviewPage({
   const { runId } = await params;
   const { row } = await searchParams;
   const repository = getRepository();
-  const [run, rows] = await Promise.all([
-    repository.getRun(runId),
-    repository.getRunRows(runId),
-  ]);
+  const run = await repository.getRun(runId);
 
   if (!run) {
     notFound();
   }
+
+  const rows = await repository.getRunRows(runId);
 
   return (
     <>
