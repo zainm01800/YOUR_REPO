@@ -53,6 +53,7 @@ export interface Repository {
   upsertVatRules(input: UpsertVatRulesInput): Promise<VatRule[]>;
   replaceAllVatRules(rules: VatRule[]): Promise<VatRule[]>;
   upsertGlCodeRules(input: UpsertGlCodeRulesInput): Promise<GlCodeRule[]>;
+  replaceAllGlCodeRules(rules: GlCodeRule[]): Promise<GlCodeRule[]>;
   createRun(input: CreateRunInput): Promise<ReconciliationRun>;
   deleteRun(runId: string): Promise<void>;
   updateRun(run: ReconciliationRun): Promise<ReconciliationRun>;

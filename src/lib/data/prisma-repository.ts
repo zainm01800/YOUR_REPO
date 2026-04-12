@@ -255,6 +255,10 @@ function toDomainRun(run: DbRun): ReconciliationRun {
     createdAt: run.createdAt.toISOString(),
     processedAt: toIso(run.processedAt),
     entity: run.entity || undefined,
+    period: run.period || undefined,
+    locked: run.locked,
+    lockedAt: toIso(run.lockedAt),
+    lockedBy: run.lockedBy || undefined,
     countryProfile: run.countryProfile || undefined,
     defaultCurrency: run.workspace.defaultCurrency,
     transactionFileName: run.transactionFileName || undefined,
@@ -383,6 +387,10 @@ async function persistRun(
         name: run.name,
         status: run.status,
         entity: run.entity,
+        period: run.period,
+        locked: !!run.locked,
+        lockedAt: toDate(run.lockedAt),
+        lockedBy: run.lockedBy,
         countryProfile: run.countryProfile,
         processedAt: toDate(run.processedAt),
         transactionFileName: run.transactionFileName,
@@ -390,13 +398,17 @@ async function persistRun(
         fxRates: run.fxRates as Prisma.InputJsonValue | undefined,
         workspaceId,
       },
-      create: {
-        id: run.id,
-        name: run.name,
-        status: run.status,
-        entity: run.entity,
-        countryProfile: run.countryProfile,
-        createdAt: new Date(run.createdAt),
+        create: {
+          id: run.id,
+          name: run.name,
+          status: run.status,
+          entity: run.entity,
+          period: run.period,
+          locked: !!run.locked,
+          lockedAt: toDate(run.lockedAt),
+          lockedBy: run.lockedBy,
+          countryProfile: run.countryProfile,
+          createdAt: new Date(run.createdAt),
         processedAt: toDate(run.processedAt),
         transactionFileName: run.transactionFileName,
         fxRates: run.fxRates as Prisma.InputJsonValue | undefined,
@@ -728,6 +740,36 @@ export const prismaRepository: Repository = {
     });
 
     return rules.map(toGlRule);
+  },
+
+  async replaceAllGlCodeRules(rules: GlCodeRule[]): Promise<GlCodeRule[]> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.glCodeRule.deleteMany({ where: { workspaceId: workspace.id } });
+
+      if (rules.length > 0) {
+        await tx.glCodeRule.createMany({
+          data: rules.map((rule) => ({
+            id: rule.id,
+            workspaceId: workspace.id,
+            glCode: rule.glCode,
+            label: rule.label,
+            supplierPattern: rule.supplierPattern,
+            keywordPattern: rule.keywordPattern,
+            priority: rule.priority,
+          })),
+        });
+      }
+    });
+
+    const updated = await prisma.glCodeRule.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: [{ priority: "asc" }, { glCode: "asc" }],
+    });
+
+    return updated.map(toGlRule);
   },
 
   async createRun(input: CreateRunInput): Promise<ReconciliationRun> {

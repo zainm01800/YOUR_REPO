@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import type { ExportColumnLayout } from "@/lib/domain/types";
 import { getRepository } from "@/lib/data";
 import { createCsvExport } from "@/lib/export/csv";
@@ -67,13 +68,44 @@ export async function GET(
       : undefined,
   );
   const repository = getRepository();
-  const rows = await repository.getRunRows(runId);
+  const [rows, run] = await Promise.all([
+    repository.getRunRows(runId),
+    repository.getRun(runId),
+  ]);
+
+  if (!run) {
+    return NextResponse.json({ error: "Run not found." }, { status: 404 });
+  }
 
   if (format === "xlsx") {
     const buffer = await createExcelExport(rows, layout);
+    await repository.updateRun({
+      ...run,
+      exports: [
+        {
+          id: randomUUID(),
+          format: "xlsx",
+          fileName: `${runId}.xlsx`,
+          createdAt: new Date().toISOString(),
+        },
+        ...run.exports,
+      ],
+    });
     return buildExportResponse(runId, format, buffer);
   }
 
+  await repository.updateRun({
+    ...run,
+    exports: [
+      {
+        id: randomUUID(),
+        format: "csv",
+        fileName: `${runId}.csv`,
+        createdAt: new Date().toISOString(),
+      },
+      ...run.exports,
+    ],
+  });
   return buildExportResponse(runId, format, createCsvExport(rows, layout));
 }
 
@@ -91,7 +123,14 @@ export async function POST(
   const format = body.format || "csv";
   const layout = normaliseExportLayout(body.layout);
   const repository = getRepository();
-  const rows = await repository.getRunRows(runId);
+  const [rows, run] = await Promise.all([
+    repository.getRunRows(runId),
+    repository.getRun(runId),
+  ]);
+
+  if (!run) {
+    return NextResponse.json({ error: "Run not found." }, { status: 404 });
+  }
 
   if (format === "template_xlsx") {
     if (!body.templateWorkbookBase64 || !body.postingTemplate) {
@@ -111,12 +150,50 @@ export async function POST(
       body.postingTemplate,
     );
 
+    await repository.updateRun({
+      ...run,
+      exports: [
+        {
+          id: randomUUID(),
+          format: "xlsx",
+          fileName: `${runId}-posting-template.xlsx`,
+          createdAt: new Date().toISOString(),
+        },
+        ...run.exports,
+      ],
+    });
+
     return buildExportResponse(runId, format, workbook);
   }
 
   if (format === "xlsx") {
-    return buildExportResponse(runId, format, await createExcelExport(rows, layout));
+    const workbook = await createExcelExport(rows, layout);
+    await repository.updateRun({
+      ...run,
+      exports: [
+        {
+          id: randomUUID(),
+          format: "xlsx",
+          fileName: `${runId}.xlsx`,
+          createdAt: new Date().toISOString(),
+        },
+        ...run.exports,
+      ],
+    });
+    return buildExportResponse(runId, format, workbook);
   }
 
+  await repository.updateRun({
+    ...run,
+    exports: [
+      {
+        id: randomUUID(),
+        format: "csv",
+        fileName: `${runId}.csv`,
+        createdAt: new Date().toISOString(),
+      },
+      ...run.exports,
+    ],
+  });
   return buildExportResponse(runId, format, createCsvExport(rows, layout));
 }

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { AlertTriangle, CheckCircle2, ExternalLink, Settings2, X } from "lucide-react";
 import type { ReviewRow } from "@/lib/domain/types";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ExportDownloadPanel } from "@/components/export/export-download-panel";
 

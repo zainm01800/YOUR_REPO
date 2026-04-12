@@ -128,6 +128,18 @@ export const mockRepository: Repository = {
     return deepClone(store.glRules);
   },
 
+  async replaceAllGlCodeRules(rules: GlCodeRule[]): Promise<GlCodeRule[]> {
+    store.glRules = deepClone(rules).sort((left, right) => {
+      if (left.priority === right.priority) {
+        return left.glCode.localeCompare(right.glCode);
+      }
+
+      return left.priority - right.priority;
+    });
+
+    return deepClone(store.glRules);
+  },
+
   async createRun(input: CreateRunInput) {
     const run = {
       id: `run_${slugify(input.name)}_${Date.now()}`,

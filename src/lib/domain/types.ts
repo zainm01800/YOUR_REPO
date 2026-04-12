@@ -26,7 +26,8 @@ export type ExceptionCode =
   | "missing_vat_code"
   | "same_receipt_used_twice"
   | "gross_formula_break"
-  | "currency_mismatch";
+  | "currency_mismatch"
+  | "duplicate_transaction";
 
 export type ReviewActionType =
   | "approve"

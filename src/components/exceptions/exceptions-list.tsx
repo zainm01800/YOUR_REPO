@@ -25,6 +25,7 @@ const EXCEPTION_LABELS: Record<string, string> = {
   same_receipt_used_twice: "Receipt used twice",
   gross_formula_break: "Gross formula break",
   currency_mismatch: "Currency mismatch",
+  duplicate_transaction: "Duplicate transaction",
 };
 
 function InlineResolver({
@@ -115,6 +116,153 @@ function InlineResolver({
   return null;
 }
 
+function BulkResolvePanel({
+  runId,
+  rows,
+  onBulkResolved,
+}: {
+  runId: string;
+  rows: ReviewRow[];
+  onBulkResolved: (exceptionCode: string) => void;
+}) {
+  const [glCode, setGlCode] = useState("");
+  const [vatCode, setVatCode] = useState("");
+  const [glPending, startGlTransition] = useTransition();
+  const [vatPending, startVatTransition] = useTransition();
+  const [receiptPending, startReceiptTransition] = useTransition();
+
+  const missingGlRows = rows.filter((r) => r.exceptions.some((e) => e.code === "missing_gl_code"));
+  const missingVatRows = rows.filter((r) => r.exceptions.some((e) => e.code === "missing_vat_code"));
+  const missingReceiptRows = rows.filter((r) => r.exceptions.some((e) => e.code === "missing_receipt"));
+
+  if (missingGlRows.length === 0 && missingVatRows.length === 0 && missingReceiptRows.length === 0) {
+    return null;
+  }
+
+  function applyGlCode() {
+    if (!glCode.trim()) return;
+    startGlTransition(async () => {
+      await Promise.all(
+        missingGlRows.map((row) =>
+          fetch(`/api/runs/${runId}/review`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ runId, rowId: row.id, actionType: "override_gl_code", value: glCode }),
+          }),
+        ),
+      );
+      onBulkResolved("missing_gl_code");
+      setGlCode("");
+    });
+  }
+
+  function applyVatCode() {
+    if (!vatCode.trim()) return;
+    startVatTransition(async () => {
+      await Promise.all(
+        missingVatRows.map((row) =>
+          fetch(`/api/runs/${runId}/review`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ runId, rowId: row.id, actionType: "override_vat_code", value: vatCode }),
+          }),
+        ),
+      );
+      onBulkResolved("missing_vat_code");
+      setVatCode("");
+    });
+  }
+
+  function markAllNoReceipt() {
+    startReceiptTransition(async () => {
+      await Promise.all(
+        missingReceiptRows.map((row) =>
+          fetch(`/api/runs/${runId}/review`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ runId, rowId: row.id, actionType: "no_receipt_required", value: "true" }),
+          }),
+        ),
+      );
+      onBulkResolved("missing_receipt");
+    });
+  }
+
+  return (
+    <Card className="space-y-4 border-[var(--color-accent-soft)] bg-[var(--color-accent-soft)]">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-accent)]">Bulk resolve</p>
+        <h3 className="mt-1 text-base font-semibold text-[var(--color-foreground)]">Apply fixes to multiple rows at once</h3>
+      </div>
+
+      {missingGlRows.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+            {missingGlRows.length} rows with missing GL code
+          </span>
+          <input
+            type="text"
+            placeholder="Enter GL code…"
+            value={glCode}
+            onChange={(e) => setGlCode(e.target.value)}
+            className="h-8 w-36 rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-8 px-3 text-xs"
+            disabled={!glCode.trim() || glPending}
+            onClick={applyGlCode}
+          >
+            {glPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Apply to all"}
+          </Button>
+        </div>
+      )}
+
+      {missingVatRows.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+            {missingVatRows.length} rows with missing VAT code
+          </span>
+          <input
+            type="text"
+            placeholder="VAT code (e.g. GB20)…"
+            value={vatCode}
+            onChange={(e) => setVatCode(e.target.value)}
+            className="h-8 w-36 rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-8 px-3 text-xs"
+            disabled={!vatCode.trim() || vatPending}
+            onClick={applyVatCode}
+          >
+            {vatPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Apply VAT code to all"}
+          </Button>
+        </div>
+      )}
+
+      {missingReceiptRows.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-danger-soft)] px-3 py-1 text-xs font-semibold text-[var(--color-danger)]">
+            {missingReceiptRows.length} rows with missing receipt
+          </span>
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-8 px-3 text-xs"
+            disabled={receiptPending}
+            onClick={markAllNoReceipt}
+          >
+            {receiptPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Mark all no-receipt-needed"}
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function ExceptionsList({
   runId,
   rows: initialRows,
@@ -195,6 +343,21 @@ export function ExceptionsList({
 
   return (
     <div className="space-y-5">
+      <BulkResolvePanel
+        runId={runId}
+        rows={rows}
+        onBulkResolved={(exceptionCode) => {
+          setRows((current) =>
+            current
+              .map((row) => ({
+                ...row,
+                exceptions: row.exceptions.filter((exception) => exception.code !== exceptionCode),
+              }))
+              .filter((row) => row.exceptions.length > 0),
+          );
+        }}
+      />
+
       <div className="flex flex-wrap gap-3 text-sm">
         <span className="flex items-center gap-2 rounded-2xl border border-[var(--color-danger-border)] bg-[var(--color-danger-soft)] px-4 py-2 font-medium text-[var(--color-danger)]">
           <AlertTriangle className="h-4 w-4" /> {highCount} high severity

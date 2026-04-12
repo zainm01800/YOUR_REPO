@@ -90,6 +90,10 @@ model ReconciliationRun {
   name                String
   status              RunStatus         @default(draft)
   entity              String?
+  period              String?
+  locked              Boolean           @default(false)
+  lockedAt            DateTime?
+  lockedBy            String?
   countryProfile      String?
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt

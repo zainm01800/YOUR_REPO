@@ -233,7 +233,7 @@ export function CountryVatPicker({ initialRules }: { initialRules: VatRule[] }) 
             Currently active ({activeByCountry.size} {activeByCountry.size === 1 ? "country" : "countries"})
           </p>
           <div className="flex flex-wrap gap-2">
-            {Array.from(activeByCountry.entries()).map(([code, { name, codes }]) => (
+            {Array.from(activeByCountry.entries()).map(([code, { codes }]) => (
               <button
                 key={code}
                 type="button"

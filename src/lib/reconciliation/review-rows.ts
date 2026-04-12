@@ -78,6 +78,23 @@ function buildBaseExceptions(
   return exceptions;
 }
 
+function detectDuplicateTransactionIds(run: ReconciliationRun): Set<string> {
+  const seen = new Map<string, string>(); // key -> first transactionId
+  const duplicateIds = new Set<string>();
+
+  for (const tx of run.transactions) {
+    const dateStr = tx.transactionDate ? new Date(tx.transactionDate).toDateString() : "unknown";
+    const key = `${Math.abs(tx.amount).toFixed(2)}_${dateStr}_${(tx.merchant || "").toLowerCase().trim()}`;
+    const existing = seen.get(key);
+    if (existing) {
+      duplicateIds.add(tx.id);
+    } else {
+      seen.set(key, tx.id);
+    }
+  }
+  return duplicateIds;
+}
+
 export function buildReviewRows(
   run: ReconciliationRun,
   vatRules: VatRule[],
@@ -86,6 +103,7 @@ export function buildReviewRows(
   const runCurrency = run.defaultCurrency ?? "GBP";
   const runCountryCode = run.countryProfile;
   const fxRates = run.fxRates ?? {};
+  const duplicateTransactionIds = detectDuplicateTransactionIds(run);
 
   return run.transactions.flatMap<ReviewRow>((transaction) => {
     const match = findSelectedMatch(run, transaction.id);
@@ -130,6 +148,14 @@ export function buildReviewRows(
         code: "currency_mismatch",
         severity: "medium",
         message: "Transaction currency differs from the extracted document currency.",
+      });
+    }
+
+    if (duplicateTransactionIds.has(transaction.id)) {
+      exceptions.push({
+        code: "duplicate_transaction",
+        severity: "high",
+        message: "Another transaction with the same amount, date, and merchant exists in this run.",
       });
     }
 

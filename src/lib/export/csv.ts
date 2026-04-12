@@ -27,5 +27,5 @@ export function createCsvExport(
       ),
   ];
 
-  return lines.join("\n");
+  return "\uFEFF" + lines.join("\n");
 }

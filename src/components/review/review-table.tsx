@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Filter, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Filter, X } from "lucide-react";
 import {
   DataGrid,
   type CellMouseArgs,
@@ -46,19 +46,34 @@ function HeaderFilter({
   label,
   filterValue,
   isOpen,
+  sortDirection,
   onToggle,
   onChange,
+  onSort,
 }: {
   column: ReviewGridColumnLayout;
   label: string;
   filterValue?: string;
   isOpen: boolean;
+  sortDirection?: "asc" | "desc" | null;
   onToggle: (columnKey: string | null) => void;
   onChange: (columnKey: string, value: string) => void;
+  onSort: (columnKey: string) => void;
 }) {
   return (
     <div className="relative flex h-full items-center gap-2 overflow-visible">
-      <span className="truncate">{label}</span>
+      <button
+        type="button"
+        className="flex min-w-0 items-center gap-1 truncate text-left hover:text-[var(--color-foreground)]"
+        onClick={(event) => {
+          event.stopPropagation();
+          onSort(column.key);
+        }}
+      >
+        <span className="truncate">{label}</span>
+        {sortDirection === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : null}
+        {sortDirection === "desc" ? <ArrowDown className="h-3.5 w-3.5" /> : null}
+      </button>
       <button
         type="button"
         className={`ml-auto rounded-md p-1 transition ${
@@ -282,6 +297,8 @@ export function ReviewTable({
   selectedRowIds,
   columnFilters,
   activeFilterColumnKey,
+  sortColumnKey,
+  sortDirection,
   isTableEditingEnabled,
   onSelectRow,
   onToggleRowSelect,
@@ -289,6 +306,7 @@ export function ReviewTable({
   onMoveColumn,
   onFilterChange,
   onToggleFilterMenu,
+  onToggleSort,
   pending,
 }: {
   rows: ReviewRow[];
@@ -297,6 +315,8 @@ export function ReviewTable({
   selectedRowIds?: Set<string>;
   columnFilters: Record<string, string>;
   activeFilterColumnKey?: string | null;
+  sortColumnKey?: string | null;
+  sortDirection?: "asc" | "desc";
   isTableEditingEnabled?: boolean;
   onSelectRow: (rowId: string) => void;
   onToggleRowSelect?: (rowId: string) => void;
@@ -304,6 +324,7 @@ export function ReviewTable({
   onMoveColumn: (fromIndex: number, toIndex: number) => void;
   onFilterChange: (columnKey: string, value: string) => void;
   onToggleFilterMenu: (columnKey: string | null) => void;
+  onToggleSort?: (columnKey: string) => void;
   pending?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -520,8 +541,10 @@ export function ReviewTable({
             label={column.label}
             filterValue={columnFilters[column.key]}
             isOpen={activeFilterColumnKey === column.key}
+            sortDirection={sortColumnKey === column.key ? sortDirection || "asc" : null}
             onToggle={onToggleFilterMenu}
             onChange={onFilterChange}
+            onSort={onToggleSort || (() => {})}
           />
         ),
         renderCell: ({ row, rowIdx }) =>
@@ -549,8 +572,11 @@ export function ReviewTable({
     isTableEditingEnabled,
     onFilterChange,
     onToggleFilterMenu,
+    onToggleSort,
     onToggleRowSelect,
     rowGroupMeta,
+    sortColumnKey,
+    sortDirection,
     selectedRowIds,
     visibleColumns,
   ]);

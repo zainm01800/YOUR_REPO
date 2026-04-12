@@ -6,28 +6,32 @@ import { Sparkles } from "lucide-react";
 import type { ReviewActionType, ReviewRow } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 export function ReviewActions({
   runId,
   row,
+  isLocked = false,
   onActionComplete,
 }: {
   runId: string;
   row: ReviewRow;
+  isLocked?: boolean;
   onActionComplete?: (actionType: ReviewActionType, value?: string) => void;
 }) {
   const [glCode, setGlCode] = useState(row.glCode || "");
   const [vatCode, setVatCode] = useState(row.vatCode || "");
+  const [notes, setNotes] = useState(row.notes || "");
   const [glSuggesting, setGlSuggesting] = useState(false);
   const [glSuggestion, setGlSuggestion] = useState<{ glCode: string; reason: string } | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  async function submit(actionType: string, value?: string) {
+  async function submit(actionType: string, value?: string, field?: string) {
     await fetch(`/api/runs/${runId}/review`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ runId, rowId: row.id, actionType, value }),
+      body: JSON.stringify({ runId, rowId: row.id, actionType, value, field }),
     });
     onActionComplete?.(actionType as ReviewActionType, value);
     router.refresh();
@@ -71,7 +75,7 @@ export function ReviewActions({
           />
           <Button
             variant="secondary"
-            disabled={pending}
+            disabled={pending || isLocked}
             onClick={() =>
               startTransition(async () => {
                 await submit("override_gl_code", glCode);
@@ -83,7 +87,7 @@ export function ReviewActions({
         </div>
         <button
           type="button"
-          disabled={glSuggesting}
+          disabled={glSuggesting || isLocked}
           onClick={handleSuggestGlCode}
           className="flex items-center gap-1.5 text-xs text-[var(--color-accent)] hover:underline disabled:opacity-50"
         >
@@ -109,7 +113,7 @@ export function ReviewActions({
           />
           <Button
             variant="secondary"
-            disabled={pending}
+            disabled={pending || isLocked}
             onClick={() =>
               startTransition(async () => {
                 await submit("override_vat_code", vatCode);
@@ -121,24 +125,50 @@ export function ReviewActions({
         </div>
       </div>
 
+      <div className="space-y-2">
+        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+          Reviewer note
+        </div>
+        <Textarea
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Add context for auditors or the next reviewer..."
+          disabled={isLocked}
+          className="min-h-[104px]"
+        />
+        <div className="flex justify-end">
+          <Button
+            variant="secondary"
+            disabled={pending || isLocked}
+            onClick={() =>
+              startTransition(async () => {
+                await submit("edit_field", notes, "notes");
+              })
+            }
+          >
+            Save note
+          </Button>
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-3 pt-1">
         <Button
           variant="secondary"
-          disabled={pending}
+          disabled={pending || isLocked}
           onClick={() => startTransition(async () => { await submit("approve"); })}
         >
           Approve row
         </Button>
         <Button
           variant="secondary"
-          disabled={pending}
+          disabled={pending || isLocked}
           onClick={() => startTransition(async () => { await submit("no_receipt_required"); })}
         >
           Mark no receipt required
         </Button>
         <Button
           variant="danger"
-          disabled={pending}
+          disabled={pending || isLocked}
           onClick={() => startTransition(async () => { await submit("exclude_from_export"); })}
         >
           Exclude from export

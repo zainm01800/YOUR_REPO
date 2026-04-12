@@ -18,7 +18,7 @@ import { ReviewDetailPanel } from "@/components/review/review-detail-panel";
 import { ReviewTable } from "@/components/review/review-table";
 import { ExportRunModal } from "@/components/export/export-run-modal";
 import { buildRunSummary } from "@/lib/reconciliation/summary";
-import { getReviewCellFilterText } from "@/lib/review-sheet";
+import { getReviewCellDisplayValue, getReviewCellFilterText } from "@/lib/review-sheet";
 import {
   cloneReviewColumns,
   createDefaultReviewTemplate,
@@ -49,6 +49,7 @@ type WorkspaceSnapshot = {
 
 type SidebarTab = "template" | "documents" | "detail" | "actions";
 type SaveState = "idle" | "saving" | "saved";
+type SortDirection = "asc" | "desc";
 
 function moveColumn(
   columns: ReviewGridColumnLayout[],
@@ -207,6 +208,8 @@ export function ReviewWorkspace({
   const [showBulkGlInput, setShowBulkGlInput] = useState(false);
   const [isLocked, setIsLocked] = useState(run.locked ?? false);
   const [isLocking, startLockTransition] = useTransition();
+  const [sortColumnKey, setSortColumnKey] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   useEffect(() => {
     setRows(initialRows);
@@ -273,22 +276,101 @@ export function ReviewWorkspace({
     [columnFilters, columns, rows],
   );
 
+  const sortedRows = useMemo(() => {
+    if (!sortColumnKey) {
+      return filteredRows;
+    }
+
+    const sortColumn = columns.find((column) => column.key === sortColumnKey);
+    if (!sortColumn) {
+      return filteredRows;
+    }
+
+    const numericColumns = new Set([
+      "originalValue",
+      "gross",
+      "net",
+      "vat",
+      "vatPercent",
+      "confidence",
+    ]);
+
+    const getComparableValue = (row: ReviewRow, rowIndex: number) => {
+      if (numericColumns.has(sortColumn.key)) {
+        switch (sortColumn.key) {
+          case "originalValue":
+            return row.originalAmount ?? 0;
+          case "gross":
+            return row.grossInRunCurrency ?? row.gross ?? 0;
+          case "net":
+            return row.netInRunCurrency ?? row.net ?? 0;
+          case "vat":
+            return row.vatInRunCurrency ?? row.vat ?? 0;
+          case "vatPercent":
+            return row.vatPercent ?? -1;
+          case "confidence":
+            return row.confidence ?? -1;
+          default:
+            return 0;
+        }
+      }
+
+      if (sortColumn.key === "date") {
+        return row.date ? new Date(row.date).getTime() : 0;
+      }
+
+      return String(
+        getReviewCellDisplayValue(row, sortColumn, columns.filter((candidate) => candidate.visible), rowIndex + 2),
+      ).toLowerCase();
+    };
+
+    return [...filteredRows].sort((left, right) => {
+      const leftIndex = filteredRows.findIndex((candidate) => candidate.id === left.id);
+      const rightIndex = filteredRows.findIndex((candidate) => candidate.id === right.id);
+      const leftValue = getComparableValue(left, leftIndex);
+      const rightValue = getComparableValue(right, rightIndex);
+
+      if (typeof leftValue === "number" && typeof rightValue === "number") {
+        return sortDirection === "asc" ? leftValue - rightValue : rightValue - leftValue;
+      }
+
+      return sortDirection === "asc"
+        ? String(leftValue).localeCompare(String(rightValue))
+        : String(rightValue).localeCompare(String(leftValue));
+    });
+  }, [columns, filteredRows, sortColumnKey, sortDirection]);
+
   useEffect(() => {
-    if (filteredRows.length === 0) {
+    if (sortedRows.length === 0) {
       setSelectedRowId("");
       return;
     }
 
-    if (!filteredRows.some((candidate) => candidate.id === selectedRowId)) {
-      setSelectedRowId(filteredRows[0].id);
+    if (!sortedRows.some((candidate) => candidate.id === selectedRowId)) {
+      setSelectedRowId(sortedRows[0].id);
     }
-  }, [filteredRows, selectedRowId]);
+  }, [selectedRowId, sortedRows]);
 
   const selectedRow =
-    filteredRows.find((candidate) => candidate.id === selectedRowId) ||
+    sortedRows.find((candidate) => candidate.id === selectedRowId) ||
     rows.find((candidate) => candidate.id === selectedRowId) ||
-    filteredRows[0];
+    sortedRows[0];
   const summary = buildRunSummary(rows);
+  const hasPendingChanges = saveState === "saving" || pending || isLocking;
+
+  useEffect(() => {
+    if (!hasPendingChanges) {
+      return;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasPendingChanges]);
 
   // Approval progress
   const approvedCount = rows.filter((r) => r.approved).length;
@@ -398,6 +480,8 @@ export function ReviewWorkspace({
             return { ...row, glCode: value };
           case "override_vat_code":
             return { ...row, vatCode: value };
+          case "edit_field":
+            return { ...row, notes: value };
           case "exclude_from_export":
             return { ...row, excludedFromExport: true };
           case "approve":
@@ -418,8 +502,14 @@ export function ReviewWorkspace({
     });
   }
 
-  function handleSelectAll() {
-    setSelectedRowIds(new Set(filteredRows.map((r) => r.id)));
+  function handleToggleSort(columnKey: string) {
+    if (sortColumnKey === columnKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortColumnKey(columnKey);
+    setSortDirection("asc");
   }
 
   function handleDeselectAll() {
@@ -818,6 +908,7 @@ export function ReviewWorkspace({
           key={selectedRow.id}
           runId={run.id}
           row={selectedRow}
+          isLocked={isLocked}
           onActionComplete={handleActionComplete}
         />
       </Card>
@@ -1003,16 +1094,38 @@ export function ReviewWorkspace({
           </div>
         )}
 
-        <ReviewTable
-          rows={filteredRows}
+        {sortedRows.length === 0 ? (
+          <Card className="flex flex-col items-center gap-4 py-16 text-center">
+            <div>
+              <h2 className="text-xl font-semibold text-[var(--color-foreground)]">Nothing to review in this run</h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--color-muted-foreground)]">
+                This run does not currently have review rows. That usually means there were no imported transactions,
+                everything has already been carried through export, or the current filters removed all rows from view.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button type="button" variant="secondary" onClick={() => setColumnFilters({})}>
+                Clear table filters
+              </Button>
+              <Link href="/runs">
+                <Button>Back to runs</Button>
+              </Link>
+            </div>
+          </Card>
+        ) : (
+          <ReviewTable
+          rows={sortedRows}
           columns={columns}
           selectedRowId={selectedRowId}
           selectedRowIds={selectedRowIds}
           columnFilters={columnFilters}
           activeFilterColumnKey={activeFilterColumnKey}
+          sortColumnKey={sortColumnKey}
+          sortDirection={sortDirection}
           onSelectRow={setSelectedRowId}
           onToggleRowSelect={handleToggleRowSelect}
           onEditField={handleEditField}
+          onToggleSort={handleToggleSort}
           onMoveColumn={(fromIndex, toIndex) => {
             rememberCurrentState();
             setColumns((current) => moveColumn(current, fromIndex, toIndex));
@@ -1024,6 +1137,7 @@ export function ReviewWorkspace({
           isTableEditingEnabled={isTableEditingEnabled}
           pending={pending}
         />
+        )}
       </div>
 
       <div className="sticky top-6 flex h-[calc(100vh-3rem)] flex-col gap-4">

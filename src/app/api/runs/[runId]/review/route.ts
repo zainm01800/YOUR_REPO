@@ -14,8 +14,20 @@ export async function POST(request: Request) {
     payload?: Record<string, unknown>;
   };
 
+  const run = await repository.getRun(body.runId);
+  if (!run) {
+    return NextResponse.json({ error: "Run not found." }, { status: 404 });
+  }
+
+  if (run.locked) {
+    return NextResponse.json(
+      { error: "This run is locked and cannot be edited." },
+      { status: 409 },
+    );
+  }
+
   const mutation = await repository.saveReviewMutation(body);
-  const [run, rows] = await Promise.all([
+  const [updatedRun, rows] = await Promise.all([
     repository.getRun(body.runId),
     repository.getRunRows(body.runId),
   ]);
@@ -23,7 +35,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     mutation,
-    run,
+    run: updatedRun,
     rows,
   });
 }

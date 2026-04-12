@@ -4,7 +4,7 @@ import { processRun } from "@/lib/reconciliation/process-run";
 import { getFxRates } from "@/lib/fx/rates";
 
 export async function POST(
-  request: Request,
+  _request: Request,
   context: { params: Promise<{ runId: string }> },
 ) {
   const { runId } = await context.params;
@@ -19,6 +19,15 @@ export async function POST(
     return NextResponse.json({ error: "Run not found." }, { status: 404 });
   }
 
+  if (run.locked) {
+    return NextResponse.json({ error: "Locked runs cannot be reprocessed." }, { status: 409 });
+  }
+
+  await repository.updateRun({
+    ...run,
+    status: "processing",
+  });
+
   // Fetch live exchange rates relative to the run's home currency
   const runCurrency = run.defaultCurrency ?? "GBP";
   const fxRates = await getFxRates(runCurrency);
@@ -31,6 +40,9 @@ export async function POST(
   });
   await repository.updateRun(output.run);
 
-  return NextResponse.redirect(new URL(`/runs/${run.id}/review`, request.url));
+  return NextResponse.json({
+    ok: true,
+    status: output.run.status,
+    processedAt: output.run.processedAt,
+  });
 }
-
