@@ -6,6 +6,7 @@ import type {
   ReviewMutationInput,
   ReviewMutationResult,
 } from "@/lib/data/repository";
+import { inferCountryCodeFromTextOrCurrency } from "@/lib/uploads/country-inference";
 
 function parseOptionalNumber(value?: string) {
   if (!value?.trim()) {
@@ -79,6 +80,8 @@ function createReviewLinkedMatch(
       filenameScore: 5,
       employeeScore: 0,
       currencyScore: 5,
+      invoiceNumberScore: 0,
+      referenceScore: 0,
       notes: ["Updated during review workspace."],
     },
   } satisfies ReconciliationRun["matches"][number];
@@ -139,6 +142,11 @@ export function applyReviewMutationToRun(
           document.issueDate = input.value;
         } else if (input.value) {
           transaction.transactionDate = input.value;
+        }
+        break;
+      case "countryCode":
+        if (document) {
+          document.countryCode = input.value?.trim().toUpperCase() || undefined;
         }
         break;
       case "gross": {
@@ -370,7 +378,10 @@ export function applyReviewMutationToRun(
           documentNumber: (incomingDocument.fileName || `upload_${index + 1}`)
             .replace(/\.[^.]+$/, "")
             .toUpperCase(),
-          countryCode: run.countryProfile,
+          countryCode: inferCountryCodeFromTextOrCurrency(
+            incomingDocument.rawExtractedText || "",
+            incomingDocument.currency || transaction.currency,
+          ),
           currency: incomingDocument.currency || transaction.currency,
           rawExtractedText: incomingDocument.rawExtractedText || "Added during review.",
           confidence: incomingDocument.confidence ?? 0.78,
@@ -460,6 +471,8 @@ export function applyReviewMutationToRun(
             filenameScore: 10,
             employeeScore: 0,
             currencyScore: 5,
+            invoiceNumberScore: 0,
+            referenceScore: 0,
             notes: ["Created from a document uploaded during review."],
           },
         });

@@ -95,13 +95,17 @@ export function getExportCellValue(row: ReviewRow, key: ExportColumnKey) {
     case "date":
       return row.date;
     case "currency":
-      return row.currency;
+      return row.grossInRunCurrency !== undefined ||
+        row.netInRunCurrency !== undefined ||
+        row.vatInRunCurrency !== undefined
+        ? row.runCurrency
+        : row.currency;
     case "net":
-      return row.net;
+      return row.netInRunCurrency ?? row.net;
     case "vat":
-      return row.vat;
+      return row.vatInRunCurrency ?? row.vat;
     case "gross":
-      return row.gross;
+      return row.grossInRunCurrency ?? row.gross;
     case "vatPercent":
       return row.vatPercent;
     case "vatCode":

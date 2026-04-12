@@ -12,17 +12,59 @@ import {
 } from "@/lib/uploads/extractor";
 import type { ClientExtractedDocumentInput, ExtractedDocument, TransactionRecord } from "@/lib/domain/types";
 
+/** Quick check: does this OCR text contain any money-like numbers? */
+function findMoneyValuesFromText(text: string): number[] {
+  const stripped = text.replace(/\b\d{1,2}[./]\d{1,2}[./]\d{2,4}\b/g, "");
+  const found = new Set<number>();
+  for (const m of stripped.matchAll(/(?:^|[\s£$€,]|\b)(\d{1,6}[.,]\d{2})(?:\b|$)/gm)) {
+    const v = Number(m[1].replace(",", "."));
+    if (v > 0) found.add(v);
+  }
+  for (const m of stripped.matchAll(/[£$€]\s*(\d{2,6})(?!\s*[.,]\d)/g)) {
+    const v = Number(m[1]);
+    if (v > 0) found.add(v);
+  }
+  return Array.from(found);
+}
+
+/** Guess whether a string looks like a raw filename / hash rather than a real company name. */
+function looksLikeFilename(name: string): boolean {
+  // e.g. "67e13fe6f3f7fdecaaa315f2_64f9d4addd" or "invoice-template-u-750px"
+  return /^[a-f0-9_\-]{20,}$/i.test(name) || /\.(pdf|jpg|jpeg|png|webp)$/i.test(name);
+}
+
 function transactionsFromDocuments(documents: ExtractedDocument[], fallbackCurrency: string): TransactionRecord[] {
-  return documents.map((doc, index) => ({
-    id: `txn_doc_${index + 1}_${doc.id}`,
-    sourceLineNumber: index + 1,
-    transactionDate: doc.issueDate,
-    amount: doc.gross ?? 0,
-    currency: doc.currency ?? fallbackCurrency,
-    merchant: doc.supplier ?? doc.fileName,
-    description: doc.documentNumber ?? doc.fileName,
-    reference: doc.documentNumber,
-  }));
+  return documents.map((doc, index) => {
+    // Use the best available amount — gross is preferred, fall back to net+vat or net
+    const amount =
+      (doc.gross != null && doc.gross > 0 ? doc.gross : undefined) ??
+      (doc.net != null && doc.net > 0 && doc.vat != null
+        ? roundMoney(doc.net + doc.vat)
+        : undefined) ??
+      (doc.net != null && doc.net > 0 ? doc.net : undefined) ??
+      0;
+
+    // Prefer a real supplier name; avoid raw filenames/hashes as the merchant
+    const rawSupplier = doc.supplier ?? "";
+    const merchant = rawSupplier && !looksLikeFilename(rawSupplier)
+      ? rawSupplier
+      : `Document ${index + 1}`;
+
+    return {
+      id: `txn_doc_${index + 1}_${doc.id}`,
+      sourceLineNumber: index + 1,
+      transactionDate: doc.issueDate,
+      amount,
+      currency: doc.currency ?? fallbackCurrency,
+      merchant,
+      description: doc.documentNumber ?? doc.fileName,
+      reference: doc.documentNumber,
+    };
+  });
+}
+
+function roundMoney(value: number) {
+  return Number(value.toFixed(2));
 }
 
 export async function GET() {
@@ -139,17 +181,36 @@ async function handlePost(request: Request) {
         console.error(`[runs/route] expandArchive failed for ${entry.name}:`, err);
       }
     } else {
-      if (clientExtractedNames.has(entry.name)) {
+      // Check if this file was already OCR'd by the browser
+      const clientDoc = clientExtractedDocuments.find((d) => d.fileName === entry.name);
+      const ocrHadNumbers = clientDoc && findMoneyValuesFromText(clientDoc.rawExtractedText ?? "").length > 0;
+
+      if (clientDoc && ocrHadNumbers) {
+        // Good OCR result — already pushed above, skip server-side
         continue;
       }
 
+      // Low-confidence or empty OCR — try server-side vision extraction
       try {
         const extracted = await extractDocumentFromBuffer(
           entry.name,
           entry.type,
           await entry.arrayBuffer(),
         );
-        run.documents.push(extracted);
+
+        if (clientDoc) {
+          // Replace the poor OCR result with the better vision result (if it found amounts)
+          if (extracted.gross != null && extracted.gross > 0) {
+            const idx = run.documents.findIndex((d) => d.fileName === clientDoc.fileName);
+            if (idx >= 0) {
+              run.documents[idx] = extracted;
+            } else {
+              run.documents.push(extracted);
+            }
+          }
+        } else {
+          run.documents.push(extracted);
+        }
       } catch (err) {
         console.error(`[runs/route] extractDocumentFromBuffer failed for ${entry.name}:`, err);
       }

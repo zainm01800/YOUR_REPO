@@ -1,6 +1,7 @@
 import { demoStore } from "@/lib/demo/demo-store";
 import type {
   DashboardSnapshot,
+  GlCodeRule,
   ReviewRow,
   User,
   VatRule,
@@ -11,6 +12,8 @@ import type {
   Repository,
   ReviewMutationInput,
   ReviewMutationResult,
+  UpsertGlCodeRulesInput,
+  UpsertVatRulesInput,
 } from "@/lib/data/repository";
 import { applyReviewMutationToRun } from "@/lib/data/review-mutation";
 import { deepClone, slugify } from "@/lib/utils";
@@ -50,6 +53,8 @@ export const mockRepository: Repository = {
       createdAt: run.createdAt,
       processedAt: run.processedAt,
       entity: run.entity,
+      period: run.period,
+      locked: run.locked,
       summary: buildRunSummary(
         buildReviewRows(run, store.vatRules, store.glRules),
       ),
@@ -81,6 +86,46 @@ export const mockRepository: Repository = {
 
   async getVatRules(): Promise<VatRule[]> {
     return deepClone(store.vatRules);
+  },
+
+  async upsertVatRules(input: UpsertVatRulesInput): Promise<VatRule[]> {
+    const countryCodes = [...new Set(input.rules.map((rule) => rule.countryCode))];
+    store.vatRules = [
+      ...store.vatRules.filter((rule) => !countryCodes.includes(rule.countryCode)),
+      ...deepClone(input.rules),
+    ].sort((left, right) => {
+      if (left.countryCode === right.countryCode) {
+        return left.rate - right.rate;
+      }
+
+      return left.countryCode.localeCompare(right.countryCode);
+    });
+
+    return deepClone(store.vatRules);
+  },
+
+  async replaceAllVatRules(rules: VatRule[]): Promise<VatRule[]> {
+    store.vatRules = deepClone(rules).sort((a, b) => {
+      if (a.countryCode === b.countryCode) return a.rate - b.rate;
+      return a.countryCode.localeCompare(b.countryCode);
+    });
+    return deepClone(store.vatRules);
+  },
+
+  async upsertGlCodeRules(input: UpsertGlCodeRulesInput): Promise<GlCodeRule[]> {
+    const incomingCodes = [...new Set(input.rules.map((rule) => rule.glCode))];
+    store.glRules = [
+      ...store.glRules.filter((rule) => !incomingCodes.includes(rule.glCode)),
+      ...deepClone(input.rules),
+    ].sort((left, right) => {
+      if (left.priority === right.priority) {
+        return left.glCode.localeCompare(right.glCode);
+      }
+
+      return left.priority - right.priority;
+    });
+
+    return deepClone(store.glRules);
   },
 
   async createRun(input: CreateRunInput) {

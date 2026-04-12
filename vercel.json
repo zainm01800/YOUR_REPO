@@ -2,6 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "regions": ["lhr1"],
+  "crons": [
+    {
+      "path": "/api/settings/vat-rules/sync",
+      "schedule": "0 3 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -22,4 +28,3 @@
     }
   ]
 }
-

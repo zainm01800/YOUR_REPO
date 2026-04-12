@@ -9,6 +9,8 @@ import type {
   Repository,
   ReviewMutationInput,
   ReviewMutationResult,
+  UpsertGlCodeRulesInput,
+  UpsertVatRulesInput,
 } from "@/lib/data/repository";
 import type {
   DashboardSnapshot,
@@ -256,6 +258,7 @@ function toDomainRun(run: DbRun): ReconciliationRun {
     countryProfile: run.countryProfile || undefined,
     defaultCurrency: run.workspace.defaultCurrency,
     transactionFileName: run.transactionFileName || undefined,
+    fxRates: (run.fxRates as Record<string, number> | null) || undefined,
     uploadedFiles: run.uploadedFiles.map(toUploadedFile),
     transactions: run.transactions.map(toTransaction),
     documents: run.documents.map(toDocument),
@@ -384,6 +387,7 @@ async function persistRun(
         processedAt: toDate(run.processedAt),
         transactionFileName: run.transactionFileName,
         notes: undefined,
+        fxRates: run.fxRates as Prisma.InputJsonValue | undefined,
         workspaceId,
       },
       create: {
@@ -395,6 +399,7 @@ async function persistRun(
         createdAt: new Date(run.createdAt),
         processedAt: toDate(run.processedAt),
         transactionFileName: run.transactionFileName,
+        fxRates: run.fxRates as Prisma.InputJsonValue | undefined,
         workspaceId,
       },
     });
@@ -572,6 +577,8 @@ export const prismaRepository: Repository = {
         createdAt: run.createdAt,
         processedAt: run.processedAt,
         entity: run.entity,
+        period: run.period,
+        locked: run.locked,
         summary: buildRunSummary(buildReviewRows(run, vatRules.map(toVatRule), glRules.map(toGlRule))),
       })),
       templates: templates.map(toTemplate),
@@ -621,6 +628,106 @@ export const prismaRepository: Repository = {
       orderBy: { taxCode: "asc" },
     });
     return rules.map(toVatRule);
+  },
+
+  async upsertVatRules(input: UpsertVatRulesInput): Promise<VatRule[]> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const countryCodes = [...new Set(input.rules.map((rule) => rule.countryCode))];
+
+    await prisma.$transaction(async (tx) => {
+      await tx.vatRule.deleteMany({
+        where: {
+          workspaceId: workspace.id,
+          countryCode: { in: countryCodes },
+        },
+      });
+
+      if (input.rules.length > 0) {
+        await tx.vatRule.createMany({
+          data: input.rules.map((rule) => ({
+            id: rule.id,
+            workspaceId: workspace.id,
+            countryCode: rule.countryCode,
+            rate: rule.rate,
+            taxCode: rule.taxCode,
+            recoverable: rule.recoverable,
+            description: rule.description,
+          })),
+        });
+      }
+    });
+
+    const rules = await prisma.vatRule.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: [{ countryCode: "asc" }, { rate: "asc" }, { taxCode: "asc" }],
+    });
+
+    return rules.map(toVatRule);
+  },
+
+  async replaceAllVatRules(rules: VatRule[]): Promise<VatRule[]> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.vatRule.deleteMany({ where: { workspaceId: workspace.id } });
+      if (rules.length > 0) {
+        await tx.vatRule.createMany({
+          data: rules.map((rule) => ({
+            id: rule.id,
+            workspaceId: workspace.id,
+            countryCode: rule.countryCode,
+            rate: rule.rate,
+            taxCode: rule.taxCode,
+            recoverable: rule.recoverable,
+            description: rule.description,
+          })),
+        });
+      }
+    });
+
+    const updated = await prisma.vatRule.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: [{ countryCode: "asc" }, { rate: "asc" }],
+    });
+    return updated.map(toVatRule);
+  },
+
+  async upsertGlCodeRules(input: UpsertGlCodeRulesInput): Promise<GlCodeRule[]> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const glCodes = [...new Set(input.rules.map((rule) => rule.glCode))];
+
+    await prisma.$transaction(async (tx) => {
+      await tx.glCodeRule.deleteMany({
+        where: {
+          workspaceId: workspace.id,
+          glCode: { in: glCodes },
+        },
+      });
+
+      if (input.rules.length > 0) {
+        await tx.glCodeRule.createMany({
+          data: input.rules.map((rule) => ({
+            id: rule.id,
+            workspaceId: workspace.id,
+            glCode: rule.glCode,
+            label: rule.label,
+            supplierPattern: rule.supplierPattern,
+            keywordPattern: rule.keywordPattern,
+            priority: rule.priority,
+          })),
+        });
+      }
+    });
+
+    const rules = await prisma.glCodeRule.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: [{ priority: "asc" }, { glCode: "asc" }],
+    });
+
+    return rules.map(toGlRule);
   },
 
   async createRun(input: CreateRunInput): Promise<ReconciliationRun> {

@@ -8,14 +8,27 @@ export const reviewTemplateStorageKey = "clearmatch.reviewTemplates";
 export const defaultReviewTemplateId = "default";
 
 export const defaultReviewColumns: ReviewGridColumnLayout[] = [
-  { key: "supplier", label: "Supplier", visible: true, width: 24 },
-  { key: "originalValue", label: "Original Value", visible: true, width: 14 },
-  { key: "gross", label: "Gross", visible: true, width: 12 },
-  { key: "net", label: "Net", visible: true, width: 12 },
-  { key: "vat", label: "VAT", visible: true, width: 12 },
-  { key: "vatPercent", label: "VAT %", visible: true, width: 10 },
-  { key: "vatCode", label: "VAT Code", visible: true, width: 12 },
-  { key: "glCode", label: "GL Code", visible: true, width: 12 },
+  { key: "date",         label: "Date",           visible: false, width: 14 },
+  { key: "supplier",     label: "Supplier",       visible: true,  width: 24 },
+  { key: "reference",    label: "Reference",      visible: false, width: 18 },
+  { key: "description",  label: "Description",    visible: false, width: 32 },
+  { key: "employee",     label: "Employee",       visible: false, width: 18 },
+  { key: "source",       label: "Source",         visible: false, width: 20 },
+  { key: "currency",     label: "Currency",       visible: false, width: 10 },
+  { key: "originalValue",label: "Original Value", visible: true,  width: 14 },
+  { key: "gross",        label: "Gross",          visible: true,  width: 12 },
+  { key: "net",          label: "Net",            visible: true,  width: 12 },
+  { key: "vat",          label: "VAT",            visible: true,  width: 12 },
+  { key: "vatPercent",   label: "VAT %",          visible: true,  width: 10 },
+  { key: "vatCode",      label: "VAT Code",       visible: true,  width: 12 },
+  { key: "glCode",       label: "GL Code",        visible: true,  width: 12 },
+  { key: "matchStatus",    label: "Match Status",    visible: false, width: 14 },
+  { key: "confidence",     label: "Confidence",      visible: false, width: 12 },
+  { key: "costCentre",     label: "Cost Centre",     visible: false, width: 16 },
+  { key: "department",     label: "Department",      visible: false, width: 16 },
+  { key: "invoiceNumber",  label: "Invoice No.",     visible: false, width: 16 },
+  { key: "vatNumber",      label: "VAT Number",      visible: false, width: 16 },
+  { key: "approvalStatus", label: "Approval Status", visible: false, width: 16 },
 ];
 
 export function cloneReviewColumns(columns: ReviewGridColumnLayout[]) {

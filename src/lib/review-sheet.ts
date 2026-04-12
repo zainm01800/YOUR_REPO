@@ -21,13 +21,13 @@ function getExcelColumnName(columnNumber: number) {
 function getBaseNumericValue(row: ReviewRow, key: ReviewBaseColumnKey) {
   switch (key) {
     case "originalValue":
-      return row.originalAmount;
+      return row.originalAmount > 0 ? row.originalAmount : undefined;
     case "gross":
-      return row.gross;
+      return row.grossInRunCurrency ?? row.gross;
     case "net":
-      return row.net;
+      return row.netInRunCurrency ?? row.net;
     case "vat":
-      return row.vat;
+      return row.vatInRunCurrency ?? row.vat;
     case "vatPercent":
       return row.vatPercent;
     default:
@@ -155,20 +155,96 @@ export function getReviewCellDisplayValue(
   switch (column.key) {
     case "supplier":
       return row.supplier;
-    case "originalValue":
-      return formatCurrency(row.originalAmount, row.originalCurrency);
-    case "gross":
-      return row.gross !== undefined ? formatCurrency(row.gross, row.currency) : "Pending";
-    case "net":
-      return row.net !== undefined ? formatCurrency(row.net, row.currency) : "Pending";
-    case "vat":
-      return row.vat !== undefined ? formatCurrency(row.vat, row.currency) : "Pending";
+    case "originalValue": {
+      // Always show the invoice-native amount (document currency)
+      const nativeAmount = row.originalAmount > 0 ? row.originalAmount : undefined;
+      if (nativeAmount == null || nativeAmount === 0) return "—";
+      return formatCurrency(nativeAmount, row.originalCurrency || row.currency);
+    }
+    case "gross": {
+      if (row.gross === undefined) return "Pending";
+      if (row.gross === 0 && row.originalAmount === 0) return "—";
+      // If a converted value exists, show it in run currency; otherwise show native
+      if (row.grossInRunCurrency !== undefined) {
+        return formatCurrency(row.grossInRunCurrency, row.runCurrency);
+      }
+      return formatCurrency(row.gross, row.currency);
+    }
+    case "net": {
+      if (row.net === undefined) return "Pending";
+      if (row.net === 0 && row.vat === 0 && row.gross === 0) return "—";
+      if (row.netInRunCurrency !== undefined) {
+        return formatCurrency(row.netInRunCurrency, row.runCurrency);
+      }
+      return formatCurrency(row.net, row.currency);
+    }
+    case "vat": {
+      if (row.vat === undefined) return "Pending";
+      if (row.vatInRunCurrency !== undefined) {
+        return formatCurrency(row.vatInRunCurrency, row.runCurrency);
+      }
+      return formatCurrency(row.vat, row.currency);
+    }
     case "vatPercent":
       return row.vatPercent !== undefined ? formatPercent(row.vatPercent) : "No rate";
     case "vatCode":
+      if (row.exceptions.some((exception) => exception.code === "foreign_vat_not_claimable")) {
+        return "Not claimable";
+      }
       return row.vatCode || "Missing";
     case "glCode":
       return row.glCode || "Missing";
+    case "date": {
+      if (!row.date) return "—";
+      const parsed = new Date(row.date);
+      if (Number.isNaN(parsed.getTime())) return row.date;
+      return new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).format(parsed);
+    }
+    case "reference":
+      return row.reference || "—";
+    case "description":
+      return row.originalDescription || "—";
+    case "employee":
+      return row.employee || "—";
+    case "source":
+      return row.source || "—";
+    case "matchStatus": {
+      const labels: Record<string, string> = {
+        matched: "Matched",
+        probable_match: "Probable",
+        multiple_candidates: "Multi-match",
+        unmatched: "Unmatched",
+        duplicate_suspected: "Duplicate",
+      };
+      return labels[row.matchStatus] ?? row.matchStatus;
+    }
+    case "currency":
+      return row.currency || row.runCurrency || "—";
+    case "confidence":
+      return row.confidence > 0
+        ? `${Math.round(row.confidence * 100)}%`
+        : "—";
+    case "costCentre":
+      return row.costCentre || "—";
+    case "department":
+      return row.department || "—";
+    case "invoiceNumber":
+      return row.invoiceNumber || "—";
+    case "vatNumber":
+      return row.vatNumber || "—";
+    case "approvalStatus": {
+      const labels: Record<string, string> = {
+        draft: "Draft",
+        submitted: "Submitted",
+        reviewed: "Reviewed",
+        approved: "Approved",
+      };
+      return labels[row.approvalStatus ?? "draft"] ?? "Draft";
+    }
   }
 }
 

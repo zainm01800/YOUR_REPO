@@ -1,4 +1,4 @@
-import { runMatchingEngine } from "@/lib/matching/engine";
+import { runMatchingEngine, type MatchOptions } from "@/lib/matching/engine";
 import type {
   ExtractedDocument,
   GlCodeRule,
@@ -13,8 +13,9 @@ export function processRun(
   documents: ExtractedDocument[],
   vatRules: VatRule[],
   glRules: GlCodeRule[],
+  matchOptions?: MatchOptions,
 ) {
-  const matches = runMatchingEngine(run.transactions, documents);
+  const matches = runMatchingEngine(run.transactions, documents, matchOptions);
   const processedRun: ReconciliationRun = {
     ...run,
     status: "review_required",

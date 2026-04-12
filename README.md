@@ -188,6 +188,7 @@ For production persistence:
 - `SESSION_SECRET=replace-with-a-long-random-string`
 - `DEMO_MODE=false`
 - `DATABASE_URL=your-postgres-connection-string`
+- `CRON_SECRET=replace-with-a-long-random-string`
 
 ### GitHub integration behavior
 
@@ -196,6 +197,25 @@ With Vercel Git integration:
 - every push to `main` can deploy to production
 - every pull request gets a preview deployment
 - GitHub CI still runs lint and build before merge
+- nightly VAT-rate sync can run through Vercel Cron on `/api/settings/vat-rules/sync`
+
+### Live VAT-rate sync
+
+ClearMatch can now sync VAT rules into your own database instead of hardcoding them forever.
+
+Current sync sources:
+
+- UK rates from GOV.UK
+- EU rates from the European Commission TEDB VAT retrieval service
+
+How it works:
+
+1. Click `Sync live VAT rates` in Settings for a manual refresh
+2. Or let Vercel Cron call `/api/settings/vat-rules/sync` nightly
+3. The app stores the synced rules in your workspace `vat_rules` data
+4. Review and export logic then use those stored rules locally
+
+The cron route checks `CRON_SECRET` when it is configured, so production cron calls should include that environment variable.
 
 ### Suggested first live setup
 

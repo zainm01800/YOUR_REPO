@@ -142,3 +142,10 @@ textarea {
   justify-content: center;
   font-weight: 600;
 }
+
+.rdg-review-grid .rdg-summary-row > .rdg-cell {
+  background: #f1ece3;
+  border-top: 1px solid rgba(184, 157, 130, 0.9);
+  color: var(--color-foreground);
+  font-weight: 600;
+}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { CheckCheck, FileSpreadsheet, Files, ListTree, Redo2, SlidersHorizontal, Undo2 } from "lucide-react";
+import { BarChart2, CheckCheck, Eye, EyeOff, FileSpreadsheet, Files, GripVertical, ListTree, Lock, Loader2, Redo2, SlidersHorizontal, Undo2, Unlock, X } from "lucide-react";
 import type {
   ReconciliationRun,
   ReviewActionType,
@@ -16,6 +16,7 @@ import { DocumentAttachmentPanel } from "@/components/review/document-attachment
 import { ReviewActions } from "@/components/review/review-actions";
 import { ReviewDetailPanel } from "@/components/review/review-detail-panel";
 import { ReviewTable } from "@/components/review/review-table";
+import { ExportRunModal } from "@/components/export/export-run-modal";
 import { buildRunSummary } from "@/lib/reconciliation/summary";
 import { getReviewCellFilterText } from "@/lib/review-sheet";
 import {
@@ -193,10 +194,19 @@ export function ReviewWorkspace({
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [activeFilterColumnKey, setActiveFilterColumnKey] = useState<string | null>(null);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("template");
+  const [isTableEditingEnabled, setIsTableEditingEnabled] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [historyPast, setHistoryPast] = useState<WorkspaceSnapshot[]>([]);
   const [historyFuture, setHistoryFuture] = useState<WorkspaceSnapshot[]>([]);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [pending, startTransition] = useTransition();
+  const [colDragIndex, setColDragIndex] = useState<number | null>(null);
+  const [colDragOver, setColDragOver] = useState<number | null>(null);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [bulkGlCode, setBulkGlCode] = useState("");
+  const [showBulkGlInput, setShowBulkGlInput] = useState(false);
+  const [isLocked, setIsLocked] = useState(run.locked ?? false);
+  const [isLocking, startLockTransition] = useTransition();
 
   useEffect(() => {
     setRows(initialRows);
@@ -399,6 +409,74 @@ export function ReviewWorkspace({
     );
   }
 
+  function handleToggleRowSelect(rowId: string) {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) next.delete(rowId);
+      else next.add(rowId);
+      return next;
+    });
+  }
+
+  function handleSelectAll() {
+    setSelectedRowIds(new Set(filteredRows.map((r) => r.id)));
+  }
+
+  function handleDeselectAll() {
+    setSelectedRowIds(new Set());
+  }
+
+  async function handleBulkApproveSelected() {
+    const targets = filteredRows.filter((r) => selectedRowIds.has(r.id) && !r.approved);
+    if (targets.length === 0) return;
+    setSaveState("saving");
+    await Promise.all(targets.map((r) => submitMutation(r.id, "approve")));
+    setRows((current) => current.map((r) => selectedRowIds.has(r.id) ? { ...r, approved: true } : r));
+    setSaveState("saved");
+    setTimeout(() => setSaveState("idle"), 2000);
+    setSelectedRowIds(new Set());
+  }
+
+  async function handleBulkGlAssign() {
+    const code = bulkGlCode.trim();
+    if (!code) return;
+    const targets = filteredRows.filter((r) => selectedRowIds.has(r.id));
+    if (targets.length === 0) return;
+    setSaveState("saving");
+    await Promise.all(targets.map((r) => submitMutation(r.id, "override_gl_code", code, "glCode")));
+    setRows((current) => current.map((r) => selectedRowIds.has(r.id) ? { ...r, glCode: code } : r));
+    setSaveState("saved");
+    setTimeout(() => setSaveState("idle"), 2000);
+    setBulkGlCode("");
+    setShowBulkGlInput(false);
+    setSelectedRowIds(new Set());
+  }
+
+  async function handleBulkExclude() {
+    const targets = filteredRows.filter((r) => selectedRowIds.has(r.id) && !r.excludedFromExport);
+    if (targets.length === 0) return;
+    setSaveState("saving");
+    await Promise.all(targets.map((r) => submitMutation(r.id, "exclude_from_export")));
+    setRows((current) => current.map((r) => selectedRowIds.has(r.id) ? { ...r, excludedFromExport: true } : r));
+    setSaveState("saved");
+    setTimeout(() => setSaveState("idle"), 2000);
+    setSelectedRowIds(new Set());
+  }
+
+  function handleLockRun() {
+    startLockTransition(async () => {
+      await fetch(`/api/runs/${run.id}/lock`, { method: "POST" });
+      setIsLocked(true);
+    });
+  }
+
+  function handleUnlockRun() {
+    startLockTransition(async () => {
+      await fetch(`/api/runs/${run.id}/lock`, { method: "DELETE" });
+      setIsLocked(false);
+    });
+  }
+
   async function handleBulkApproveMatched() {
     const matchedRows = rows.filter(
       (r) => r.matchStatus === "matched" && !r.approved,
@@ -496,36 +574,163 @@ export function ReviewWorkspace({
 
   function renderSidebarPanel() {
     if (sidebarTab === "template") {
+      const visibleCount = columns.filter((c) => c.visible).length;
       return (
-        <Card className="space-y-4">
-          <div>
-            <h2 className="text-xl font-semibold">Template</h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-              Choose a saved template to control which columns appear in the review table.
-            </p>
-          </div>
-          <label className="space-y-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-              Active template
-            </span>
-            <select
-              className="h-11 w-full rounded-2xl border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-foreground)]"
-              value={selectedTemplateId}
-              onChange={(event) => handleSelectTemplate(event.target.value)}
-            >
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="space-y-3">
+          {/* Template selector + quick toggles */}
+          <Card className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-semibold text-[var(--color-foreground)]">Template</span>
+              <select
+                className="h-8 max-w-[160px] flex-1 rounded-xl border border-[var(--color-border)] bg-white px-2.5 text-sm text-[var(--color-foreground)]"
+                value={selectedTemplateId}
+                onChange={(event) => handleSelectTemplate(event.target.value)}
+              >
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-[var(--color-muted-foreground)]">
+                {visibleCount} of {columns.length} visible
+              </span>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  className="rounded-lg border border-[var(--color-border)] px-2.5 py-1 text-xs font-medium hover:bg-[var(--color-panel)]"
+                  onClick={() =>
+                    setColumns((cols) => cols.map((c) => ({ ...c, visible: true })))
+                  }
+                >
+                  Show all
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-[var(--color-border)] px-2.5 py-1 text-xs font-medium hover:bg-[var(--color-panel)]"
+                  onClick={() =>
+                    setColumns((cols) => cols.map((c) => ({ ...c, visible: false })))
+                  }
+                >
+                  Hide all
+                </button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Column visibility + drag-to-reorder */}
+          <Card className="overflow-hidden p-0">
+            {/* ── Visible columns (draggable) ─────────────────────────── */}
+            <div className="border-b border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
+                Visible · drag to reorder
+              </span>
+            </div>
+            <div className="flex flex-col">
+              {columns.map((col, i) => {
+                if (!col.visible) return null;
+                const isDragging = colDragIndex === i;
+                const isDropTarget = colDragOver === i && colDragIndex !== null && colDragIndex !== i;
+
+                return (
+                  <div
+                    key={col.key}
+                    draggable
+                    onDragStart={() => { setColDragIndex(i); setColDragOver(null); }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (colDragIndex !== null && colDragIndex !== i) setColDragOver(i);
+                    }}
+                    onDragLeave={() => { if (colDragOver === i) setColDragOver(null); }}
+                    onDrop={() => {
+                      if (colDragIndex !== null && colDragIndex !== i) {
+                        rememberCurrentState();
+                        setColumns((cols) => moveColumn(cols, colDragIndex, i));
+                      }
+                      setColDragIndex(null);
+                      setColDragOver(null);
+                    }}
+                    onDragEnd={() => { setColDragIndex(null); setColDragOver(null); }}
+                    className={[
+                      "group relative flex select-none items-center gap-2 border-t px-2.5 py-2.5 transition-colors first:border-t-0 bg-white hover:bg-[var(--color-accent-soft)]/30",
+                      isDragging ? "opacity-30 bg-[var(--color-panel)]" : "",
+                      isDropTarget ? "border-t-2 border-t-[var(--color-accent)]" : "border-t-[var(--color-border)]",
+                    ].join(" ")}
+                  >
+                    <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-[var(--color-muted-foreground)] opacity-40 group-hover:opacity-100 active:cursor-grabbing" />
+                    <button
+                      type="button"
+                      onClick={() => setColumns((cols) => cols.map((c, ci) => ci === i ? { ...c, visible: false } : c))}
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent-soft)]"
+                      title="Hide column"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-foreground)]">
+                      {col.label}
+                    </span>
+                  </div>
+                );
+              })}
+              {columns.filter((c) => c.visible).length === 0 && (
+                <p className="px-3 py-4 text-xs text-[var(--color-muted-foreground)]">
+                  All columns hidden. Use the section below to show some.
+                </p>
+              )}
+            </div>
+
+            {/* ── Hidden columns ──────────────────────────────────────── */}
+            {columns.some((c) => !c.visible) && (
+              <>
+                <div className="border-y border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
+                    Hidden
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  {columns.map((col, i) => {
+                    if (col.visible) return null;
+                    return (
+                      <div
+                        key={col.key}
+                        className="group flex items-center gap-2 border-t border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-2 first:border-t-0 hover:bg-[var(--color-border)]/40 transition-colors"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setColumns((cols) => cols.map((c, ci) => ci === i ? { ...c, visible: true } : c))}
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--color-muted-foreground)] transition-colors hover:bg-[var(--color-border)] hover:text-[var(--color-accent)]"
+                          title="Show column"
+                        >
+                          <EyeOff className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="min-w-0 flex-1 truncate text-sm text-[var(--color-muted-foreground)]">
+                          {col.label}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setColumns((cols) => cols.map((c, ci) => ci === i ? { ...c, visible: true } : c))}
+                          className="shrink-0 rounded-md border border-[var(--color-border)] bg-white px-2 py-0.5 text-[10px] font-medium text-[var(--color-muted-foreground)] opacity-0 transition group-hover:opacity-100 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                        >
+                          show
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </Card>
+
+          {/* Template management */}
           <Link href="/templates">
-            <Button type="button" variant="secondary" className="w-full">
-              Manage templates
+            <Button type="button" variant="secondary" className="w-full text-sm">
+              Manage saved templates
             </Button>
           </Link>
-        </Card>
+        </div>
       );
     }
 
@@ -576,7 +781,29 @@ export function ReviewWorkspace({
         }
 
         if (sidebarTab === "detail") {
-      return <ReviewDetailPanel row={selectedRow} run={{ ...run, documents: runDocuments }} />;
+      return (
+        <ReviewDetailPanel
+          row={selectedRow}
+          run={{ ...run, documents: runDocuments }}
+          runId={run.id}
+          onRunMutated={(payload) => {
+            if (payload.rows) {
+              setRows(payload.rows);
+            }
+
+            if (payload.run?.documents) {
+              setRunDocuments(payload.run.documents);
+            }
+
+            const nextSelectedRow =
+              payload.rows?.find((candidate) => candidate.id === selectedRow.id) ||
+              payload.rows?.[0];
+            if (nextSelectedRow) {
+              setSelectedRowId(nextSelectedRow.id);
+            }
+          }}
+        />
+      );
         }
 
     return (
@@ -644,6 +871,25 @@ export function ReviewWorkspace({
           </div>
         </Card>
 
+        {/* Locked banner */}
+        {isLocked && (
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <Lock className="h-4 w-4 shrink-0 text-emerald-600" />
+            <span className="flex-1 text-sm font-semibold text-emerald-700">
+              Period locked — this run is read-only. Unlock to make changes.
+            </span>
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-8 px-3 text-xs"
+              disabled={isLocking}
+              onClick={handleUnlockRun}
+            >
+              {isLocking ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Unlock className="mr-1.5 h-3 w-3" />Unlock</>}
+            </Button>
+          </div>
+        )}
+
         <Card className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
@@ -651,61 +897,121 @@ export function ReviewWorkspace({
             </div>
             <div className="mt-2 text-sm text-[var(--color-muted-foreground)]">
               {templates.find((template) => template.id === selectedTemplateId)?.name || "Default"} template active
+              {run.period && <span className="ml-3 rounded-lg bg-[var(--color-panel)] px-2 py-0.5 text-xs">Period: {run.period}</span>}
+            </div>
+            <div className="mt-1 text-xs text-[var(--color-muted-foreground)]">
+              {isTableEditingEnabled
+                ? "Inline editing is on. Click a supported cell to change it."
+                : "Inline editing is off. Turn on Edit table before changing cells."}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {/* Autosave indicator */}
+            {!isLocked && (
+              <Button
+                type="button"
+                variant={isTableEditingEnabled ? "primary" : "secondary"}
+                onClick={() => setIsTableEditingEnabled((current) => !current)}
+              >
+                {isTableEditingEnabled ? "Finish editing" : "Edit table"}
+              </Button>
+            )}
+            <Button type="button" onClick={() => setIsExportModalOpen(true)}>
+              Export run
+            </Button>
+            <Link href={`/runs/${run.id}/vat-summary`}>
+              <Button type="button" variant="secondary">
+                <BarChart2 className="mr-2 h-4 w-4" />
+                VAT summary
+              </Button>
+            </Link>
+            {!isLocked && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={isLocking}
+                onClick={handleLockRun}
+                title="Lock this period — makes the run read-only"
+              >
+                {isLocking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lock className="mr-2 h-4 w-4" />}
+                Lock period
+              </Button>
+            )}
             <span className={`text-xs font-medium transition-opacity ${saveState === "idle" ? "opacity-0" : "opacity-100"} ${saveState === "saved" ? "text-[var(--color-accent)]" : "text-[var(--color-muted-foreground)]"}`}>
               {saveState === "saving" && "Saving…"}
               {saveState === "saved" && "Saved ✓"}
             </span>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={historyPast.length === 0}
-              onClick={handleUndo}
-              title={`Undo (${undoShortcut})`}
-            >
-              <Undo2 className="mr-2 h-4 w-4" />
-              Undo
-              <span className="ml-2 rounded bg-[var(--color-panel)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--color-muted-foreground)]">
-                {undoShortcut}
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={historyFuture.length === 0}
-              onClick={handleRedo}
-              title={`Redo (${redoShortcut})`}
-            >
-              <Redo2 className="mr-2 h-4 w-4" />
-              Redo
-              <span className="ml-2 rounded bg-[var(--color-panel)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--color-muted-foreground)]">
-                {redoShortcut}
-              </span>
-            </Button>
-            {matchedUnapprovedCount > 0 && (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleBulkApproveMatched}
-                title="Approve all rows with a confirmed match"
-              >
-                <CheckCheck className="mr-2 h-4 w-4" />
-                Approve matched ({matchedUnapprovedCount})
+            {!isLocked && (
+              <>
+                <Button type="button" variant="secondary" disabled={historyPast.length === 0} onClick={handleUndo} title={`Undo (${undoShortcut})`}>
+                  <Undo2 className="mr-2 h-4 w-4" /> Undo
+                  <span className="ml-2 rounded bg-[var(--color-panel)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--color-muted-foreground)]">{undoShortcut}</span>
+                </Button>
+                <Button type="button" variant="secondary" disabled={historyFuture.length === 0} onClick={handleRedo} title={`Redo (${redoShortcut})`}>
+                  <Redo2 className="mr-2 h-4 w-4" /> Redo
+                  <span className="ml-2 rounded bg-[var(--color-panel)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--color-muted-foreground)]">{redoShortcut}</span>
+                </Button>
+              </>
+            )}
+            {matchedUnapprovedCount > 0 && !isLocked && (
+              <Button type="button" variant="secondary" onClick={handleBulkApproveMatched} title="Approve all rows with a confirmed match">
+                <CheckCheck className="mr-2 h-4 w-4" /> Approve matched ({matchedUnapprovedCount})
               </Button>
             )}
           </div>
         </Card>
 
+        {/* Bulk selection action bar */}
+        {selectedRowIds.size > 0 && (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-[var(--color-accent)] bg-[var(--color-accent-soft)] px-4 py-3">
+            <span className="text-sm font-semibold text-[var(--color-accent)]">
+              {selectedRowIds.size} row{selectedRowIds.size !== 1 ? "s" : ""} selected
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="secondary" className="h-8 px-3 text-xs" onClick={handleBulkApproveSelected}>
+                <CheckCheck className="mr-1.5 h-3 w-3" /> Approve
+              </Button>
+              {showBulkGlInput ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="GL code…"
+                    value={bulkGlCode}
+                    onChange={(e) => setBulkGlCode(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleBulkGlAssign()}
+                    className="h-8 w-28 rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                    autoFocus
+                  />
+                  <Button type="button" variant="secondary" className="h-8 px-3 text-xs" onClick={handleBulkGlAssign} disabled={!bulkGlCode.trim()}>
+                    Apply
+                  </Button>
+                  <button type="button" onClick={() => setShowBulkGlInput(false)} className="text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <Button type="button" variant="secondary" className="h-8 px-3 text-xs" onClick={() => setShowBulkGlInput(true)}>
+                  Assign GL code
+                </Button>
+              )}
+              <Button type="button" variant="secondary" className="h-8 px-3 text-xs" onClick={handleBulkExclude}>
+                Exclude from export
+              </Button>
+            </div>
+            <button type="button" onClick={handleDeselectAll} className="ml-auto text-xs font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]">
+              Clear selection
+            </button>
+          </div>
+        )}
+
         <ReviewTable
           rows={filteredRows}
           columns={columns}
           selectedRowId={selectedRowId}
+          selectedRowIds={selectedRowIds}
           columnFilters={columnFilters}
           activeFilterColumnKey={activeFilterColumnKey}
           onSelectRow={setSelectedRowId}
+          onToggleRowSelect={handleToggleRowSelect}
           onEditField={handleEditField}
           onMoveColumn={(fromIndex, toIndex) => {
             rememberCurrentState();
@@ -715,6 +1021,7 @@ export function ReviewWorkspace({
             setColumnFilters((current) => ({ ...current, [columnKey]: value }))
           }
           onToggleFilterMenu={setActiveFilterColumnKey}
+          isTableEditingEnabled={isTableEditingEnabled}
           pending={pending}
         />
       </div>
@@ -752,17 +1059,23 @@ export function ReviewWorkspace({
                 <div>
                   <h2 className="text-xl font-semibold">Next step</h2>
                   <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-                    When the selected row looks right, move the run to export.
+                    When the selected row looks right, open the export popup and download the final file.
                   </p>
                 </div>
-                <Link href={`/runs/${run.id}/export`}>
-                  <Button>Export run</Button>
-                </Link>
+                <Button type="button" onClick={() => setIsExportModalOpen(true)}>
+                  Export run
+                </Button>
               </div>
             </Card>
           </div>
         </div>
       </div>
+      <ExportRunModal
+        runId={run.id}
+        rows={rows}
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+      />
     </div>
   );
 }

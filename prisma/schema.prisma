@@ -97,6 +97,7 @@ model ReconciliationRun {
   workspaceId         String
   transactionFileName String?
   notes               String?
+  fxRates             Json?
   workspace           Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   uploadedFiles       UploadedFile[]
   transactions        Transaction[]

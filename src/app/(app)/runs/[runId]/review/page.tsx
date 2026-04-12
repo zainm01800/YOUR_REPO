@@ -34,9 +34,6 @@ export default async function ReviewPage({
             <Link href={`/runs/${run.id}/exceptions`}>
               <Button variant="secondary">Exceptions only</Button>
             </Link>
-            <Link href={`/runs/${run.id}/export`}>
-              <Button>Export run</Button>
-            </Link>
           </>
         }
       />

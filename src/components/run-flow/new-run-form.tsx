@@ -61,15 +61,16 @@ async function recogniseImageBatch(
       const file = files[index];
       onProgress(`Reading ${file.fileName} (${index + 1}/${files.length}) on this device...`);
       const result = await worker.recognize(file.blob);
+      const rawText = result.data.text || "";
+      const conf = typeof result.data.confidence === "number" ? result.data.confidence / 100 : 0.68;
+      console.log(`[OCR] ${file.fileName} | conf=${conf.toFixed(2)} | chars=${rawText.length}`);
+      console.log(`[OCR] text:\n${rawText.slice(0, 800)}`);
       extracted.push({
         fileName: file.fileName,
         mimeType: file.mimeType,
-        rawExtractedText: result.data.text || "",
+        rawExtractedText: rawText,
         source: "browser_tesseract",
-        confidence:
-          typeof result.data.confidence === "number"
-            ? result.data.confidence / 100
-            : 0.68,
+        confidence: conf,
       });
     }
 
@@ -268,6 +269,12 @@ export function NewRunForm({
         selectedDocuments,
         setOcrMessage,
       );
+
+      console.log("[submit] clientExtractedDocuments:", clientExtractedDocuments.map(d => ({
+        fileName: d.fileName,
+        chars: d.rawExtractedText?.length ?? 0,
+        conf: d.confidence,
+      })));
 
       formData.set(
         "clientExtractedDocuments",

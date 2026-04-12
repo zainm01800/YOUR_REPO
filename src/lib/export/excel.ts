@@ -78,14 +78,21 @@ export async function createExcelExport(
         grossIndex >= 0 &&
         netIndex >= 0 &&
         vatIndex >= 0 &&
-        (row.net !== undefined || row.vat !== undefined)
+        (getExportCellValue(row, "net") !== undefined || getExportCellValue(row, "vat") !== undefined)
       ) {
         const netColumn = getExcelColumnName(netIndex + 1);
         const vatColumn = getExcelColumnName(vatIndex + 1);
         const grossCell = addedRow.getCell(grossIndex + 1);
+        const exportedGross = getExportCellValue(row, "gross");
+        const exportedNet = getExportCellValue(row, "net");
+        const exportedVat = getExportCellValue(row, "vat");
         grossCell.value = {
           formula: `IF(COUNTA(${netColumn}${rowNumber}:${vatColumn}${rowNumber})=0,"",SUM(${netColumn}${rowNumber}:${vatColumn}${rowNumber}))`,
-          result: row.gross ?? (row.net || 0) + (row.vat || 0),
+          result:
+            typeof exportedGross === "number"
+              ? exportedGross
+              : (typeof exportedNet === "number" ? exportedNet : 0) +
+                (typeof exportedVat === "number" ? exportedVat : 0),
         };
       }
 
@@ -93,16 +100,25 @@ export async function createExcelExport(
         vatPercentIndex >= 0 &&
         netIndex >= 0 &&
         vatIndex >= 0 &&
-        row.net &&
-        row.vat !== undefined
+        typeof getExportCellValue(row, "net") === "number" &&
+        getExportCellValue(row, "net") !== 0 &&
+        typeof getExportCellValue(row, "vat") === "number"
       ) {
         const netColumn = getExcelColumnName(netIndex + 1);
         const vatColumn = getExcelColumnName(vatIndex + 1);
         const vatPercentCell = addedRow.getCell(vatPercentIndex + 1);
+        const exportedNet = getExportCellValue(row, "net");
+        const exportedVat = getExportCellValue(row, "vat");
         vatPercentCell.value = {
           formula: `IF(OR(${netColumn}${rowNumber}="",${netColumn}${rowNumber}=0),"",${vatColumn}${rowNumber}/${netColumn}${rowNumber})`,
           result:
-            row.vatPercent !== undefined ? row.vatPercent / 100 : row.vat / row.net,
+            row.vatPercent !== undefined
+              ? row.vatPercent / 100
+              : typeof exportedNet === "number" &&
+                  typeof exportedVat === "number" &&
+                  exportedNet !== 0
+                ? exportedVat / exportedNet
+                : undefined,
         };
       }
     });

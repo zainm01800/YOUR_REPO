@@ -23,6 +23,11 @@ type EmptyGridRow = Omit<ReviewRow, "matchStatus"> & {
 
 type GridRow = ReviewRow | EmptyGridRow;
 
+type SummaryRow = {
+  id: "totals";
+  values: Record<string, string>;
+};
+
 type RowGroupMeta = {
   colorGroupIndex: number;
   groupIndex: number;
@@ -103,7 +108,7 @@ function SimpleTextEditor({
   column,
   onRowChange,
   onClose,
-}: RenderEditCellProps<GridRow>) {
+}: RenderEditCellProps<GridRow, SummaryRow>) {
   const value = row[column.key as keyof GridRow];
 
   return (
@@ -124,7 +129,7 @@ function NumberEditor({
   column,
   onRowChange,
   onClose,
-}: RenderEditCellProps<GridRow>) {
+}: RenderEditCellProps<GridRow, SummaryRow>) {
   const value = row[column.key as keyof GridRow];
 
   return (
@@ -173,9 +178,9 @@ function getColumnCellContent(
       }
       return (
         <div className="space-y-1 py-1">
-          <div>{formatCurrency(row.originalAmount, row.originalCurrency)}</div>
+          <div>{String(displayValue)}</div>
           <div className="text-xs text-[var(--color-muted-foreground)]">
-            {row.originalCurrency}
+            {row.originalCurrency || row.currency}
           </div>
         </div>
       );
@@ -183,16 +188,27 @@ function getColumnCellContent(
     case "net":
       return (
         <div className="space-y-1 py-1">
-          <div>{displayValue}</div>
-          <div className="text-xs text-[var(--color-muted-foreground)]">{row.currency}</div>
+          <div>{String(displayValue)}</div>
+          <div className="text-xs text-[var(--color-muted-foreground)]">
+            {(column.key === "gross" && row.grossInRunCurrency !== undefined) ||
+            (column.key === "net" && row.netInRunCurrency !== undefined)
+              ? row.runCurrency
+              : row.currency}
+          </div>
         </div>
       );
     case "vat": {
       const isZeroVat = row.vat === 0 || (row.vat === undefined && row.gross !== undefined);
       return (
         <div className="space-y-1 py-1">
-          <div>{isZeroVat && row.vat === 0 ? `0.00 ${row.currency}` : displayValue}</div>
-          <div className="text-xs opacity-60">{row.currency}</div>
+          <div>
+            {isZeroVat && row.vat === 0
+              ? `0.00 ${row.vatInRunCurrency !== undefined ? row.runCurrency : row.currency}`
+              : String(displayValue)}
+          </div>
+          <div className="text-xs opacity-60">
+            {row.vatInRunCurrency !== undefined ? row.runCurrency : row.currency}
+          </div>
         </div>
       );
     }
@@ -213,6 +229,7 @@ function createEmptyGridRow(index: number): EmptyGridRow {
     supplier: "",
     date: undefined,
     currency: "",
+    runCurrency: "GBP",
     originalAmount: 0,
     originalCurrency: "",
     net: undefined,
@@ -247,13 +264,27 @@ function getStableColorGroupIndex(groupKey: string) {
   return Math.abs(hash) % 6;
 }
 
+function formatSummaryValue(value: number, currency?: string) {
+  if (!currency) {
+    return value.toLocaleString("en-GB", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  return formatCurrency(value, currency);
+}
+
 export function ReviewTable({
   rows,
   columns,
   selectedRowId,
+  selectedRowIds,
   columnFilters,
   activeFilterColumnKey,
+  isTableEditingEnabled,
   onSelectRow,
+  onToggleRowSelect,
   onEditField,
   onMoveColumn,
   onFilterChange,
@@ -263,9 +294,12 @@ export function ReviewTable({
   rows: ReviewRow[];
   columns: ReviewGridColumnLayout[];
   selectedRowId?: string;
+  selectedRowIds?: Set<string>;
   columnFilters: Record<string, string>;
   activeFilterColumnKey?: string | null;
+  isTableEditingEnabled?: boolean;
   onSelectRow: (rowId: string) => void;
+  onToggleRowSelect?: (rowId: string) => void;
   onEditField: (rowId: string, field: string, value: string) => void;
   onMoveColumn: (fromIndex: number, toIndex: number) => void;
   onFilterChange: (columnKey: string, value: string) => void;
@@ -349,8 +383,82 @@ export function ReviewTable({
     return meta;
   }, [rows]);
 
+  const bottomSummaryRows = useMemo<readonly SummaryRow[]>(() => {
+    const values: Record<string, string> = {};
+
+    const originalRows = rows.filter((row) => {
+      const meta = rowGroupMeta.get(row.id);
+      return !meta || meta.isFirstInGroup;
+    });
+
+    const originalCurrencies = [...new Set(originalRows.map((row) => row.currency).filter(Boolean))];
+    const runCurrencies = [...new Set(rows.map((row) => row.runCurrency).filter(Boolean))];
+    const runCurrency = runCurrencies.length === 1 ? runCurrencies[0] : undefined;
+
+    const originalTotal = originalRows.reduce((sum, row) => {
+      return sum + (row.originalAmount > 0 ? row.originalAmount : 0);
+    }, 0);
+    values.originalValue =
+      originalCurrencies.length === 1
+        ? formatSummaryValue(originalTotal, originalRows[0]?.originalCurrency || originalCurrencies[0])
+        : "Mixed";
+
+    const grossTotal = rows.reduce(
+      (sum, row) => sum + (row.grossInRunCurrency ?? row.gross ?? 0),
+      0,
+    );
+    values.gross = formatSummaryValue(grossTotal, runCurrency);
+
+    const netTotal = rows.reduce(
+      (sum, row) => sum + (row.netInRunCurrency ?? row.net ?? 0),
+      0,
+    );
+    values.net = formatSummaryValue(netTotal, runCurrency);
+
+    const vatTotal = rows.reduce(
+      (sum, row) => sum + (row.vatInRunCurrency ?? row.vat ?? 0),
+      0,
+    );
+    values.vat = formatSummaryValue(vatTotal, runCurrency);
+
+    return [{ id: "totals", values }];
+  }, [rowGroupMeta, rows]);
+
   const gridColumns = useMemo(() => {
-    const spreadsheetColumns: Column<GridRow>[] = [
+    const spreadsheetColumns: Column<GridRow, SummaryRow>[] = [
+      {
+        key: "__select",
+        name: "",
+        width: 40,
+        minWidth: 40,
+        maxWidth: 40,
+        frozen: true,
+        resizable: false,
+        draggable: false,
+        editable: false,
+        headerCellClass: "rdg-review-header-number",
+        cellClass: "rdg-review-row-number",
+        renderHeaderCell: () =>
+          selectedRowIds && onToggleRowSelect ? (
+            <div className="flex h-full items-center justify-center" />
+          ) : null,
+        renderCell: ({ row }) => {
+          if (isEmptyGridRow(row) || !onToggleRowSelect || !selectedRowIds) return null;
+          const checked = selectedRowIds.has(row.id);
+          return (
+            <div className="flex h-full items-center justify-center">
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => onToggleRowSelect(row.id)}
+                onClick={(e) => e.stopPropagation()}
+                className="h-4 w-4 cursor-pointer rounded accent-[var(--color-accent)]"
+              />
+            </div>
+          );
+        },
+        renderSummaryCell: () => null,
+      },
       {
         key: "__rowNumber",
         name: "",
@@ -364,11 +472,13 @@ export function ReviewTable({
         headerCellClass: "rdg-review-header-number",
         cellClass: "rdg-review-row-number",
         renderCell: ({ rowIdx }) => <span>{rowIdx + 2}</span>,
+        renderSummaryCell: () => <span>Σ</span>,
       },
     ];
 
     for (const column of visibleColumns) {
       const editable =
+        isTableEditingEnabled &&
         column.kind !== "custom" &&
         [
           "supplier",
@@ -422,6 +532,13 @@ export function ReviewTable({
             rowIdx + 2,
             isEmptyGridRow(row) ? undefined : rowGroupMeta.get(row.id),
           ),
+        renderSummaryCell: ({ row }) => {
+          if (column.key === "supplier") {
+            return <span className="font-semibold text-[var(--color-foreground)]">Totals</span>;
+          }
+
+          return row.values[column.key] || "";
+        },
       });
     }
 
@@ -429,16 +546,19 @@ export function ReviewTable({
   }, [
     activeFilterColumnKey,
     columnFilters,
+    isTableEditingEnabled,
     onFilterChange,
     onToggleFilterMenu,
+    onToggleRowSelect,
     rowGroupMeta,
+    selectedRowIds,
     visibleColumns,
   ]);
 
   return (
     <Card className="flex min-w-0 flex-col overflow-hidden p-0">
       <div ref={containerRef} className="h-[min(68vh,760px)] min-h-[500px] overflow-hidden">
-        <DataGrid
+        <DataGrid<GridRow, SummaryRow>
           aria-label="Review spreadsheet"
           className="rdg-light rdg-review-grid h-full"
           style={{ height: "100%", width: "100%" }}
@@ -451,6 +571,8 @@ export function ReviewTable({
             resizable: true,
             draggable: true,
           }}
+          bottomSummaryRows={bottomSummaryRows}
+          summaryRowHeight={42}
           onRowsChange={(nextRows, data) => {
             const rowIndex = data.indexes[0];
             if (rowIndex === undefined) {
@@ -495,7 +617,7 @@ export function ReviewTable({
 
             return classes.join(" ");
           }}
-          onCellClick={(args: CellMouseArgs<GridRow>, event: CellMouseEvent) => {
+          onCellClick={(args: CellMouseArgs<GridRow, SummaryRow>, event: CellMouseEvent) => {
             if (isEmptyGridRow(args.row)) {
               event.preventGridDefault();
               return;
@@ -510,6 +632,7 @@ export function ReviewTable({
             onSelectRow(args.row.id);
 
             if (
+              isTableEditingEnabled &&
               [
                 "supplier",
                 "originalValue",
@@ -531,6 +654,10 @@ export function ReviewTable({
       {pending ? (
         <div className="border-t border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3 text-xs text-[var(--color-muted-foreground)]">
           Saving review changes...
+        </div>
+      ) : !isTableEditingEnabled ? (
+        <div className="border-t border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3 text-xs text-[var(--color-muted-foreground)]">
+          Table editing is off. Use the Edit table button above to enable inline changes.
         </div>
       ) : null}
     </Card>

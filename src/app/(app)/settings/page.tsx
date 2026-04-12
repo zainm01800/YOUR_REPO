@@ -1,6 +1,9 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Card } from "@/components/ui/card";
+import { RuleImportCard } from "@/components/settings/rule-import-card";
 import { ToleranceEditor } from "@/components/settings/tolerance-editor";
+import { VatSyncCard } from "@/components/settings/vat-sync-card";
+import { CountryVatPicker } from "@/components/settings/country-vat-picker";
 import { getRepository } from "@/lib/data";
 
 export default async function SettingsPage() {
@@ -17,36 +20,36 @@ export default async function SettingsPage() {
       />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        {/* VAT rules */}
+        <VatSyncCard currentRuleCount={snapshot.vatRules.length} />
+
+        <RuleImportCard
+          title="Import GL codes"
+          description="Paste a nominal-code list or upload Excel/CSV so ClearMatch can suggest GL codes consistently."
+          endpoint="/api/settings/gl-rules/import"
+          exampleLines={[
+            "650060 - Travel expenses",
+            "650100, Software subscriptions",
+            "650200 | Client entertainment | restaurant|dinner | 120",
+          ]}
+          helperText={`Paste one row per line.\nAccepted formats:\n650060 - Travel expenses\n650060, Travel expenses\n650200 | Client entertainment | supplierPattern | keywordPattern | priority\n\nSpreadsheet headers can be: glCode/code/accountCode, label/description, supplierPattern, keywordPattern, priority.`}
+        />
+
+        {/* VAT rules — country picker */}
         <Card className="space-y-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">VAT rules</h2>
-              <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-                Country-specific VAT rates mapped to tax codes. Used during exception detection.
-              </p>
-            </div>
-          </div>
-          <div className="space-y-3">
-            {snapshot.vatRules.length === 0 ? (
-              <p className="rounded-2xl bg-[var(--color-panel)] p-5 text-sm text-[var(--color-muted-foreground)]">
-                No VAT rules configured for this workspace.
-              </p>
-            ) : (
-              snapshot.vatRules.map((rule) => (
-                <div key={rule.id} className="rounded-2xl bg-[var(--color-panel)] p-5 text-sm">
-                  <div className="font-semibold text-[var(--color-foreground)]">
-                    {rule.countryCode} {rule.rate.toFixed(1)}% → {rule.taxCode}
-                  </div>
-                  <div className="mt-1 text-[var(--color-muted-foreground)]">{rule.description}</div>
-                  <div className="mt-1 text-xs text-[var(--color-muted-foreground)]">
-                    {rule.recoverable ? "Recoverable" : "Non-recoverable"}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <CountryVatPicker initialRules={snapshot.vatRules} />
         </Card>
+
+        <RuleImportCard
+          title="Import VAT codes"
+          description="Paste VAT codes and rates or upload Excel/CSV so the workspace can use your own tax mappings."
+          endpoint="/api/settings/vat-rules/import"
+          exampleLines={[
+            "GB,20,GB20,true,Standard UK VAT",
+            "GB,0,GB0,true,Zero rated UK VAT",
+            "DE | 19 | DE19 | true | German standard VAT",
+          ]}
+          helperText={`Paste one row per line.\nAccepted formats:\nGB,20,GB20,true,Standard UK VAT\nDE | 19 | DE19 | true | German standard VAT\n\nSpreadsheet headers can be: country/countryCode, rate/taxRate, taxCode/vatCode, recoverable, description.`}
+        />
 
         {/* GL suggestions */}
         <Card className="space-y-5">

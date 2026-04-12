@@ -1,5 +1,6 @@
 import type {
   DashboardSnapshot,
+  GlCodeRule,
   MappingTemplate,
   ReconciliationRun,
   ReviewActionType,
@@ -8,6 +9,14 @@ import type {
   VatRule,
   Workspace,
 } from "@/lib/domain/types";
+
+export interface UpsertVatRulesInput {
+  rules: VatRule[];
+}
+
+export interface UpsertGlCodeRulesInput {
+  rules: GlCodeRule[];
+}
 
 export interface ReviewMutationInput {
   runId: string;
@@ -41,6 +50,9 @@ export interface Repository {
   getRunRows(runId: string): Promise<ReviewRow[]>;
   getTemplates(): Promise<MappingTemplate[]>;
   getVatRules(): Promise<VatRule[]>;
+  upsertVatRules(input: UpsertVatRulesInput): Promise<VatRule[]>;
+  replaceAllVatRules(rules: VatRule[]): Promise<VatRule[]>;
+  upsertGlCodeRules(input: UpsertGlCodeRulesInput): Promise<GlCodeRule[]>;
   createRun(input: CreateRunInput): Promise<ReconciliationRun>;
   deleteRun(runId: string): Promise<void>;
   updateRun(run: ReconciliationRun): Promise<ReconciliationRun>;
