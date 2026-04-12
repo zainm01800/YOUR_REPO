@@ -12,6 +12,7 @@ export default async function BookkeepingTransactionsPage() {
   // Gather all transactions across all completed/reviewed runs
   const allTransactions: {
     id: string;
+    sourceBankTransactionId?: string;
     externalId?: string;
     sourceLineNumber?: number;
     transactionDate?: string;
