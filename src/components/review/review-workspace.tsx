@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import Link from "next/link";
 import { BarChart2, CheckCheck, Eye, EyeOff, FileSpreadsheet, Files, GripVertical, ListTree, Lock, Loader2, Redo2, SlidersHorizontal, Undo2, Unlock, X } from "lucide-react";
 import type {
+  BankStatement,
   ReconciliationRun,
   ReviewActionType,
   ReviewGridColumnLayout,
@@ -13,6 +14,7 @@ import type {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DocumentAttachmentPanel } from "@/components/review/document-attachment-panel";
+import { BankSourceCard } from "@/components/review/bank-source-card";
 import { ReviewActions } from "@/components/review/review-actions";
 import { ReviewDetailPanel } from "@/components/review/review-detail-panel";
 import { ReviewTable } from "@/components/review/review-table";
@@ -177,13 +179,18 @@ export function ReviewWorkspace({
   run,
   initialRows,
   initialRowId,
+  bankStatements,
 }: {
   run: ReconciliationRun;
   initialRows: ReviewRow[];
   initialRowId?: string;
+  bankStatements: BankStatement[];
 }) {
   const [rows, setRows] = useState(initialRows);
   const [runDocuments, setRunDocuments] = useState(run.documents);
+  const [bankSourceMode, setBankSourceMode] = useState(run.bankSourceMode);
+  const [bankStatementId, setBankStatementId] = useState(run.bankStatementId);
+  const [bankSourceLabel, setBankSourceLabel] = useState(run.bankSourceLabel);
   const [selectedRowId, setSelectedRowId] = useState(initialRowId || initialRows[0]?.id || "");
   const [templates, setTemplates] = useState<ReviewTableTemplate[]>(() =>
     normaliseReviewTemplates(),
@@ -981,6 +988,21 @@ export function ReviewWorkspace({
           </div>
         )}
 
+        <BankSourceCard
+          runId={run.id}
+          bankStatements={bankStatements}
+          currentBankStatementId={bankStatementId}
+          currentBankSourceMode={bankSourceMode}
+          currentBankSourceLabel={bankSourceLabel}
+          onAttached={({ rows: updatedRows, run: updatedRun }) => {
+            setRows(updatedRows);
+            setBankStatementId(updatedRun.bankStatementId);
+            setBankSourceMode(updatedRun.bankSourceMode);
+            setBankSourceLabel(updatedRun.bankSourceLabel);
+            setSelectedRowId(updatedRows[0]?.id || "");
+          }}
+        />
+
         <Card className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
@@ -989,6 +1011,7 @@ export function ReviewWorkspace({
             <div className="mt-2 text-sm text-[var(--color-muted-foreground)]">
               {templates.find((template) => template.id === selectedTemplateId)?.name || "Default"} template active
               {run.period && <span className="ml-3 rounded-lg bg-[var(--color-panel)] px-2 py-0.5 text-xs">Period: {run.period}</span>}
+              {bankSourceLabel && <span className="ml-3 rounded-lg bg-[var(--color-panel)] px-2 py-0.5 text-xs">Bank source: {bankSourceLabel}</span>}
             </div>
             <div className="mt-1 text-xs text-[var(--color-muted-foreground)]">
               {isTableEditingEnabled

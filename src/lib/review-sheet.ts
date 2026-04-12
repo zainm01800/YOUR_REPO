@@ -20,10 +20,14 @@ function getExcelColumnName(columnNumber: number) {
 
 function getBaseNumericValue(row: ReviewRow, key: ReviewBaseColumnKey) {
   switch (key) {
+    case "bankAmount":
+      return row.bankTransactionAmount > 0 ? row.bankTransactionAmount : undefined;
     case "originalValue":
       return row.originalAmount > 0 ? row.originalAmount : undefined;
     case "gross":
       return row.grossInRunCurrency ?? row.gross;
+    case "difference":
+      return row.grossDifference;
     case "net":
       return row.netInRunCurrency ?? row.net;
     case "vat":
@@ -155,6 +159,12 @@ export function getReviewCellDisplayValue(
   switch (column.key) {
     case "supplier":
       return row.supplier;
+    case "bankStatement":
+      return row.bankStatementName || "No bank source";
+    case "bankAmount":
+      return row.bankTransactionAmount > 0
+        ? formatCurrency(row.bankTransactionAmount, row.runCurrency || row.currency)
+        : "—";
     case "originalValue": {
       // Always show the invoice-native amount (document currency)
       const nativeAmount = row.originalAmount > 0 ? row.originalAmount : undefined;
@@ -169,6 +179,23 @@ export function getReviewCellDisplayValue(
         return formatCurrency(row.grossInRunCurrency, row.runCurrency);
       }
       return formatCurrency(row.gross, row.currency);
+    }
+    case "difference": {
+      if (row.grossDifference === undefined) return "Pending";
+      return formatCurrency(Math.abs(row.grossDifference), row.runCurrency || row.currency);
+    }
+    case "grossMatch": {
+      switch (row.grossComparisonStatus) {
+        case "exact":
+          return "Exact";
+        case "close":
+          return "Close";
+        case "mismatch":
+          return "Mismatch";
+        case "missing_document":
+        default:
+          return "No document";
+      }
     }
     case "net": {
       if (row.net === undefined) return "Pending";

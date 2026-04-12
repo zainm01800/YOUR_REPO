@@ -1,4 +1,7 @@
 import type {
+  BankStatement,
+  BankTransaction,
+  CategoryRule,
   GlCodeRule,
   MappingTemplate,
   MatchDecision,
@@ -10,6 +13,7 @@ import type {
   Workspace,
 } from "@/lib/domain/types";
 import { appConfig } from "@/lib/config";
+import { DRIVING_SCHOOL_CATEGORIES } from "@/lib/accounting/default-categories";
 
 const user: User = {
   id: "user_demo_owner",
@@ -25,6 +29,8 @@ const workspace: Workspace = {
   countryProfile: "GB",
   amountTolerance: 1.5,
   dateToleranceDays: 5,
+  vatRegistered: false,
+  businessType: "sole_trader",
 };
 
 const vatRules: VatRule[] = [
@@ -54,27 +60,84 @@ const vatRules: VatRule[] = [
   },
 ];
 
-const glRules: GlCodeRule[] = [
+const aprilBankTransactions: BankTransaction[] = [
   {
-    id: "gl_meals",
-    glCode: "6105",
-    label: "Travel and meals",
-    keywordPattern: "cafe|coffee|restaurant|lunch|dinner",
-    priority: 10,
+    id: "bank_txn_uber",
+    bankStatementId: "stmt_april_cards",
+    reconciliationStatus: "confirmed",
+    sourceLineNumber: 12,
+    transactionDate: "2026-04-02",
+    amount: -42.6,
+    currency: "GBP",
+    merchant: "Uber BV",
+    description: "Client visit taxi",
+    employee: "Maya Chen",
+    reference: "UBR-7741",
   },
   {
-    id: "gl_software",
-    glCode: "7200",
-    label: "Software subscriptions",
-    keywordPattern: "software|subscription|saas|cloud",
-    priority: 20,
+    id: "bank_txn_costa",
+    bankStatementId: "stmt_april_cards",
+    reconciliationStatus: "confirmed",
+    sourceLineNumber: 13,
+    transactionDate: "2026-04-02",
+    amount: -6.4,
+    currency: "GBP",
+    merchant: "Costa Coffee",
+    description: "Team coffee before client workshop",
+    employee: "Maya Chen",
+    reference: "CST-281",
   },
   {
-    id: "gl_taxis",
-    glCode: "6110",
-    label: "Ground transport",
-    supplierPattern: "uber|bolt|free now",
-    priority: 15,
+    id: "bank_txn_aws",
+    bankStatementId: "stmt_april_cards",
+    reconciliationStatus: "suggested_match",
+    sourceLineNumber: 17,
+    transactionDate: "2026-04-04",
+    amount: -91.12,
+    currency: "USD",
+    merchant: "Amazon Web Services",
+    description: "Monthly hosting",
+    employee: "No cardholder",
+    reference: "AWS-APR",
+  },
+  {
+    id: "bank_txn_hotel",
+    bankStatementId: "stmt_april_cards",
+    reconciliationStatus: "suggested_match",
+    sourceLineNumber: 22,
+    transactionDate: "2026-04-05",
+    amount: -320,
+    currency: "GBP",
+    merchant: "Harbour Hotel",
+    description: "Conference accommodation",
+    employee: "Ava Thompson",
+    reference: "HTL-948",
+  },
+  {
+    id: "bank_txn_team_lunch",
+    bankStatementId: "stmt_april_cards",
+    reconciliationStatus: "unreconciled",
+    sourceLineNumber: 25,
+    transactionDate: "2026-04-06",
+    amount: -84.5,
+    currency: "GBP",
+    merchant: "Canal Bistro",
+    description: "Candidate lunch",
+    employee: "Ava Thompson",
+    reference: "BIS-840",
+  },
+  {
+    id: "bank_txn_hotel_duplicate",
+    bankStatementId: "stmt_april_cards",
+    reconciliationStatus: "partially_matched",
+    sourceLineNumber: 26,
+    transactionDate: "2026-04-05",
+    amount: -320,
+    currency: "GBP",
+    merchant: "Harbour Hotel",
+    description: "Hotel duplicate on secondary card",
+    employee: "Ava Thompson",
+    reference: "HTL-949",
   },
 ];
 
@@ -107,6 +170,60 @@ const templates: MappingTemplate[] = [
     },
   },
 ];
+
+const bankStatements: BankStatement[] = [
+  {
+    id: "stmt_april_cards",
+    name: "April card statement",
+    fileName: "april-card-export.csv",
+    bankName: "Corporate card feed",
+    accountName: "Northstar card account",
+    currency: "GBP",
+    importedAt: "2026-04-07T14:20:00.000Z",
+    importStatus: "imported",
+    dateRangeStart: "2026-04-01",
+    dateRangeEnd: "2026-04-30",
+    transactionCount: aprilBankTransactions.length,
+    previewHeaders: [
+      "Transaction Date",
+      "Amount",
+      "Merchant",
+      "Description",
+      "Employee",
+      "Currency",
+      "Reference",
+    ],
+    savedColumnMappings: templates[0].columnMappings,
+    transactions: aprilBankTransactions,
+  },
+];
+
+const glRules: GlCodeRule[] = [
+  {
+    id: "gl_meals",
+    glCode: "6105",
+    label: "Travel and meals",
+    keywordPattern: "cafe|coffee|restaurant|lunch|dinner",
+    priority: 10,
+  },
+  {
+    id: "gl_software",
+    glCode: "7200",
+    label: "Software subscriptions",
+    keywordPattern: "software|subscription|saas|cloud",
+    priority: 20,
+  },
+  {
+    id: "gl_taxis",
+    glCode: "6110",
+    label: "Ground transport",
+    supplierPattern: "uber|bolt|free now",
+    priority: 15,
+  },
+];
+
+// Use driving school presets as the default category rules
+const categoryRules: CategoryRule[] = DRIVING_SCHOOL_CATEGORIES;
 
 const runFiles: UploadedFileMeta[] = [
   {
@@ -273,6 +390,9 @@ const run: ReconciliationRun = {
   entity: "Northstar Holdings Ltd",
   countryProfile: "GB",
   defaultCurrency: "GBP",
+  bankStatementId: "stmt_april_cards",
+  bankSourceMode: "statement",
+  bankSourceLabel: "April card statement",
   transactionFileName: "april-card-export.csv",
   previewHeaders: [
     "Transaction Date",
@@ -288,6 +408,9 @@ const run: ReconciliationRun = {
   transactions: [
     {
       id: "txn_uber",
+      sourceBankTransactionId: "bank_txn_uber",
+      bankStatementId: "stmt_april_cards",
+      bankStatementName: "April card statement",
       sourceLineNumber: 12,
       transactionDate: "2026-04-02",
       amount: 42.6,
@@ -298,9 +421,13 @@ const run: ReconciliationRun = {
       reference: "UBR-7741",
       glCode: "6110",
       vatCode: "GB20",
+      category: "Fuel",
     },
     {
       id: "txn_costa",
+      sourceBankTransactionId: "bank_txn_costa",
+      bankStatementId: "stmt_april_cards",
+      bankStatementName: "April card statement",
       sourceLineNumber: 13,
       transactionDate: "2026-04-02",
       amount: 6.4,
@@ -311,9 +438,13 @@ const run: ReconciliationRun = {
       reference: "CST-281",
       glCode: "6105",
       vatCode: "GB20",
+      category: "Advertising",
     },
     {
       id: "txn_aws",
+      sourceBankTransactionId: "bank_txn_aws",
+      bankStatementId: "stmt_april_cards",
+      bankStatementName: "April card statement",
       sourceLineNumber: 17,
       transactionDate: "2026-04-04",
       amount: 91.12,
@@ -323,9 +454,13 @@ const run: ReconciliationRun = {
       employee: "No cardholder",
       reference: "AWS-APR",
       glCode: "7200",
+      category: "Software & Subscriptions",
     },
     {
       id: "txn_hotel",
+      sourceBankTransactionId: "bank_txn_hotel",
+      bankStatementId: "stmt_april_cards",
+      bankStatementName: "April card statement",
       sourceLineNumber: 22,
       transactionDate: "2026-04-05",
       amount: 320,
@@ -334,9 +469,13 @@ const run: ReconciliationRun = {
       description: "Conference accommodation",
       employee: "Ava Thompson",
       reference: "HTL-948",
+      // No category — shows as uncategorised in bookkeeping reports
     },
     {
       id: "txn_team_lunch",
+      sourceBankTransactionId: "bank_txn_team_lunch",
+      bankStatementId: "stmt_april_cards",
+      bankStatementName: "April card statement",
       sourceLineNumber: 25,
       transactionDate: "2026-04-06",
       amount: 84.5,
@@ -345,9 +484,13 @@ const run: ReconciliationRun = {
       description: "Candidate lunch",
       employee: "Ava Thompson",
       reference: "BIS-840",
+      // No category — shows as uncategorised in bookkeeping reports
     },
     {
       id: "txn_hotel_duplicate",
+      sourceBankTransactionId: "bank_txn_hotel_duplicate",
+      bankStatementId: "stmt_april_cards",
+      bankStatementName: "April card statement",
       sourceLineNumber: 26,
       transactionDate: "2026-04-05",
       amount: 320,
@@ -356,6 +499,7 @@ const run: ReconciliationRun = {
       description: "Hotel duplicate on secondary card",
       employee: "Ava Thompson",
       reference: "HTL-949",
+      // No category — shows as uncategorised in bookkeeping reports
     },
   ],
   documents: [
@@ -544,6 +688,8 @@ export const demoStore = {
   workspace,
   vatRules,
   glRules,
+  categoryRules,
   templates,
+  bankStatements,
   runs: [run, secondRun],
 };

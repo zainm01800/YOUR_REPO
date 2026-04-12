@@ -21,7 +21,10 @@ export default async function ReviewPage({
     notFound();
   }
 
-  const rows = await repository.getRunRows(runId);
+  const [rows, bankStatements] = await Promise.all([
+    repository.getRunRows(runId),
+    repository.getBankStatements(),
+  ]);
 
   return (
     <>
@@ -41,6 +44,7 @@ export default async function ReviewPage({
         run={run}
         initialRows={rows}
         initialRowId={row}
+        bankStatements={bankStatements}
       />
     </>
   );

@@ -5,13 +5,18 @@ import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
+  Calculator,
   FileOutput,
   FolderOpen,
   LayoutDashboard,
   LayoutTemplate,
+  Landmark,
   Menu,
   PlusSquare,
   Settings2,
+  Table2,
+  TrendingUp,
   X,
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
@@ -19,9 +24,19 @@ import { cn } from "@/lib/utils";
 
 const navigation = [
   {
+    label: "Bookkeeping",
+    items: [
+      { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
+      { href: "/bookkeeping/spending", label: "Spending", icon: TrendingUp },
+      { href: "/bookkeeping/reports", label: "Reports", icon: BarChart3 },
+      { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
+    ],
+  },
+  {
     label: "Reconciliation",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
       { href: "/runs/new", label: "New run", icon: PlusSquare },
       { href: "/runs", label: "All runs", icon: FolderOpen },
       { href: "/templates", label: "Templates", icon: LayoutTemplate },

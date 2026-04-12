@@ -1,9 +1,11 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Card } from "@/components/ui/card";
+import { CategoryRuleManager } from "@/components/settings/category-rule-manager";
 import { CountryVatPicker } from "@/components/settings/country-vat-picker";
 import { GlRuleManager } from "@/components/settings/gl-rule-manager";
 import { RuleImportCard } from "@/components/settings/rule-import-card";
 import { ToleranceEditor } from "@/components/settings/tolerance-editor";
+import { VatRegistrationCard } from "@/components/settings/vat-registration-card";
 import { VatRuleManager } from "@/components/settings/vat-rule-manager";
 import { VatSyncCard } from "@/components/settings/vat-sync-card";
 import { getRepository } from "@/lib/data";
@@ -18,10 +20,15 @@ export default async function SettingsPage() {
       <PageHeader
         eyebrow="Settings"
         title="Workspace configuration"
-        description="VAT rules, GL code suggestions, mapping templates, and tolerance settings. VAT rules and GL patterns are configured at the workspace level so they carry across all runs."
+        description="VAT rules, GL codes, category rules, mapping templates, and tolerance settings. All rules are configured at the workspace level and apply across every run."
       />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <VatRegistrationCard
+          initialVatRegistered={workspace.vatRegistered}
+          initialBusinessType={workspace.businessType}
+        />
+
         <VatSyncCard currentRuleCount={snapshot.vatRules.length} />
 
         <RuleImportCard
@@ -55,6 +62,11 @@ export default async function SettingsPage() {
         <VatRuleManager initialRules={snapshot.vatRules} />
 
         <GlRuleManager initialRules={snapshot.glRules} />
+
+        {/* Category rules */}
+        <Card className="space-y-5">
+          <CategoryRuleManager initialRules={snapshot.categoryRules} />
+        </Card>
 
         <Card className="space-y-5">
           <div>

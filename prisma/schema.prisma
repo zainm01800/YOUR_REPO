@@ -64,13 +64,17 @@ model Workspace {
   countryProfile    String             @default("GB")
   amountTolerance   Decimal            @db.Decimal(10, 2)
   dateToleranceDays Int                @default(5)
+  vatRegistered     Boolean            @default(false)
+  businessType      String             @default("sole_trader")
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   memberships       Membership[]
   runs              ReconciliationRun[]
   vatRules          VatRule[]
   glCodeRules       GlCodeRule[]
+  categoryRules     CategoryRule[]
   mappingTemplates  MappingTemplate[]
+  bankStatements    BankStatement[]
 }
 
 model Membership {
@@ -95,6 +99,9 @@ model ReconciliationRun {
   lockedAt            DateTime?
   lockedBy            String?
   countryProfile      String?
+  bankStatementId     String?
+  bankSourceMode      String?
+  bankSourceLabel     String?
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
   processedAt         DateTime?
@@ -103,12 +110,49 @@ model ReconciliationRun {
   notes               String?
   fxRates             Json?
   workspace           Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  bankStatement       BankStatement?    @relation(fields: [bankStatementId], references: [id], onDelete: SetNull)
   uploadedFiles       UploadedFile[]
   transactions        Transaction[]
   documents           Document[]
   matches             MatchDecision[]
   reviewActions       ReviewAction[]
   exports             ExportHistory[]
+}
+
+model BankStatement {
+  id                 String            @id @default(cuid())
+  name               String
+  fileName           String
+  bankName           String?
+  accountName        String?
+  currency           String            @default("GBP")
+  importedAt         DateTime          @default(now())
+  importStatus       String            @default("imported")
+  dateRangeStart     DateTime?
+  dateRangeEnd       DateTime?
+  previewHeaders     Json?
+  savedColumnMappings Json?
+  workspaceId        String
+  workspace          Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  transactions       BankTransaction[]
+  runs               ReconciliationRun[]
+}
+
+model BankTransaction {
+  id               String         @id @default(cuid())
+  externalId       String?
+  sourceLineNumber Int?
+  transactionDate  DateTime?
+  postedDate       DateTime?
+  amount           Decimal        @db.Decimal(12, 2)
+  currency         String?
+  merchant         String?
+  description      String?
+  employee         String?
+  reference        String?
+  bankStatementId  String
+  bankStatement    BankStatement  @relation(fields: [bankStatementId], references: [id], onDelete: Cascade)
+  runTransactions  Transaction[]
 }
 
 model UploadedFile {
@@ -126,6 +170,7 @@ model UploadedFile {
 
 model Transaction {
   id                  String            @id @default(cuid())
+  sourceBankTransactionId String?
   externalId          String?
   sourceLineNumber    Int?
   transactionDate     DateTime?
@@ -138,10 +183,14 @@ model Transaction {
   reference           String?
   vatCode             String?
   glCode              String?
+  category            String?
+  taxTreatment        String?
+  taxRate             Decimal?          @db.Decimal(5, 2)
   noReceiptRequired   Boolean           @default(false)
   excludedFromExport  Boolean           @default(false)
   runId               String
   run                 ReconciliationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  sourceBankTransaction BankTransaction? @relation(fields: [sourceBankTransactionId], references: [id], onDelete: SetNull)
   matches             MatchDecision[]
 }
 
@@ -230,6 +279,26 @@ model GlCodeRule {
   priority       Int       @default(100)
   workspaceId    String
   workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model CategoryRule {
+  id                    String    @id @default(cuid())
+  category              String
+  supplierPattern       String?
+  keywordPattern        String?
+  priority              Int       @default(100)
+  accountType           String    @default("expense")
+  statementType         String    @default("p_and_l")
+  reportingBucket       String    @default("Other Expenses")
+  defaultTaxTreatment   String    @default("standard_rated")
+  defaultVatRate        Decimal   @default(20) @db.Decimal(5, 2)
+  defaultVatRecoverable Boolean   @default(true)
+  glCode                String?
+  isActive              Boolean   @default(true)
+  allowableForTax       Boolean   @default(true)
+  allowablePercentage   Decimal   @default(100) @db.Decimal(5, 2)
+  workspaceId           String
+  workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model MappingTemplate {

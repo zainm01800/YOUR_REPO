@@ -4,9 +4,10 @@ import { getRepository } from "@/lib/data";
 
 export default async function NewRunPage() {
   const repository = getRepository();
-  const [workspace, templates] = await Promise.all([
+  const [workspace, templates, bankStatements] = await Promise.all([
     repository.getWorkspace(),
     repository.getTemplates(),
+    repository.getBankStatements(),
   ]);
 
   return (
@@ -14,10 +15,10 @@ export default async function NewRunPage() {
       <PageHeader
         eyebrow="New Reconciliation Run"
         title="Upload transactions, receipts, and start a clean review flow"
-        description="Use one upload flow for card exports, AP files, and receipt batches. Mapping and review come next."
+        description="Upload receipts or invoices, then choose which imported bank transactions to reconcile against. You can also start document-only and attach bank data later."
       />
 
-      <NewRunForm workspace={workspace} templates={templates} />
+      <NewRunForm workspace={workspace} templates={templates} bankStatements={bankStatements} />
     </>
   );
 }

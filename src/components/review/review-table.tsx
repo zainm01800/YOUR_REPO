@@ -187,6 +187,18 @@ function getColumnCellContent(
           <span className="truncate">{displayValue}</span>
         </div>
       );
+    case "bankStatement":
+      return <div className="flex h-full items-center">{String(displayValue)}</div>;
+    case "bankAmount":
+    case "difference":
+      return (
+        <div className="space-y-1 py-1">
+          <div>{String(displayValue)}</div>
+          <div className="text-xs text-[var(--color-muted-foreground)]">
+            {row.runCurrency || row.currency}
+          </div>
+        </div>
+      );
     case "originalValue":
       if (groupMeta?.isMultiRowGroup && !groupMeta.isFirstInGroup) {
         return null;
@@ -227,6 +239,24 @@ function getColumnCellContent(
         </div>
       );
     }
+    case "grossMatch":
+      return (
+        <div className="flex h-full items-center">
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+              row.grossComparisonStatus === "exact"
+                ? "bg-emerald-50 text-emerald-700"
+                : row.grossComparisonStatus === "close"
+                  ? "bg-amber-50 text-amber-700"
+                  : row.grossComparisonStatus === "mismatch"
+                    ? "bg-rose-50 text-rose-700"
+                    : "bg-[var(--color-panel)] text-[var(--color-muted-foreground)]"
+            }`}
+          >
+            {String(displayValue)}
+          </span>
+        </div>
+      );
     default:
       return <div className="flex h-full items-center">{String(displayValue)}</div>;
   }
@@ -242,14 +272,18 @@ function createEmptyGridRow(index: number): EmptyGridRow {
     transactionId: "",
     source: "",
     supplier: "",
+    bankStatementName: undefined,
     date: undefined,
     currency: "",
     runCurrency: "GBP",
     originalAmount: 0,
     originalCurrency: "",
+    bankTransactionAmount: 0,
     net: undefined,
     vat: undefined,
     gross: undefined,
+    grossDifference: undefined,
+    grossComparisonStatus: "missing_document",
     vatPercent: undefined,
     vatCode: undefined,
     glCode: undefined,
@@ -424,6 +458,11 @@ export function ReviewTable({
         ? formatSummaryValue(originalTotal, originalRows[0]?.originalCurrency || originalCurrencies[0])
         : "Mixed";
 
+    const bankAmountTotal = originalRows.reduce((sum, row) => {
+      return sum + (row.bankTransactionAmount > 0 ? row.bankTransactionAmount : 0);
+    }, 0);
+    values.bankAmount = formatSummaryValue(bankAmountTotal, runCurrency);
+
     const grossTotal = rows.reduce(
       (sum, row) => sum + (row.grossInRunCurrency ?? row.gross ?? 0),
       0,
@@ -441,6 +480,12 @@ export function ReviewTable({
       0,
     );
     values.vat = formatSummaryValue(vatTotal, runCurrency);
+
+    const differenceTotal = rows.reduce(
+      (sum, row) => sum + Math.abs(row.grossDifference ?? 0),
+      0,
+    );
+    values.difference = formatSummaryValue(differenceTotal, runCurrency);
 
     return [{ id: "totals", values }];
   }, [rowGroupMeta, rows]);

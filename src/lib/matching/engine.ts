@@ -57,7 +57,8 @@ export function scoreMatch(
   const amountTolerance = options?.amountTolerance ?? 1.5;
   const dateToleranceDays = options?.dateToleranceDays ?? 5;
 
-  const amountDifference = Math.abs(transaction.amount - (document.gross || 0));
+  const transactionAmount = Math.abs(transaction.amount);
+  const amountDifference = Math.abs(transactionAmount - (document.gross || 0));
   const dateDistance = getDateDistanceDays(transaction.transactionDate, document.issueDate);
 
   // ── Invoice number (strongest signal) ───────────────────────────────────

@@ -1,4 +1,5 @@
 import type {
+  CategoryRule,
   MatchDecision,
   ReconciliationRun,
   ReviewRow,
@@ -7,6 +8,7 @@ import type {
   GlCodeRule,
 } from "@/lib/domain/types";
 import { suggestGlCode } from "@/lib/gl/suggester";
+import { resolveCategory } from "@/lib/categories/suggester";
 import {
   detectVatExceptions,
   getForeignVatNonClaimableException,
@@ -35,6 +37,7 @@ function buildBaseExceptions(
   noReceiptRequired = false,
 ) {
   const exceptions: RunRowException[] = [];
+  const comparableTransactionAmount = Math.abs(transactionAmount);
   const linkedDocumentUsages = run.matches.filter(
     (candidate) => candidate.documentId && candidate.documentId === match?.documentId,
   );
@@ -50,7 +53,7 @@ function buildBaseExceptions(
   if (
     match?.documentId &&
     documentGross !== undefined &&
-    Math.abs(transactionAmount - documentGross) > 1.5
+    Math.abs(comparableTransactionAmount - documentGross) > 1.5
   ) {
     exceptions.push({
       code: "amount_mismatch",
@@ -99,6 +102,7 @@ export function buildReviewRows(
   run: ReconciliationRun,
   vatRules: VatRule[],
   glRules: GlCodeRule[],
+  categoryRules: CategoryRule[] = [],
 ) {
   const runCurrency = run.defaultCurrency ?? "GBP";
   const runCountryCode = run.countryProfile;
@@ -159,6 +163,7 @@ export function buildReviewRows(
       });
     }
 
+    const category = resolveCategory(transaction, categoryRules);
     const taxLines =
       document?.taxLines && document.taxLines.length > 0 ? document.taxLines : [undefined];
 
@@ -178,11 +183,12 @@ export function buildReviewRows(
       // Original value should represent the invoice/document native total when
       // a document is linked, not the individual transaction amount. This keeps
       // grouped VAT-line rows anchored to the full invoice total.
+      const transactionAbsoluteAmount = Math.abs(transaction.amount);
       const effectiveOriginalAmount =
         document?.gross != null && document.gross > 0
           ? document.gross
-          : transaction.amount > 0
-            ? transaction.amount
+          : transactionAbsoluteAmount > 0
+            ? transactionAbsoluteAmount
             : 0;
 
       const docCurrency = document?.currency || transaction.currency;
@@ -191,7 +197,7 @@ export function buildReviewRows(
         ? taxLine.grossAmount
         : (document?.gross != null && document.gross > 0
             ? document.gross
-            : transaction.amount > 0 ? transaction.amount : undefined);
+            : transactionAbsoluteAmount > 0 ? transactionAbsoluteAmount : undefined);
       const extractedNet = taxLine
         ? taxLine.netAmount
         : document ? (document.net ?? document.gross ?? undefined) : undefined;
@@ -206,6 +212,18 @@ export function buildReviewRows(
         ? extractedVat
         : (gross !== undefined || extractedVat !== undefined ? 0 : undefined);
       const vatPercent = vatClaimable ? taxLine?.rate : 0;
+      const grossDifference =
+        gross !== undefined
+          ? Number((Math.abs(transaction.amount) - gross).toFixed(2))
+          : undefined;
+      const grossComparisonStatus =
+        gross === undefined
+          ? "missing_document"
+          : Math.abs(grossDifference ?? 0) === 0
+            ? "exact"
+            : Math.abs(grossDifference ?? 0) <= 1.5
+              ? "close"
+              : "mismatch";
 
       // FX conversion: only when document currency differs from run currency
       const needsConversion = docCurrency && docCurrency !== runCurrency;
@@ -223,6 +241,8 @@ export function buildReviewRows(
       return {
         id: taxLine?.id ? `row_${transaction.id}__tax_${taxLine.id}` : `row_${transaction.id}`,
         transactionId: transaction.id,
+        sourceBankTransactionId: transaction.sourceBankTransactionId,
+        bankStatementName: transaction.bankStatementName,
         documentId: document?.id,
         taxLineId: taxLine?.id,
         taxLineLabel:
@@ -239,12 +259,15 @@ export function buildReviewRows(
         runCurrency,
         originalAmount: effectiveOriginalAmount,
         originalCurrency: effectiveOriginalCurrency,
+        bankTransactionAmount: transactionAbsoluteAmount,
         net,
         vat,
         gross,
         grossInRunCurrency,
         netInRunCurrency,
         vatInRunCurrency,
+        grossDifference,
+        grossComparisonStatus,
         fxRate,
         vatPercent,
         vatCode,
@@ -266,6 +289,7 @@ export function buildReviewRows(
         approved: rowExceptions.every((exception) => exception.severity !== "high"),
         excludedFromExport: !!transaction.excludedFromExport,
         exceptions: rowExceptions,
+        category,
       };
     });
   });

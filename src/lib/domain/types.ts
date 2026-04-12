@@ -8,6 +8,25 @@ export type RunStatus =
   | "exported"
   | "failed";
 
+export type BankStatementImportStatus =
+  | "importing"
+  | "imported"
+  | "failed";
+
+export type BankTransactionReconciliationStatus =
+  | "unreconciled"
+  | "suggested_match"
+  | "matched"
+  | "confirmed"
+  | "partially_matched"
+  | "excluded";
+
+export type BankSourceMode =
+  | "statement"
+  | "all_unreconciled"
+  | "skip"
+  | "later";
+
 export type MatchStatus =
   | "matched"
   | "probable_match"
@@ -44,6 +63,34 @@ export interface User {
   name: string;
 }
 
+/** The fundamental accounting classification of a category */
+export type AccountType = "income" | "expense" | "asset" | "liability" | "equity";
+
+/**
+ * Which financial statement a category flows into:
+ * - p_and_l          → Profit & Loss (income and expenses)
+ * - balance_sheet    → Balance Sheet (assets, liabilities)
+ * - equity_movement  → Owner's equity section (drawings, capital introduced)
+ * - tax_control      → VAT/tax control account
+ */
+export type StatementType = "p_and_l" | "balance_sheet" | "equity_movement" | "tax_control";
+
+/**
+ * How VAT / tax is treated for transactions in this category.
+ * Drives the net/tax split and whether input VAT is recoverable.
+ */
+export type TaxTreatment =
+  | "standard_rated"    // e.g. 20% VAT applies
+  | "reduced_rated"     // e.g. 5% reduced rate
+  | "zero_rated"        // 0% VAT — VAT registered but rate is 0
+  | "exempt"            // VAT exempt — no VAT charged or reclaimed
+  | "outside_scope"     // Outside the scope of VAT (e.g. vehicle tax, wages)
+  | "no_vat"            // Non-VAT registered business — ignore VAT entirely
+  | "reverse_charge"    // EU/B2B reverse charge
+  | "non_recoverable";  // Input VAT paid but not recoverable (e.g. business entertainment)
+
+export type BusinessType = "sole_trader" | "general_small_business";
+
 export interface Workspace {
   id: string;
   name: string;
@@ -52,6 +99,10 @@ export interface Workspace {
   countryProfile: string;
   amountTolerance: number;
   dateToleranceDays: number;
+  /** Whether the business is VAT-registered. Drives tax split logic in bookkeeping. */
+  vatRegistered: boolean;
+  /** Lightweight tax mode used by the Tax Summary feature. */
+  businessType: BusinessType;
 }
 
 export interface CountryOption {
@@ -106,6 +157,9 @@ export interface UploadedFileMeta {
 
 export interface TransactionRecord {
   id: string;
+  sourceBankTransactionId?: string;
+  bankStatementId?: string;
+  bankStatementName?: string;
   externalId?: string;
   sourceLineNumber?: number;
   transactionDate?: string;
@@ -120,8 +174,86 @@ export interface TransactionRecord {
   department?: string;
   vatCode?: string;
   glCode?: string;
+  /** User-assigned bookkeeping category, e.g. "Transport", "Lesson Income" */
+  category?: string;
+  /** Manual override for VAT/tax treatment (overrides category default) */
+  taxTreatment?: TaxTreatment;
+  /** Manual override for VAT rate (overrides category default) */
+  taxRate?: number;
   noReceiptRequired?: boolean;
   excludedFromExport?: boolean;
+}
+
+export interface BankTransaction extends TransactionRecord {
+  bankStatementId: string;
+  reconciliationStatus: BankTransactionReconciliationStatus;
+  matchedRunId?: string;
+  matchedRunName?: string;
+}
+
+export interface BankStatement {
+  id: string;
+  name: string;
+  fileName: string;
+  bankName?: string;
+  accountName?: string;
+  currency: string;
+  importedAt: string;
+  importStatus: BankStatementImportStatus;
+  dateRangeStart?: string;
+  dateRangeEnd?: string;
+  transactionCount: number;
+  previewHeaders?: string[];
+  savedColumnMappings?: Record<string, string>;
+  transactions: BankTransaction[];
+}
+
+/**
+ * A bookkeeping category with full accounting metadata.
+ * Also carries optional pattern-matching rules for auto-assigning
+ * incoming transactions (supplier regex, keyword regex).
+ */
+export interface CategoryRule {
+  id: string;
+  /** Display name of this category, e.g. "Fuel", "Lesson Income" */
+  category: string;
+  /** Regex pattern matched against merchant/supplier name (case-insensitive) */
+  supplierPattern?: string;
+  /** Regex pattern matched against transaction description (case-insensitive) */
+  keywordPattern?: string;
+  priority: number;
+
+  // ── Accounting metadata ──────────────────────────────────────────────────
+  /** Fundamental accounting type: income, expense, asset, liability, equity */
+  accountType: AccountType;
+  /** Which financial statement this flows into */
+  statementType: StatementType;
+  /** Sub-grouping within the statement, e.g. "Motor Expenses", "Fixed Assets" */
+  reportingBucket: string;
+  /** Default VAT/tax treatment for transactions in this category */
+  defaultTaxTreatment: TaxTreatment;
+  /** Default VAT rate as a percentage, e.g. 20, 5, 0 */
+  defaultVatRate: number;
+  /** Whether input VAT on purchases in this category is recoverable */
+  defaultVatRecoverable: boolean;
+  /** Optional nominal/GL code to associate with this category */
+  glCode?: string;
+  /** Whether this category is currently active */
+  isActive: boolean;
+
+  // ── Tax allowability (HMRC / self-assessment logic) ──────────────────────
+  /**
+   * Whether expenses in this category are allowable for tax purposes.
+   * Allowable expenses reduce taxable profit. Non-allowable expenses appear
+   * in the P&L but are added back in the tax calculation.
+   * Defaults to true. Only meaningful for accountType = "expense".
+   */
+  allowableForTax: boolean;
+  /**
+   * What percentage of the expense is allowable (0–100). Used for partial
+   * allowances (e.g. 50% private use). Default 100.
+   */
+  allowablePercentage: number;
 }
 
 export interface DocumentTaxLine {
@@ -229,8 +361,12 @@ export interface ExportColumnLayout {
 
 export type ReviewBaseColumnKey =
   | "supplier"
+  | "bankStatement"
+  | "bankAmount"
   | "originalValue"
   | "gross"
+  | "difference"
+  | "grossMatch"
   | "net"
   | "vat"
   | "vatPercent"
@@ -299,6 +435,9 @@ export interface ReconciliationRun {
   lockedBy?: string;
   countryProfile?: string;
   defaultCurrency?: string;
+  bankStatementId?: string;
+  bankSourceMode?: BankSourceMode;
+  bankSourceLabel?: string;
   transactionFileName?: string;
   previewHeaders?: string[];
   savedColumnMappings?: Record<string, string>;
@@ -321,6 +460,8 @@ export interface RunRowException {
 export interface ReviewRow {
   id: string;
   transactionId: string;
+  sourceBankTransactionId?: string;
+  bankStatementName?: string;
   documentId?: string;
   taxLineId?: string;
   taxLineLabel?: string;
@@ -334,6 +475,7 @@ export interface ReviewRow {
   /** Original transaction amount in originalCurrency */
   originalAmount: number;
   originalCurrency: string;
+  bankTransactionAmount: number;
   /** Document amounts in document currency */
   net?: number;
   vat?: number;
@@ -343,6 +485,8 @@ export interface ReviewRow {
   grossInRunCurrency?: number;
   netInRunCurrency?: number;
   vatInRunCurrency?: number;
+  grossDifference?: number;
+  grossComparisonStatus?: "exact" | "close" | "mismatch" | "missing_document";
   /** FX rate used: how many document-currency units per 1 run-currency unit */
   fxRate?: number;
   vatCode?: string;
@@ -362,6 +506,16 @@ export interface ReviewRow {
   approved: boolean;
   excludedFromExport: boolean;
   exceptions: RunRowException[];
+  /** Bookkeeping category derived from transaction or category rules */
+  category?: string;
+  /** Effective tax treatment (from transaction override or category default) */
+  taxTreatment?: TaxTreatment;
+  /** Account type from the matched category (income / expense / asset / …) */
+  accountType?: AccountType;
+  /** Financial statement type from the matched category */
+  statementType?: StatementType;
+  /** Reporting bucket from the matched category, e.g. "Motor Expenses" */
+  reportingBucket?: string;
 }
 
 export interface DashboardSnapshot {
@@ -381,4 +535,5 @@ export interface DashboardSnapshot {
   templates: MappingTemplate[];
   vatRules: VatRule[];
   glRules: GlCodeRule[];
+  categoryRules: CategoryRule[];
 }

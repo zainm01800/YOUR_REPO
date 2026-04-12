@@ -1,18 +1,31 @@
 import { hashSync } from "bcryptjs";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { appConfig } from "@/lib/config";
+import {
+  cloneBankTransactionsForRun,
+  decorateBankStatementsWithStatuses,
+  deriveStatementMetadata,
+  pickTransactionsForBankSource,
+} from "@/lib/bank-statements/service";
 import { demoStore } from "@/lib/demo/demo-store";
 import { getPrismaClient } from "@/lib/data/prisma";
 import { applyReviewMutationToRun } from "@/lib/data/review-mutation";
 import type {
+  AttachBankSourceInput,
   CreateRunInput,
+  ImportBankStatementInput,
+  ReplaceCategoryRulesInput,
   Repository,
   ReviewMutationInput,
   ReviewMutationResult,
+  UpdateWorkspaceInput,
   UpsertGlCodeRulesInput,
   UpsertVatRulesInput,
 } from "@/lib/data/repository";
 import type {
+  BankStatement,
+  BankTransaction,
+  CategoryRule,
   DashboardSnapshot,
   ExportRecord,
   ExtractedDocument,
@@ -33,8 +46,17 @@ import { buildRunSummary } from "@/lib/reconciliation/summary";
 
 const runInclude = {
   workspace: true,
+  bankStatement: true,
   uploadedFiles: true,
-  transactions: true,
+  transactions: {
+    include: {
+      sourceBankTransaction: {
+        include: {
+          bankStatement: true,
+        },
+      },
+    },
+  },
   documents: { include: { taxLines: true } },
   matches: true,
   reviewActions: { include: { actor: true } },
@@ -42,6 +64,12 @@ const runInclude = {
 } satisfies Prisma.ReconciliationRunInclude;
 
 type DbRun = Prisma.ReconciliationRunGetPayload<{ include: typeof runInclude }>;
+
+const bankStatementInclude = {
+  transactions: true,
+} satisfies Prisma.BankStatementInclude;
+
+type DbBankStatement = Prisma.BankStatementGetPayload<{ include: typeof bankStatementInclude }>;
 
 function requirePrisma() {
   const prisma = getPrismaClient();
@@ -79,6 +107,8 @@ function toWorkspace(workspace: {
   countryProfile: string;
   amountTolerance: Prisma.Decimal;
   dateToleranceDays: number;
+  vatRegistered: boolean;
+  businessType: string;
 }): Workspace {
   return {
     id: workspace.id,
@@ -88,6 +118,8 @@ function toWorkspace(workspace: {
     countryProfile: workspace.countryProfile,
     amountTolerance: Number(workspace.amountTolerance),
     dateToleranceDays: workspace.dateToleranceDays,
+    vatRegistered: workspace.vatRegistered,
+    businessType: workspace.businessType as Workspace["businessType"],
   };
 }
 
@@ -131,6 +163,42 @@ function toGlRule(rule: {
   };
 }
 
+function toCategoryRule(rule: {
+  id: string;
+  category: string;
+  supplierPattern: string | null;
+  keywordPattern: string | null;
+  priority: number;
+  accountType: string;
+  statementType: string;
+  reportingBucket: string;
+  defaultTaxTreatment: string;
+  defaultVatRate: Prisma.Decimal;
+  defaultVatRecoverable: boolean;
+  glCode: string | null;
+  isActive: boolean;
+  allowableForTax?: boolean;
+  allowablePercentage?: Prisma.Decimal | null;
+}): CategoryRule {
+  return {
+    id: rule.id,
+    category: rule.category,
+    supplierPattern: rule.supplierPattern || undefined,
+    keywordPattern: rule.keywordPattern || undefined,
+    priority: rule.priority,
+    accountType: rule.accountType as CategoryRule["accountType"],
+    statementType: rule.statementType as CategoryRule["statementType"],
+    reportingBucket: rule.reportingBucket,
+    defaultTaxTreatment: rule.defaultTaxTreatment as CategoryRule["defaultTaxTreatment"],
+    defaultVatRate: Number(rule.defaultVatRate),
+    defaultVatRecoverable: rule.defaultVatRecoverable,
+    glCode: rule.glCode || undefined,
+    isActive: rule.isActive,
+    allowableForTax: rule.allowableForTax ?? true,
+    allowablePercentage: rule.allowablePercentage != null ? Number(rule.allowablePercentage) : 100,
+  };
+}
+
 function toTemplate(template: {
   id: string;
   name: string;
@@ -166,6 +234,9 @@ function toUploadedFile(file: {
 function toTransaction(transaction: DbRun["transactions"][number]): TransactionRecord {
   return {
     id: transaction.id,
+    sourceBankTransactionId: transaction.sourceBankTransactionId || undefined,
+    bankStatementId: transaction.sourceBankTransaction?.bankStatementId || undefined,
+    bankStatementName: transaction.sourceBankTransaction?.bankStatement?.name || undefined,
     externalId: transaction.externalId || undefined,
     sourceLineNumber: transaction.sourceLineNumber || undefined,
     transactionDate: toDateOnly(transaction.transactionDate),
@@ -178,8 +249,48 @@ function toTransaction(transaction: DbRun["transactions"][number]): TransactionR
     reference: transaction.reference || undefined,
     vatCode: transaction.vatCode || undefined,
     glCode: transaction.glCode || undefined,
+    category: transaction.category || undefined,
+    taxTreatment: transaction.taxTreatment ? transaction.taxTreatment as TransactionRecord["taxTreatment"] : undefined,
+    taxRate: transaction.taxRate !== null && transaction.taxRate !== undefined ? Number(transaction.taxRate) : undefined,
     noReceiptRequired: transaction.noReceiptRequired || undefined,
     excludedFromExport: transaction.excludedFromExport || undefined,
+  };
+}
+
+function toBankTransaction(transaction: DbBankStatement["transactions"][number]): BankTransaction {
+  return {
+    id: transaction.id,
+    bankStatementId: transaction.bankStatementId,
+    reconciliationStatus: "unreconciled",
+    externalId: transaction.externalId || undefined,
+    sourceLineNumber: transaction.sourceLineNumber || undefined,
+    transactionDate: toDateOnly(transaction.transactionDate),
+    postedDate: toDateOnly(transaction.postedDate),
+    amount: Number(transaction.amount),
+    currency: transaction.currency || "",
+    merchant: transaction.merchant || "",
+    description: transaction.description || "",
+    employee: transaction.employee || undefined,
+    reference: transaction.reference || undefined,
+  };
+}
+
+function toBankStatement(statement: DbBankStatement): BankStatement {
+  return {
+    id: statement.id,
+    name: statement.name,
+    fileName: statement.fileName,
+    bankName: statement.bankName || undefined,
+    accountName: statement.accountName || undefined,
+    currency: statement.currency,
+    importedAt: statement.importedAt.toISOString(),
+    importStatus: statement.importStatus as BankStatement["importStatus"],
+    dateRangeStart: toDateOnly(statement.dateRangeStart),
+    dateRangeEnd: toDateOnly(statement.dateRangeEnd),
+    transactionCount: statement.transactions.length,
+    previewHeaders: statement.previewHeaders as string[] | undefined,
+    savedColumnMappings: statement.savedColumnMappings as Record<string, string> | undefined,
+    transactions: statement.transactions.map(toBankTransaction),
   };
 }
 
@@ -260,6 +371,9 @@ function toDomainRun(run: DbRun): ReconciliationRun {
     lockedAt: toIso(run.lockedAt),
     lockedBy: run.lockedBy || undefined,
     countryProfile: run.countryProfile || undefined,
+    bankStatementId: run.bankStatementId || undefined,
+    bankSourceMode: run.bankSourceMode as ReconciliationRun["bankSourceMode"] | undefined,
+    bankSourceLabel: run.bankSourceLabel || run.bankStatement?.name || undefined,
     defaultCurrency: run.workspace.defaultCurrency,
     transactionFileName: run.transactionFileName || undefined,
     fxRates: (run.fxRates as Record<string, number> | null) || undefined,
@@ -281,6 +395,8 @@ async function ensureBootstrap(prisma: PrismaClient) {
       countryProfile: demoStore.workspace.countryProfile,
       amountTolerance: demoStore.workspace.amountTolerance,
       dateToleranceDays: demoStore.workspace.dateToleranceDays,
+      vatRegistered: demoStore.workspace.vatRegistered,
+      businessType: demoStore.workspace.businessType,
     },
     create: {
       id: demoStore.workspace.id,
@@ -290,6 +406,8 @@ async function ensureBootstrap(prisma: PrismaClient) {
       countryProfile: demoStore.workspace.countryProfile,
       amountTolerance: demoStore.workspace.amountTolerance,
       dateToleranceDays: demoStore.workspace.dateToleranceDays,
+      vatRegistered: demoStore.workspace.vatRegistered,
+      businessType: demoStore.workspace.businessType,
     },
   });
 
@@ -361,6 +479,43 @@ async function ensureBootstrap(prisma: PrismaClient) {
     });
   }
 
+  if ((await prisma.bankStatement.count({ where: { workspaceId: workspace.id } })) === 0) {
+    for (const statement of demoStore.bankStatements) {
+      await prisma.bankStatement.create({
+        data: {
+          id: statement.id,
+          workspaceId: workspace.id,
+          name: statement.name,
+          fileName: statement.fileName,
+          bankName: statement.bankName,
+          accountName: statement.accountName,
+          currency: statement.currency,
+          importedAt: new Date(statement.importedAt),
+          importStatus: statement.importStatus,
+          dateRangeStart: toDate(statement.dateRangeStart),
+          dateRangeEnd: toDate(statement.dateRangeEnd),
+          previewHeaders: statement.previewHeaders as Prisma.InputJsonValue | undefined,
+          savedColumnMappings: statement.savedColumnMappings as Prisma.InputJsonValue | undefined,
+          transactions: {
+            create: statement.transactions.map((transaction) => ({
+              id: transaction.id,
+              externalId: transaction.externalId,
+              sourceLineNumber: transaction.sourceLineNumber,
+              transactionDate: toDate(transaction.transactionDate),
+              postedDate: toDate(transaction.postedDate),
+              amount: transaction.amount,
+              currency: transaction.currency,
+              merchant: transaction.merchant,
+              description: transaction.description,
+              employee: transaction.employee,
+              reference: transaction.reference,
+            })),
+          },
+        },
+      });
+    }
+  }
+
   return { workspace, user };
 }
 
@@ -392,6 +547,9 @@ async function persistRun(
         lockedAt: toDate(run.lockedAt),
         lockedBy: run.lockedBy,
         countryProfile: run.countryProfile,
+        bankStatementId: run.bankStatementId,
+        bankSourceMode: run.bankSourceMode,
+        bankSourceLabel: run.bankSourceLabel,
         processedAt: toDate(run.processedAt),
         transactionFileName: run.transactionFileName,
         notes: undefined,
@@ -408,6 +566,9 @@ async function persistRun(
           lockedAt: toDate(run.lockedAt),
           lockedBy: run.lockedBy,
           countryProfile: run.countryProfile,
+          bankStatementId: run.bankStatementId,
+          bankSourceMode: run.bankSourceMode,
+          bankSourceLabel: run.bankSourceLabel,
           createdAt: new Date(run.createdAt),
         processedAt: toDate(run.processedAt),
         transactionFileName: run.transactionFileName,
@@ -443,6 +604,7 @@ async function persistRun(
       await tx.transaction.createMany({
         data: run.transactions.map((transaction) => ({
           id: transaction.id,
+          sourceBankTransactionId: transaction.sourceBankTransactionId,
           runId: run.id,
           externalId: transaction.externalId,
           sourceLineNumber: transaction.sourceLineNumber,
@@ -456,6 +618,9 @@ async function persistRun(
           reference: transaction.reference,
           vatCode: transaction.vatCode,
           glCode: transaction.glCode,
+          category: transaction.category,
+          taxTreatment: transaction.taxTreatment,
+          taxRate: transaction.taxRate,
           noReceiptRequired: !!transaction.noReceiptRequired,
           excludedFromExport: !!transaction.excludedFromExport,
         })),
@@ -557,10 +722,27 @@ export const prismaRepository: Repository = {
     return toWorkspace(workspace);
   },
 
+  async updateWorkspace(input: UpdateWorkspaceInput): Promise<Workspace> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const updated = await prisma.workspace.update({
+      where: { id: workspace.id },
+      data: {
+        ...(input.vatRegistered !== undefined && { vatRegistered: input.vatRegistered }),
+        ...(input.businessType !== undefined && { businessType: input.businessType }),
+        ...(input.amountTolerance !== undefined && { amountTolerance: input.amountTolerance }),
+        ...(input.dateToleranceDays !== undefined && { dateToleranceDays: input.dateToleranceDays }),
+        ...(input.defaultCurrency !== undefined && { defaultCurrency: input.defaultCurrency }),
+        ...(input.countryProfile !== undefined && { countryProfile: input.countryProfile }),
+      },
+    });
+    return toWorkspace(updated);
+  },
+
   async getDashboardSnapshot(): Promise<DashboardSnapshot> {
     const prisma = requirePrisma();
     const { workspace, user } = await ensureBootstrap(prisma);
-    const [runs, templates, vatRules, glRules] = await Promise.all([
+    const [runs, templates, vatRules, glRules, categoryRules] = await Promise.all([
       prisma.reconciliationRun.findMany({
         where: { workspaceId: workspace.id },
         orderBy: { createdAt: "desc" },
@@ -575,9 +757,11 @@ export const prismaRepository: Repository = {
       }),
       prisma.vatRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { taxCode: "asc" } }),
       prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+      prisma.categoryRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
     ]);
 
     const domainRuns = runs.map(toDomainRun);
+    const domainCatRules = categoryRules.map(toCategoryRule);
 
     return {
       workspace: toWorkspace(workspace),
@@ -591,11 +775,12 @@ export const prismaRepository: Repository = {
         entity: run.entity,
         period: run.period,
         locked: run.locked,
-        summary: buildRunSummary(buildReviewRows(run, vatRules.map(toVatRule), glRules.map(toGlRule))),
+        summary: buildRunSummary(buildReviewRows(run, vatRules.map(toVatRule), glRules.map(toGlRule), domainCatRules)),
       })),
       templates: templates.map(toTemplate),
       vatRules: vatRules.map(toVatRule),
       glRules: glRules.map(toGlRule),
+      categoryRules: domainCatRules,
     };
   },
 
@@ -609,17 +794,18 @@ export const prismaRepository: Repository = {
   async getRunRows(runId): Promise<ReviewRow[]> {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
-    const [run, vatRules, glRules] = await Promise.all([
+    const [run, vatRules, glRules, categoryRules] = await Promise.all([
       loadRun(prisma, runId),
       prisma.vatRule.findMany({ where: { workspaceId: workspace.id } }),
       prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id } }),
+      prisma.categoryRule.findMany({ where: { workspaceId: workspace.id } }),
     ]);
 
     if (!run) {
       throw new Error(`Run ${runId} was not found.`);
     }
 
-    return buildReviewRows(toDomainRun(run), vatRules.map(toVatRule), glRules.map(toGlRule));
+    return buildReviewRows(toDomainRun(run), vatRules.map(toVatRule), glRules.map(toGlRule), categoryRules.map(toCategoryRule));
   },
 
   async getTemplates() {
@@ -630,6 +816,162 @@ export const prismaRepository: Repository = {
       orderBy: { createdAt: "asc" },
     });
     return templates.map(toTemplate);
+  },
+
+  async getBankStatements(): Promise<BankStatement[]> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const [statements, runs] = await Promise.all([
+      prisma.bankStatement.findMany({
+        where: { workspaceId: workspace.id },
+        include: bankStatementInclude,
+        orderBy: { importedAt: "desc" },
+      }),
+      prisma.reconciliationRun.findMany({
+        where: { workspaceId: workspace.id },
+        include: {
+          ...runInclude,
+          workspace: true,
+        },
+      }),
+    ]);
+
+    return decorateBankStatementsWithStatuses(
+      statements.map(toBankStatement),
+      runs.map(toDomainRun),
+    );
+  },
+
+  async getBankStatement(statementId: string): Promise<BankStatement | null> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const [statement, runs] = await Promise.all([
+      prisma.bankStatement.findFirst({
+        where: { id: statementId, workspaceId: workspace.id },
+        include: bankStatementInclude,
+      }),
+      prisma.reconciliationRun.findMany({
+        where: { workspaceId: workspace.id },
+        include: {
+          ...runInclude,
+          workspace: true,
+        },
+      }),
+    ]);
+
+    if (!statement) {
+      return null;
+    }
+
+    return decorateBankStatementsWithStatuses(
+      [toBankStatement(statement)],
+      runs.map(toDomainRun),
+    )[0];
+  },
+
+  async importBankStatement(input: ImportBankStatementInput): Promise<BankStatement> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const metadata = deriveStatementMetadata(
+      input.fileName,
+      input.transactions,
+      input.defaultCurrency,
+    );
+
+    const created = await prisma.bankStatement.create({
+      data: {
+        name: input.name,
+        fileName: input.fileName,
+        bankName: metadata.bankName,
+        accountName: metadata.accountName,
+        currency: metadata.currency,
+        importStatus: "imported",
+        dateRangeStart: toDate(metadata.dateRangeStart),
+        dateRangeEnd: toDate(metadata.dateRangeEnd),
+        previewHeaders: input.headers as Prisma.InputJsonValue,
+        savedColumnMappings: input.columnMappings as Prisma.InputJsonValue,
+        workspaceId: workspace.id,
+        transactions: {
+          create: input.transactions.map((transaction) => ({
+            externalId: transaction.externalId,
+            sourceLineNumber: transaction.sourceLineNumber,
+            transactionDate: toDate(transaction.transactionDate),
+            postedDate: toDate(transaction.postedDate),
+            amount: transaction.amount,
+            currency: transaction.currency,
+            merchant: transaction.merchant,
+            description: transaction.description,
+            employee: transaction.employee,
+            reference: transaction.reference,
+          })),
+        },
+      },
+      include: bankStatementInclude,
+    });
+
+    return toBankStatement(created);
+  },
+
+  async deleteBankStatement(id: string): Promise<void> {
+    const prisma = requirePrisma();
+    await prisma.bankStatement.delete({ where: { id } });
+  },
+
+  async attachBankSourceToRun(input: AttachBankSourceInput): Promise<ReconciliationRun> {
+    const prisma = requirePrisma();
+    const { workspace, user } = await ensureBootstrap(prisma);
+    const [run, statements, runs] = await Promise.all([
+      loadRun(prisma, input.runId),
+      prisma.bankStatement.findMany({
+        where: { workspaceId: workspace.id },
+        include: bankStatementInclude,
+      }),
+      prisma.reconciliationRun.findMany({
+        where: { workspaceId: workspace.id },
+        include: {
+          ...runInclude,
+          workspace: true,
+        },
+      }),
+    ]);
+
+    if (!run) {
+      throw new Error(`Run ${input.runId} was not found.`);
+    }
+
+    const domainRun = toDomainRun(run);
+
+    if (input.bankSourceMode === "skip" || input.bankSourceMode === "later") {
+      domainRun.bankSourceMode = input.bankSourceMode;
+      domainRun.bankStatementId = undefined;
+      domainRun.bankSourceLabel = undefined;
+      await persistRun(prisma, domainRun, workspace.id, user.id);
+      return domainRun;
+    }
+
+    const picked = pickTransactionsForBankSource(
+      statements.map(toBankStatement),
+      runs.filter((candidate) => candidate.id !== input.runId).map(toDomainRun),
+      input.bankSourceMode,
+      input.bankStatementId,
+    );
+
+    domainRun.bankSourceMode = input.bankSourceMode;
+    domainRun.bankStatementId = picked.statement?.id;
+    domainRun.bankSourceLabel = picked.label;
+    domainRun.transactionFileName = picked.statement?.fileName ?? domainRun.transactionFileName;
+    domainRun.transactions = picked.statement
+      ? cloneBankTransactionsForRun(picked.statement, picked.transactions)
+      : picked.transactions.map((transaction, index) => ({
+          ...transaction,
+          id: `txn_pool_${Date.now()}_${index + 1}`,
+          sourceBankTransactionId: transaction.id,
+          bankStatementId: transaction.bankStatementId,
+          bankStatementName: statements.find((statement) => statement.id === transaction.bankStatementId)?.name,
+        }));
+
+    await persistRun(prisma, domainRun, workspace.id, user.id);
+    return domainRun;
   },
 
   async getVatRules(): Promise<VatRule[]> {
@@ -772,6 +1114,67 @@ export const prismaRepository: Repository = {
     return updated.map(toGlRule);
   },
 
+  async getCategoryRules(): Promise<CategoryRule[]> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const rules = await prisma.categoryRule.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: { priority: "asc" },
+    });
+    return rules.map(toCategoryRule);
+  },
+
+  async replaceAllCategoryRules(input: ReplaceCategoryRulesInput): Promise<CategoryRule[]> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.categoryRule.deleteMany({ where: { workspaceId: workspace.id } });
+      if (input.rules.length > 0) {
+        await tx.categoryRule.createMany({
+          data: input.rules.map((rule) => ({
+            id: rule.id,
+            workspaceId: workspace.id,
+            category: rule.category,
+            supplierPattern: rule.supplierPattern,
+            keywordPattern: rule.keywordPattern,
+            priority: rule.priority,
+            accountType: rule.accountType,
+            statementType: rule.statementType,
+            reportingBucket: rule.reportingBucket,
+            defaultTaxTreatment: rule.defaultTaxTreatment,
+            defaultVatRate: rule.defaultVatRate,
+            defaultVatRecoverable: rule.defaultVatRecoverable,
+            glCode: rule.glCode,
+            isActive: rule.isActive,
+            allowableForTax: rule.allowableForTax ?? true,
+            allowablePercentage: rule.allowablePercentage ?? 100,
+          })),
+        });
+      }
+    });
+
+    const updated = await prisma.categoryRule.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: { priority: "asc" },
+    });
+    return updated.map(toCategoryRule);
+  },
+
+  async setTransactionCategory(transactionId: string, category: string | null): Promise<void> {
+    const prisma = requirePrisma();
+    await prisma.transaction.update({
+      where: { id: transactionId },
+      data: { category: category ?? null },
+    });
+  },
+
+  async deleteTransactions(ids: string[]): Promise<void> {
+    const prisma = requirePrisma();
+    await prisma.transaction.deleteMany({ where: { id: { in: ids } } });
+    await prisma.bankTransaction.deleteMany({ where: { id: { in: ids } } });
+  },
+
   async createRun(input: CreateRunInput): Promise<ReconciliationRun> {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
@@ -787,6 +1190,9 @@ export const prismaRepository: Repository = {
         status: "awaiting_mapping",
         entity: input.entity,
         countryProfile: input.countryProfile || workspace.countryProfile,
+        bankStatementId: input.bankStatementId,
+        bankSourceMode: input.bankSourceMode,
+        bankSourceLabel: input.bankSourceLabel,
         transactionFileName: input.transactionFileName,
         workspaceId: workspace.id,
       },
@@ -799,6 +1205,9 @@ export const prismaRepository: Repository = {
     const domainRun = toDomainRun(created);
     domainRun.defaultCurrency = input.defaultCurrency || workspace.defaultCurrency;
     domainRun.countryProfile = input.countryProfile || workspace.countryProfile;
+    domainRun.bankStatementId = input.bankStatementId;
+    domainRun.bankSourceMode = input.bankSourceMode;
+    domainRun.bankSourceLabel = input.bankSourceLabel;
     domainRun.savedColumnMappings = selectedTemplate
       ? (selectedTemplate.columnMappings as Record<string, string>)
       : undefined;

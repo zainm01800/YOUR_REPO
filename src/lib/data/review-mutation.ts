@@ -92,9 +92,60 @@ function getLinkStatus(transactionAmount: number, documentGross?: number) {
     return "unmatched" as const;
   }
 
-  return Math.abs(transactionAmount - documentGross) <= 1.5
+  return Math.abs(Math.abs(transactionAmount) - documentGross) <= 1.5
     ? ("matched" as const)
     : ("probable_match" as const);
+}
+
+function createSyntheticTransactionFromDocument(
+  run: ReconciliationRun,
+  document: ReconciliationRun["documents"][number],
+) {
+  const merchant = document.supplier || document.fileName.replace(/\.[^.]+$/, "");
+  const syntheticTransactionId = `txn_review_${Date.now()}_${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
+
+  const syntheticTransaction = {
+    id: syntheticTransactionId,
+    externalId: undefined,
+    sourceLineNumber: undefined,
+    transactionDate: document.issueDate || new Date().toISOString().slice(0, 10),
+    postedDate: document.issueDate,
+    amount: document.gross || 0,
+    currency: document.currency || run.defaultCurrency || "GBP",
+    merchant,
+    description: merchant,
+    employee: undefined,
+    reference: document.documentNumber,
+    vatCode: undefined,
+    glCode: undefined,
+    noReceiptRequired: false,
+    excludedFromExport: false,
+  } satisfies ReconciliationRun["transactions"][number];
+
+  run.transactions.unshift(syntheticTransaction);
+  run.matches.unshift({
+    id: `match_${syntheticTransactionId}_${document.id}`,
+    transactionId: syntheticTransactionId,
+    documentId: document.id,
+    status: "matched",
+    score: 95,
+    selected: true,
+    rationale: {
+      amountScore: 40,
+      dateScore: 20,
+      supplierScore: 20,
+      filenameScore: 10,
+      employeeScore: 0,
+      currencyScore: 5,
+      invoiceNumberScore: 0,
+      referenceScore: 0,
+      notes: ["Created from a document during review by explicit user action."],
+    },
+  });
+
+  return syntheticTransactionId;
 }
 
 export function applyReviewMutationToRun(
@@ -316,6 +367,8 @@ export function applyReviewMutationToRun(
       typeof input.payload?.selectedUploadedDocumentId === "string"
         ? (input.payload.selectedUploadedDocumentId as string)
         : undefined;
+    const createTransactionFromDocument =
+      input.payload?.createTransactionFromDocument === true;
     let nextDocumentId =
       typeof input.payload?.documentId === "string"
         ? (input.payload.documentId as string)
@@ -426,62 +479,57 @@ export function applyReviewMutationToRun(
       });
 
       const affectedTransactionIds = new Set<string>(result.affectedTransactionIds);
+      let selectedCreatedDocument:
+        | { clientId?: string; documentId: string; document: ReconciliationRun["documents"][number] }
+        | undefined;
 
       for (const createdDocument of createdDocuments) {
-        const merchant =
-          createdDocument.document.supplier ||
-          createdDocument.document.fileName.replace(/\.[^.]+$/, "");
-        const syntheticTransactionId = `txn_review_${Date.now()}_${Math.random()
-          .toString(36)
-          .slice(2, 8)}`;
-        const syntheticTransaction = {
-          id: syntheticTransactionId,
-          externalId: undefined,
-          sourceLineNumber: undefined,
-          transactionDate:
-            createdDocument.document.issueDate || new Date().toISOString().slice(0, 10),
-          postedDate: createdDocument.document.issueDate,
-          amount: createdDocument.document.gross || 0,
-          currency:
-            createdDocument.document.currency ||
-            run.defaultCurrency ||
-            "GBP",
-          merchant,
-          description: merchant,
-          employee: undefined,
-          reference: createdDocument.document.documentNumber,
-          vatCode: undefined,
-          glCode: undefined,
-          noReceiptRequired: false,
-          excludedFromExport: false,
-        } satisfies ReconciliationRun["transactions"][number];
-
-        run.transactions.unshift(syntheticTransaction);
-        run.matches.unshift({
-          id: `match_${syntheticTransactionId}_${createdDocument.documentId}`,
-          transactionId: syntheticTransactionId,
-          documentId: createdDocument.documentId,
-          status: "matched",
-          score: 95,
-          selected: true,
-          rationale: {
-            amountScore: 40,
-            dateScore: 20,
-            supplierScore: 20,
-            filenameScore: 10,
-            employeeScore: 0,
-            currencyScore: 5,
-            invoiceNumberScore: 0,
-            referenceScore: 0,
-            notes: ["Created from a document uploaded during review."],
-          },
-        });
-        affectedTransactionIds.add(syntheticTransactionId);
-
         if (createdDocument.clientId === selectedUploadedDocumentId) {
           nextDocumentId = createdDocument.documentId;
           result.linkedDocumentId = createdDocument.documentId;
+          selectedCreatedDocument = createdDocument;
         }
+      }
+
+      if (!selectedCreatedDocument && createdDocuments.length > 0) {
+        selectedCreatedDocument = createdDocuments[0];
+        nextDocumentId = selectedCreatedDocument.documentId;
+        result.linkedDocumentId = selectedCreatedDocument.documentId;
+      }
+
+      if (createTransactionFromDocument && selectedCreatedDocument) {
+        const createdTransactionId = createSyntheticTransactionFromDocument(
+          run,
+          selectedCreatedDocument.document,
+        );
+        affectedTransactionIds.add(createdTransactionId);
+      } else if (transaction && nextDocumentId) {
+        run.matches.forEach((candidate) => {
+          if (candidate.transactionId === transaction.id) {
+            candidate.selected = false;
+          }
+        });
+
+        const linkedDocument = run.documents.find((candidate) => candidate.id === nextDocumentId);
+        const nextStatus = getLinkStatus(transaction.amount, linkedDocument?.gross);
+        const currentMatch = run.matches.find(
+          (candidate) => candidate.transactionId === transaction.id,
+        );
+
+        if (currentMatch) {
+          currentMatch.selected = true;
+          currentMatch.documentId = nextDocumentId;
+          currentMatch.status = nextStatus;
+          currentMatch.score =
+            nextStatus === "matched" ? 90 : nextStatus === "probable_match" ? 70 : 0;
+          currentMatch.rationale.notes = ["Linked to a document during review workspace."];
+        } else {
+          run.matches.push(
+            createReviewLinkedMatch(transaction.id, nextDocumentId, nextStatus),
+          );
+        }
+
+        affectedTransactionIds.add(transaction.id);
       }
 
       if (!result.linkedDocumentId && nextDocumentId) {

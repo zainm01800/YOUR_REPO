@@ -1,5 +1,7 @@
 import { demoStore } from "@/lib/demo/demo-store";
 import type {
+  BankStatement,
+  CategoryRule,
   DashboardSnapshot,
   GlCodeRule,
   ReviewRow,
@@ -8,21 +10,34 @@ import type {
   Workspace,
 } from "@/lib/domain/types";
 import type {
+  AttachBankSourceInput,
   CreateRunInput,
+  ImportBankStatementInput,
+  ReplaceCategoryRulesInput,
   Repository,
   ReviewMutationInput,
   ReviewMutationResult,
+  UpdateWorkspaceInput,
   UpsertGlCodeRulesInput,
   UpsertVatRulesInput,
 } from "@/lib/data/repository";
+import {
+  cloneBankTransactionsForRun,
+  decorateBankStatementsWithStatuses,
+  deriveStatementMetadata,
+  pickTransactionsForBankSource,
+} from "@/lib/bank-statements/service";
 import { applyReviewMutationToRun } from "@/lib/data/review-mutation";
 import { deepClone, slugify } from "@/lib/utils";
 import { buildReviewRows } from "@/lib/reconciliation/review-rows";
 import { buildRunSummary } from "@/lib/reconciliation/summary";
 
-const g = global as typeof global & { __mockStore?: typeof demoStore };
-if (!g.__mockStore) {
+// Bump STORE_VERSION whenever demoStore shape changes to force a reset.
+const STORE_VERSION = 5;
+const g = global as typeof global & { __mockStore?: typeof demoStore; __mockStoreVersion?: number };
+if (!g.__mockStore || g.__mockStoreVersion !== STORE_VERSION) {
   g.__mockStore = deepClone(demoStore);
+  g.__mockStoreVersion = STORE_VERSION;
 }
 const store = g.__mockStore;
 
@@ -45,6 +60,16 @@ export const mockRepository: Repository = {
     return deepClone(store.workspace);
   },
 
+  async updateWorkspace(input: UpdateWorkspaceInput) {
+    if (input.vatRegistered !== undefined) store.workspace.vatRegistered = input.vatRegistered;
+    if (input.businessType !== undefined) store.workspace.businessType = input.businessType;
+    if (input.amountTolerance !== undefined) store.workspace.amountTolerance = input.amountTolerance;
+    if (input.dateToleranceDays !== undefined) store.workspace.dateToleranceDays = input.dateToleranceDays;
+    if (input.defaultCurrency !== undefined) store.workspace.defaultCurrency = input.defaultCurrency;
+    if (input.countryProfile !== undefined) store.workspace.countryProfile = input.countryProfile;
+    return deepClone(store.workspace);
+  },
+
   async getDashboardSnapshot(): Promise<DashboardSnapshot> {
     const runs = store.runs.map((run) => ({
       id: run.id,
@@ -56,7 +81,7 @@ export const mockRepository: Repository = {
       period: run.period,
       locked: run.locked,
       summary: buildRunSummary(
-        buildReviewRows(run, store.vatRules, store.glRules),
+        buildReviewRows(run, store.vatRules, store.glRules, store.categoryRules),
       ),
     }));
 
@@ -67,6 +92,7 @@ export const mockRepository: Repository = {
       templates: deepClone(store.templates),
       vatRules: deepClone(store.vatRules),
       glRules: deepClone(store.glRules),
+      categoryRules: deepClone(store.categoryRules),
     };
   },
 
@@ -77,11 +103,100 @@ export const mockRepository: Repository = {
 
   async getRunRows(runId): Promise<ReviewRow[]> {
     const run = getRunOrThrow(runId);
-    return buildReviewRows(run, store.vatRules, store.glRules);
+    return buildReviewRows(run, store.vatRules, store.glRules, store.categoryRules);
   },
 
   async getTemplates() {
     return deepClone(store.templates);
+  },
+
+  async getBankStatements(): Promise<BankStatement[]> {
+    return decorateBankStatementsWithStatuses(
+      deepClone(store.bankStatements),
+      deepClone(store.runs),
+    );
+  },
+
+  async getBankStatement(statementId: string): Promise<BankStatement | null> {
+    const statements = decorateBankStatementsWithStatuses(
+      deepClone(store.bankStatements),
+      deepClone(store.runs),
+    );
+    return statements.find((statement) => statement.id === statementId) ?? null;
+  },
+
+  async deleteBankStatement(id: string): Promise<void> {
+    console.log("[deleteBankStatement] ids in store:", store.bankStatements.map((s) => s.id));
+    const index = store.bankStatements.findIndex((s) => s.id === id);
+    if (index === -1) throw new Error(`Bank statement ${id} was not found.`);
+    store.bankStatements.splice(index, 1);
+  },
+
+  async importBankStatement(input: ImportBankStatementInput): Promise<BankStatement> {
+    const metadata = deriveStatementMetadata(
+      input.fileName,
+      input.transactions,
+      input.defaultCurrency,
+    );
+    const statementId = `stmt_${slugify(input.name)}_${Date.now()}`;
+    const statement: BankStatement = {
+      id: statementId,
+      name: input.name,
+      fileName: input.fileName,
+      bankName: metadata.bankName,
+      accountName: metadata.accountName,
+      currency: metadata.currency,
+      importedAt: new Date().toISOString(),
+      importStatus: "imported",
+      dateRangeStart: metadata.dateRangeStart,
+      dateRangeEnd: metadata.dateRangeEnd,
+      transactionCount: input.transactions.length,
+      previewHeaders: input.headers,
+      savedColumnMappings: input.columnMappings,
+      transactions: input.transactions.map((transaction, index) => ({
+        ...transaction,
+        id: `bank_txn_${statementId}_${index + 1}`,
+        bankStatementId: statementId,
+        reconciliationStatus: "unreconciled",
+      })),
+    };
+
+    store.bankStatements.unshift(statement);
+    return statement;
+  },
+
+  async attachBankSourceToRun(input: AttachBankSourceInput) {
+    const run = getRunOrThrow(input.runId);
+
+    if (input.bankSourceMode === "skip" || input.bankSourceMode === "later") {
+      run.bankSourceMode = input.bankSourceMode;
+      run.bankStatementId = undefined;
+      run.bankSourceLabel = undefined;
+      return deepClone(run);
+    }
+
+    const picked = pickTransactionsForBankSource(
+      deepClone(store.bankStatements),
+      deepClone(store.runs.filter((candidate) => candidate.id !== run.id)),
+      input.bankSourceMode,
+      input.bankStatementId,
+    );
+
+    run.bankSourceMode = input.bankSourceMode;
+    run.bankStatementId = picked.statement?.id;
+    run.bankSourceLabel = picked.label;
+    run.transactionFileName = picked.statement?.fileName ?? run.transactionFileName;
+    run.transactions = picked.statement
+      ? cloneBankTransactionsForRun(picked.statement, picked.transactions)
+      : picked.transactions.map((transaction, index) => ({
+          ...transaction,
+          id: `txn_run_pool_${slugify(transaction.reference || transaction.description || String(index + 1))}_${Date.now()}_${index + 1}`,
+          sourceBankTransactionId: transaction.id,
+          bankStatementId: transaction.bankStatementId,
+          bankStatementName: store.bankStatements.find((statement) => statement.id === transaction.bankStatementId)?.name,
+        }));
+
+    return deepClone(run);
   },
 
   async getVatRules(): Promise<VatRule[]> {
@@ -140,6 +255,40 @@ export const mockRepository: Repository = {
     return deepClone(store.glRules);
   },
 
+  async getCategoryRules(): Promise<CategoryRule[]> {
+    return deepClone(store.categoryRules);
+  },
+
+  async replaceAllCategoryRules(input: ReplaceCategoryRulesInput): Promise<CategoryRule[]> {
+    store.categoryRules = deepClone(input.rules).sort((a, b) => a.priority - b.priority);
+    return deepClone(store.categoryRules);
+  },
+
+  async setTransactionCategory(transactionId: string, category: string | null): Promise<void> {
+    for (const run of store.runs) {
+      const tx = run.transactions.find((t) => t.id === transactionId);
+      if (tx) {
+        if (category === null) {
+          delete tx.category;
+        } else {
+          tx.category = category;
+        }
+        return;
+      }
+    }
+    throw new Error(`Transaction ${transactionId} was not found.`);
+  },
+
+  async deleteTransactions(ids: string[]): Promise<void> {
+    const idSet = new Set(ids);
+    for (const run of store.runs) {
+      run.transactions = run.transactions.filter((t) => !idSet.has(t.id));
+    }
+    for (const statement of store.bankStatements) {
+      statement.transactions = statement.transactions.filter((t) => !idSet.has(t.id));
+    }
+  },
+
   async createRun(input: CreateRunInput) {
     const run = {
       id: `run_${slugify(input.name)}_${Date.now()}`,
@@ -149,6 +298,9 @@ export const mockRepository: Repository = {
       entity: input.entity,
       countryProfile: input.countryProfile || store.workspace.countryProfile,
       defaultCurrency: input.defaultCurrency || store.workspace.defaultCurrency,
+      bankStatementId: input.bankStatementId,
+      bankSourceMode: input.bankSourceMode,
+      bankSourceLabel: input.bankSourceLabel,
       transactionFileName: input.transactionFileName,
       previewHeaders: ["Date", "Amount", "Merchant", "Description", "Currency"],
       savedColumnMappings:

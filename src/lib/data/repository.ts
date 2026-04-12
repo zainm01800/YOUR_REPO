@@ -1,10 +1,14 @@
 import type {
+  BankStatement,
+  CategoryRule,
   DashboardSnapshot,
   GlCodeRule,
+  BankSourceMode,
   MappingTemplate,
   ReconciliationRun,
   ReviewActionType,
   ReviewRow,
+  TransactionRecord,
   User,
   VatRule,
   Workspace,
@@ -16,6 +20,10 @@ export interface UpsertVatRulesInput {
 
 export interface UpsertGlCodeRulesInput {
   rules: GlCodeRule[];
+}
+
+export interface ReplaceCategoryRulesInput {
+  rules: CategoryRule[];
 }
 
 export interface ReviewMutationInput {
@@ -40,20 +48,59 @@ export interface CreateRunInput {
   defaultCurrency?: string;
   templateId?: string;
   transactionFileName?: string;
+  bankStatementId?: string;
+  bankSourceMode?: BankSourceMode;
+  bankSourceLabel?: string;
+}
+
+export interface ImportBankStatementInput {
+  name: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  headers: string[];
+  columnMappings: Record<string, string>;
+  defaultCurrency?: string;
+  transactions: TransactionRecord[];
+}
+
+export interface AttachBankSourceInput {
+  runId: string;
+  bankSourceMode: BankSourceMode;
+  bankStatementId?: string;
+}
+
+export interface UpdateWorkspaceInput {
+  vatRegistered?: boolean;
+  businessType?: Workspace["businessType"];
+  amountTolerance?: number;
+  dateToleranceDays?: number;
+  defaultCurrency?: string;
+  countryProfile?: string;
 }
 
 export interface Repository {
   getCurrentUser(): Promise<User>;
   getWorkspace(): Promise<Workspace>;
+  updateWorkspace(input: UpdateWorkspaceInput): Promise<Workspace>;
   getDashboardSnapshot(): Promise<DashboardSnapshot>;
   getRun(runId: string): Promise<ReconciliationRun | null>;
   getRunRows(runId: string): Promise<ReviewRow[]>;
   getTemplates(): Promise<MappingTemplate[]>;
+  getBankStatements(): Promise<BankStatement[]>;
+  getBankStatement(statementId: string): Promise<BankStatement | null>;
+  importBankStatement(input: ImportBankStatementInput): Promise<BankStatement>;
+  deleteBankStatement(id: string): Promise<void>;
+  attachBankSourceToRun(input: AttachBankSourceInput): Promise<ReconciliationRun>;
   getVatRules(): Promise<VatRule[]>;
   upsertVatRules(input: UpsertVatRulesInput): Promise<VatRule[]>;
   replaceAllVatRules(rules: VatRule[]): Promise<VatRule[]>;
   upsertGlCodeRules(input: UpsertGlCodeRulesInput): Promise<GlCodeRule[]>;
   replaceAllGlCodeRules(rules: GlCodeRule[]): Promise<GlCodeRule[]>;
+  getCategoryRules(): Promise<CategoryRule[]>;
+  replaceAllCategoryRules(input: ReplaceCategoryRulesInput): Promise<CategoryRule[]>;
+  setTransactionCategory(transactionId: string, category: string | null): Promise<void>;
+  deleteTransactions(ids: string[]): Promise<void>;
   createRun(input: CreateRunInput): Promise<ReconciliationRun>;
   deleteRun(runId: string): Promise<void>;
   updateRun(run: ReconciliationRun): Promise<ReconciliationRun>;

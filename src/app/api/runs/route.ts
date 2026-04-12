@@ -90,6 +90,8 @@ async function handlePost(request: Request) {
   const countryProfile = String(formData.get("countryProfile") || "GB");
   const defaultCurrency = String(formData.get("defaultCurrency") || "GBP");
   const templateId = String(formData.get("templateId") || "");
+  const bankSourceMode = String(formData.get("bankSourceMode") || "skip") as "statement" | "all_unreconciled" | "skip" | "later";
+  const bankStatementId = String(formData.get("bankStatementId") || "");
   const transactionFile = formData.get("transactionFile");
   const documentEntries = formData.getAll("documentFiles");
   const clientExtractedDocuments = JSON.parse(
@@ -107,7 +109,29 @@ async function handlePost(request: Request) {
     templateId: templateId || undefined,
     transactionFileName:
       transactionFile instanceof File ? transactionFile.name : undefined,
+    bankStatementId: bankSourceMode === "statement" ? bankStatementId || undefined : undefined,
+    bankSourceMode,
+    bankSourceLabel:
+      bankSourceMode === "all_unreconciled"
+        ? "All unreconciled transactions"
+        : undefined,
   });
+
+  if (
+    !(transactionFile instanceof File && transactionFile.size > 0) &&
+    (bankSourceMode === "statement" || bankSourceMode === "all_unreconciled")
+  ) {
+    const bankBackedRun = await repository.attachBankSourceToRun({
+      runId: run.id,
+      bankSourceMode,
+      bankStatementId: bankStatementId || undefined,
+    });
+    run.transactions = bankBackedRun.transactions;
+    run.bankStatementId = bankBackedRun.bankStatementId;
+    run.bankSourceMode = bankBackedRun.bankSourceMode;
+    run.bankSourceLabel = bankBackedRun.bankSourceLabel;
+    run.transactionFileName = bankBackedRun.transactionFileName;
+  }
 
   const templates = await repository.getTemplates();
   const selectedTemplate = templates.find((template) => template.id === templateId);
@@ -225,5 +249,10 @@ async function handlePost(request: Request) {
 
   await repository.updateRun(run);
 
-  return NextResponse.json({ redirectTo: `/runs/${run.id}/mapping` });
+  const redirectTo =
+    transactionFile instanceof File && transactionFile.size > 0
+      ? `/runs/${run.id}/mapping`
+      : `/runs/${run.id}/processing`;
+
+  return NextResponse.json({ redirectTo });
 }

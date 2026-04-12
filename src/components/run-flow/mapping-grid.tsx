@@ -14,9 +14,11 @@ const fields = [
 export function MappingGrid({
   headers,
   selected,
+  onChange,
 }: {
   headers: string[];
   selected?: Record<string, string>;
+  onChange?: (field: string, value: string) => void;
 }) {
   return (
     <Card className="space-y-5">
@@ -34,7 +36,10 @@ export function MappingGrid({
             <span className="font-medium capitalize text-[var(--color-foreground)]">
               {field}
             </span>
-            <Select defaultValue={selected?.[field]}>
+            <Select
+              value={selected?.[field] || ""}
+              onChange={(event) => onChange?.(field, event.target.value)}
+            >
               <option value="">Select a column</option>
               {headers.map((header) => (
                 <option key={header} value={header}>
@@ -48,4 +53,3 @@ export function MappingGrid({
     </Card>
   );
 }
-

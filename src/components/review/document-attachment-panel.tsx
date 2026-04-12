@@ -248,7 +248,7 @@ export function DocumentAttachmentPanel({
     }
   }
 
-  async function updateDocumentLink() {
+  async function updateDocumentLink(createTransactionFromDocument = false) {
     const selectedPendingDocument =
       pendingDocuments.find((document) => document.clientId === selectedPendingDocumentId) ||
       pendingDocuments[0];
@@ -270,6 +270,7 @@ export function DocumentAttachmentPanel({
             pendingDocuments.length > 0
               ? selectedPendingDocumentId || pendingDocuments[0]?.clientId
               : undefined,
+          createTransactionFromDocument,
           newDocuments: pendingDocuments.map((document) => ({
             clientId: document.clientId,
             fileName: document.fileName,
@@ -322,9 +323,11 @@ export function DocumentAttachmentPanel({
     setSelectedPendingDocumentId("");
     setSelectedDocumentId(nextLinkedDocumentId || "");
     setExtractMessage(
-      nextLinkedDocumentId
-        ? `Updated the run with ${pendingDocuments.length > 0 ? "the uploaded documents" : "the selected document"}.`
-        : "Uploaded documents were added to the run.",
+      createTransactionFromDocument
+        ? "Created a new transaction from the selected document."
+        : nextLinkedDocumentId
+          ? `Linked ${pendingDocuments.length > 0 ? "the uploaded document" : "the selected document"} to the current transaction.`
+          : "Uploaded documents were added to the run and left unmatched.",
     );
     router.refresh();
   }
@@ -389,6 +392,10 @@ export function DocumentAttachmentPanel({
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
           Upload new documents
         </div>
+        <p className="text-xs text-[var(--color-muted-foreground)]">
+          New uploads are added to the run as documents. By default, ClearMatch links the selected
+          document to the current transaction rather than creating duplicate spend.
+        </p>
 
         <button
           type="button"
@@ -472,21 +479,41 @@ export function DocumentAttachmentPanel({
         ) : null}
       </div>
 
-      <Button
-        type="button"
-        disabled={
-          pending ||
-          extracting ||
-          (pendingDocuments.length === 0 && !selectedDocumentId)
-        }
-        onClick={() =>
-          startTransition(async () => {
-            await updateDocumentLink();
-          })
-        }
-      >
-        Update linked document
-      </Button>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button
+          type="button"
+          disabled={
+            pending ||
+            extracting ||
+            (pendingDocuments.length === 0 && !selectedDocumentId)
+          }
+          onClick={() =>
+            startTransition(async () => {
+              await updateDocumentLink(false);
+            })
+          }
+          className="flex-1"
+        >
+          Link to current transaction
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={
+            pending ||
+            extracting ||
+            (pendingDocuments.length === 0 && !selectedDocumentId)
+          }
+          onClick={() =>
+            startTransition(async () => {
+              await updateDocumentLink(true);
+            })
+          }
+          className="flex-1"
+        >
+          Create new transaction
+        </Button>
+      </div>
     </Card>
   );
 }

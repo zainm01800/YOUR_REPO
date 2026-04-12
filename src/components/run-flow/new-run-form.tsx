@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import JSZip from "jszip";
 import { createWorker } from "tesseract.js";
 import { AlertCircle, CheckCircle2, LoaderCircle, Save, Trash2 } from "lucide-react";
@@ -11,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import type {
+  BankStatement,
   ClientExtractedDocumentInput,
   MappingTemplate,
   RunSetupPreset,
@@ -160,9 +162,11 @@ function buildInitialValues(
 export function NewRunForm({
   workspace,
   templates,
+  bankStatements,
 }: {
   workspace: Workspace;
   templates: MappingTemplate[];
+  bankStatements: BankStatement[];
 }) {
   const initialValues = useMemo(
     () => buildInitialValues(workspace, templates),
@@ -174,6 +178,10 @@ export function NewRunForm({
   const [presetName, setPresetName] = useState(initialPresetName);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "info" | "success" | "error" } | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [bankSourceMode, setBankSourceMode] = useState<"statement" | "all_unreconciled" | "skip" | "later">(
+    bankStatements.length > 0 ? "all_unreconciled" : "skip",
+  );
+  const [selectedBankStatementId, setSelectedBankStatementId] = useState(bankStatements[0]?.id || "");
 
   function setOcrMessage(text: string | null) {
     if (text === null) { setStatusMessage(null); return; }
@@ -416,11 +424,65 @@ export function NewRunForm({
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
+            <div className="space-y-2">
+              <span className="text-sm font-medium">Bank transaction source</span>
+              <Select
+                name="bankSourceMode"
+                value={bankSourceMode}
+                onChange={(event) =>
+                  setBankSourceMode(
+                    event.target.value as "statement" | "all_unreconciled" | "skip" | "later",
+                  )
+                }
+              >
+                {bankStatements.length > 0 ? (
+                  <option value="statement">Use a specific imported bank statement</option>
+                ) : null}
+                <option value="all_unreconciled">Search all unreconciled bank transactions</option>
+                <option value="skip">Skip for now</option>
+                <option value="later">Choose later in review</option>
+              </Select>
+              <span className="text-xs leading-5 text-[var(--color-muted-foreground)]">
+                Reconciliation runs can now consume imported bank data without re-uploading the same statement every month.
+              </span>
+            </div>
+            <div className="space-y-2">
+              <span className="text-sm font-medium">Imported bank statement</span>
+              <Select
+                name="bankStatementId"
+                value={selectedBankStatementId}
+                onChange={(event) => setSelectedBankStatementId(event.target.value)}
+                disabled={bankSourceMode !== "statement"}
+              >
+                <option value="">Choose a bank statement</option>
+                {bankStatements.map((statement) => (
+                  <option key={statement.id} value={statement.id}>
+                    {statement.name} · {statement.transactionCount} transactions
+                  </option>
+                ))}
+              </Select>
+              <div className="flex items-center justify-between text-xs leading-5 text-[var(--color-muted-foreground)]">
+                <span>
+                  {bankStatements.length > 0
+                    ? `${bankStatements.length} imported statement${bankStatements.length === 1 ? "" : "s"} ready to reuse.`
+                    : "No bank statements imported yet."}
+                </span>
+                <Link
+                  href="/bank-statements/import"
+                  className="font-semibold text-[var(--color-accent)]"
+                >
+                  Import one
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-2">
             <label className="space-y-2">
-              <span className="text-sm font-medium">Transaction file</span>
+              <span className="text-sm font-medium">One-off transaction file (optional)</span>
               <Input name="transactionFile" type="file" accept=".csv,.xlsx,.xls" />
               <span className="text-xs leading-5 text-[var(--color-muted-foreground)]">
-                CSV or XLSX bank/card export. If omitted, each uploaded receipt becomes its own row.
+                Keep this for exceptional one-off imports. For repeat workflows, use the Bank Statements area instead.
               </span>
             </label>
             <label className="space-y-2">
