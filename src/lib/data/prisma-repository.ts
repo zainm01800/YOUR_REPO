@@ -1171,8 +1171,27 @@ export const prismaRepository: Repository = {
 
   async deleteTransactions(ids: string[]): Promise<void> {
     const prisma = requirePrisma();
-    await prisma.transaction.deleteMany({ where: { id: { in: ids } } });
-    await prisma.bankTransaction.deleteMany({ where: { id: { in: ids } } });
+    
+    // Find associated bank transaction IDs before deleting transactions
+    const transactions = await prisma.transaction.findMany({
+      where: { id: { in: ids } },
+      select: { sourceBankTransactionId: true },
+    });
+    const sourceBankTxIds = transactions
+      .map((tx) => tx.sourceBankTransactionId)
+      .filter((id): id is string => id !== null);
+
+    await prisma.$transaction([
+      prisma.transaction.deleteMany({ where: { id: { in: ids } } }),
+      prisma.bankTransaction.deleteMany({ 
+        where: { 
+          OR: [
+            { id: { in: ids } },       // the ID itself might be a bank transaction ID
+            { id: { in: sourceBankTxIds } } // or it might be the source of a run transaction
+          ]
+        } 
+      }),
+    ]);
   },
 
   async createRun(input: CreateRunInput): Promise<ReconciliationRun> {
@@ -1218,7 +1237,20 @@ export const prismaRepository: Repository = {
   async deleteRun(runId: string): Promise<void> {
     const prisma = requirePrisma();
     await ensureBootstrap(prisma);
-    await prisma.reconciliationRun.delete({ where: { id: runId } });
+    
+    // Collect bank transaction IDs associated with this run before deletion
+    const runTransactions = await prisma.transaction.findMany({
+      where: { runId },
+      select: { sourceBankTransactionId: true },
+    });
+    const sourceBankTxIds = runTransactions
+      .map((tx) => tx.sourceBankTransactionId)
+      .filter((id): id is string => id !== null);
+
+    await prisma.$transaction([
+      prisma.reconciliationRun.delete({ where: { id: runId } }),
+      prisma.bankTransaction.deleteMany({ where: { id: { in: sourceBankTxIds } } }),
+    ]);
   },
 
   async updateRun(run: ReconciliationRun): Promise<ReconciliationRun> {
