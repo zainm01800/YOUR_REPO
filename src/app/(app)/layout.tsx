@@ -9,8 +9,10 @@ export default async function AuthenticatedLayout({
   children: React.ReactNode;
 }) {
   const { userId } = await auth();
+  console.log(`[Layout] userId: ${userId}`);
 
   if (!userId) {
+    console.log("[Layout] No userId, redirecting to sign-in");
     redirect("/sign-in");
   }
 
