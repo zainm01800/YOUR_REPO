@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   ArrowUpDown,
   ChevronUp,
@@ -43,7 +42,7 @@ function MatchPctBadge({ pct }: { pct: number }) {
 }
 
 export function RunsTable({ runs }: { runs: RunListItem[] }) {
-  const router = useRouter();
+  const [localRuns, setLocalRuns] = useState(runs);
   const [pendingRunId, setPendingRunId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -56,8 +55,12 @@ export function RunsTable({ runs }: { runs: RunListItem[] }) {
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
+  useEffect(() => {
+    setLocalRuns(runs);
+  }, [runs]);
+
   const entityOptions = Array.from(
-    new Set(runs.map((run) => run.entity).filter((entity): entity is string => Boolean(entity))),
+    new Set(localRuns.map((run) => run.entity).filter((entity): entity is string => Boolean(entity))),
   ).sort((left, right) => left.localeCompare(right));
 
   function handleDelete(run: RunListItem) {
@@ -83,7 +86,7 @@ export function RunsTable({ runs }: { runs: RunListItem[] }) {
           throw new Error(payload?.error || "Could not delete that run.");
         }
 
-        router.refresh();
+        setLocalRuns((prev) => prev.filter((candidate) => candidate.id !== run.id));
       } catch (deleteError) {
         setError(
           deleteError instanceof Error ? deleteError.message : "Could not delete that run.",
@@ -112,7 +115,7 @@ export function RunsTable({ runs }: { runs: RunListItem[] }) {
 
   const query = search.trim().toLowerCase();
 
-  const filtered = runs.filter((run) => {
+  const filtered = localRuns.filter((run) => {
     if (statusFilter && run.status !== statusFilter) return false;
     if (entityFilter && run.entity !== entityFilter) return false;
     if (dateFrom && run.createdAt.slice(0, 10) < dateFrom) return false;

@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { CheckCircle2, Search, Tag, Trash2 } from "lucide-react";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
 import { resolveCategory } from "@/lib/categories/suggester";
@@ -60,6 +59,7 @@ export function TransactionsTable({
   allCategories,
   vatRegistered,
 }: Props) {
+  const [localTransactions, setLocalTransactions] = useState(transactions);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -70,13 +70,16 @@ export function TransactionsTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const router = useRouter();
+
+  useEffect(() => {
+    setLocalTransactions(transactions);
+  }, [transactions]);
 
   const categoryRuleMap = useMemo(() => buildCategoryRuleMap(categoryRules), [categoryRules]);
 
   const rowsWithCategory = useMemo(
     () =>
-      transactions.map((tx) => {
+      localTransactions.map((tx) => {
         const resolvedCategory =
           categoryOverrides[tx.id] ??
           tx.category ??
@@ -93,7 +96,7 @@ export function TransactionsTable({
           taxTreatment: classification.effectiveTaxTreatment,
         };
       }),
-    [transactions, categoryRules, categoryOverrides, categoryRuleMap, vatRegistered],
+    [localTransactions, categoryRules, categoryOverrides, categoryRuleMap, vatRegistered],
   );
 
   const filtered = useMemo(() => {
@@ -161,8 +164,8 @@ export function TransactionsTable({
           const payload = await res.json().catch(() => null) as { error?: string } | null;
           throw new Error(payload?.error ?? "Could not delete transactions.");
         }
+        setLocalTransactions((prev) => prev.filter((tx) => !ids.includes(tx.id)));
         setSelected(new Set());
-        router.refresh();
       } catch (err) {
         setDeleteError(err instanceof Error ? err.message : "Could not delete transactions.");
       }

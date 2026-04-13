@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import type { BankStatement } from "@/lib/domain/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,11 +25,15 @@ export function BankStatementsTable({
 }: {
   statements: BankStatement[];
 }) {
+  const [localStatements, setLocalStatements] = useState(statements);
   const [query, setQuery] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+
+  useEffect(() => {
+    setLocalStatements(statements);
+  }, [statements]);
 
   function handleDelete(statement: BankStatement) {
     if (!window.confirm(`Delete "${statement.name}"?\n\nThis will permanently remove the statement and its transactions.`)) return;
@@ -43,7 +46,7 @@ export function BankStatementsTable({
           const payload = await res.json().catch(() => null) as { error?: string } | null;
           throw new Error(payload?.error ?? "Could not delete statement.");
         }
-        router.refresh();
+        setLocalStatements((prev) => prev.filter((candidate) => candidate.id !== statement.id));
       } catch (err) {
         setDeleteError(err instanceof Error ? err.message : "Could not delete statement.");
       } finally {
@@ -55,15 +58,15 @@ export function BankStatementsTable({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) {
-      return statements;
+      return localStatements;
     }
 
-    return statements.filter((statement) =>
+    return localStatements.filter((statement) =>
       [statement.name, statement.fileName, statement.bankName, statement.accountName]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(q)),
     );
-  }, [query, statements]);
+  }, [query, localStatements]);
 
   return (
     <div className="space-y-4">
