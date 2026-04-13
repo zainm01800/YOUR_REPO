@@ -119,7 +119,6 @@ const navLinks = [
 
 export default function Home() {
   return (
-    <>
     <div className="relative min-h-screen overflow-x-hidden pt-16">
       <div className="hero-glow" />
       <LandingNav />
@@ -290,8 +289,6 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
               </div>
             </div>
           </div>

@@ -643,15 +643,8 @@ function toBankStatusRun(run: DbBankStatusRun): ReconciliationRun {
 
 async function ensureBootstrap(prisma: PrismaClient) {
   const result = await resolveUserWorkspace(prisma);
-  return {
-    workspace: result.workspace,
-    user: {
-      id: result.userId,
-      email: "", // Placeholder, resolveUserWorkspace already ensured the user exists
-      name: result.workspace.name,
-    },
-  };
-}
+  const workspace = result.workspace;
+  const shouldSeedWorkspaceData = result.isNewWorkspace;
 
   if (shouldSeedWorkspaceData) {
     await prisma.mappingTemplate.createMany({
@@ -731,7 +724,14 @@ async function ensureBootstrap(prisma: PrismaClient) {
     }
   }
 
-  return { workspace, user };
+  return {
+    workspace: result.workspace,
+    user: {
+      id: result.userId,
+      email: "",
+      name: result.workspace.name,
+    },
+  };
 }
 
 async function loadRun(prisma: PrismaClient, runId: string) {
