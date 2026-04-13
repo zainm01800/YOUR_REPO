@@ -13,11 +13,15 @@ export async function GET() {
   if (mode === "prisma") {
     try {
       const repository = getRepository();
-      // Try to fetch a workspace to verify schema health (specifically the slug column)
-      const workspace = await repository.getWorkspace();
+      
+      // Rigorous check: specifically query CategoryRule to test for the 'slug' column
+      // If the column is missing, this will throw P2022
+      const rules = await repository.getCategoryRules();
+
       health.database = {
         connected: true,
-        workspaceFound: !!workspace,
+        schemaHealthy: true,
+        categoryCount: rules.length,
       };
     } catch (error: any) {
       health.ok = false;
