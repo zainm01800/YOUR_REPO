@@ -630,6 +630,12 @@ function toBankStatusRun(run: DbBankStatusRun): ReconciliationRun {
 }
 
 async function ensureBootstrap(prisma: PrismaClient) {
+  const existingWorkspace = await prisma.workspace.findUnique({
+    where: { slug: appConfig.workspaceSlug },
+    select: { id: true },
+  });
+  const shouldSeedWorkspaceData = !existingWorkspace;
+
   const workspace = await prisma.workspace.upsert({
     where: { slug: appConfig.workspaceSlug },
     update: {
@@ -682,7 +688,7 @@ async function ensureBootstrap(prisma: PrismaClient) {
     },
   });
 
-  if ((await prisma.vatRule.count({ where: { workspaceId: workspace.id } })) === 0) {
+  if (shouldSeedWorkspaceData) {
     await prisma.vatRule.createMany({
       data: demoStore.vatRules.map((rule) => ({
         id: rule.id,
@@ -696,7 +702,7 @@ async function ensureBootstrap(prisma: PrismaClient) {
     });
   }
 
-  if ((await prisma.glCodeRule.count({ where: { workspaceId: workspace.id } })) === 0) {
+  if (shouldSeedWorkspaceData) {
     await prisma.glCodeRule.createMany({
       data: demoStore.glRules.map((rule) => ({
         id: rule.id,
@@ -710,7 +716,7 @@ async function ensureBootstrap(prisma: PrismaClient) {
     });
   }
 
-  if ((await prisma.mappingTemplate.count({ where: { workspaceId: workspace.id } })) === 0) {
+  if (shouldSeedWorkspaceData) {
     await prisma.mappingTemplate.createMany({
       data: demoStore.templates.map((template) => ({
         id: template.id,
@@ -722,7 +728,7 @@ async function ensureBootstrap(prisma: PrismaClient) {
     });
   }
 
-  if ((await prisma.bankStatement.count({ where: { workspaceId: workspace.id } })) === 0) {
+  if (shouldSeedWorkspaceData) {
     for (const statement of demoStore.bankStatements) {
       await prisma.bankStatement.create({
         data: {
