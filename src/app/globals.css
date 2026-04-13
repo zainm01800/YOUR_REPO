@@ -149,3 +149,51 @@ textarea {
   color: var(--color-foreground);
   font-weight: 600;
 }
+/* Premium Aesthetic Enhancements */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+.premium-shadow {
+  box-shadow: 
+    0 2px 4px rgba(0,0,0,0.02),
+    0 10px 20px rgba(0,0,0,0.04),
+    0 20px 40px rgba(0,0,0,0.04);
+}
+
+.hover-lift {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.06);
+}
+
+/* Update Base Components */
+.card-premium {
+  @apply rounded-3xl bg-white p-6 transition-all duration-300;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(221, 208, 191, 0.4);
+}
+
+.card-premium:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+  border-color: var(--color-accent-soft);
+}
+
+/* Skeleton Loading Animation */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #f8f8f8 50%, #f0f0f0 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+  @apply rounded-lg;
+}

@@ -145,36 +145,36 @@ export default async function DashboardPage() {
       />
 
       {!hasRuns ? (
-        <Card className="flex flex-col gap-5 border-[var(--color-accent)] bg-[var(--color-accent-soft)] lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-accent)] text-[var(--color-accent-foreground)]">
-              <FileSpreadsheet className="h-5 w-5" />
+        <Card className="hover-lift border-[var(--color-accent)] bg-linear-to-br from-[var(--color-accent-soft)] to-white glass-panel lg:flex-row lg:items-center lg:justify-between flex flex-col gap-6">
+          <div className="flex items-start gap-5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-linear-to-tr from-[var(--color-accent)] to-[var(--color-accent-strong)] text-white premium-shadow">
+              <FileSpreadsheet className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-base font-semibold">
+              <h2 className="text-lg font-bold tracking-tight">
                 Welcome to ClearMatch. Let&apos;s run your first reconciliation.
               </h2>
               <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-                Upload a transaction export and a batch of receipts to get started.
+                The reconciliation control room is your command center for finance operations. 
               </p>
-              <ol className="mt-3 space-y-1 text-sm text-[var(--color-muted-foreground)]">
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {[
-                  "Create a new reconciliation run",
-                  "Upload your CSV or Excel file and receipts",
-                  "Review matches, fix exceptions, and export",
+                  "Upload transactions",
+                  "Review auto-matches",
+                  "Export posting file",
                 ].map((step, index) => (
-                  <li key={step} className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-accent)] text-[10px] font-bold text-white">
+                  <div key={step} className="flex items-center gap-3 rounded-2xl bg-white/50 px-4 py-2 text-sm font-medium">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-accent)] text-[10px] text-white">
                       {index + 1}
                     </span>
                     {step}
-                  </li>
+                  </div>
                 ))}
-              </ol>
+              </div>
             </div>
           </div>
           <Link href="/runs/new" className="shrink-0">
-            <Button className="gap-2">
+            <Button size="lg" className="hover-lift gap-2 rounded-2xl">
               Start first run
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -193,6 +193,7 @@ export default async function DashboardPage() {
               value={formatCurrency(allVatClaimable, currency)}
               sub="Claimable input tax"
               accent
+              href="/tax-summary"
             />
             <KpiCard
               label="Average match rate"
@@ -214,7 +215,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-            <Card className="space-y-4">
+            <Card className="hover-lift space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
@@ -230,7 +231,7 @@ export default async function DashboardPage() {
                     <span className="truncate text-[var(--color-muted-foreground)]">{entry.label}</span>
                     <div className="h-3 overflow-hidden rounded-full bg-[var(--color-panel)]">
                       <div
-                        className="h-full rounded-full bg-[var(--color-accent)]"
+                        className="h-full rounded-full bg-linear-to-r from-[var(--color-accent-soft)] to-[var(--color-accent)]"
                         style={{ width: `${Math.max((entry.gross / maxTrendGross) * 100, entry.gross > 0 ? 8 : 0)}%` }}
                       />
                     </div>
@@ -245,23 +246,23 @@ export default async function DashboardPage() {
               </div>
             </Card>
 
-            <Card className="space-y-4">
+            <Card className="hover-lift space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
                     Top suppliers
                   </p>
-                  <h2 className="mt-2 text-lg font-semibold">Highest spend in recent runs</h2>
+                  <h2 className="mt-2 text-lg font-semibold">Recent peak spend</h2>
                 </div>
-                <Link href="/suppliers" className="text-sm font-semibold text-[var(--color-accent)]">
+                <Link href="/bookkeeping/spending" className="text-sm font-semibold text-[var(--color-accent)] decoration-[0.5px] hover:underline">
                   Open analysis →
                 </Link>
               </div>
               <div className="space-y-3">
                 {topSuppliers.map((supplier) => (
-                  <div key={supplier.supplier} className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--color-panel)] px-4 py-3">
+                  <div key={supplier.supplier} className="flex items-center justify-between gap-3 rounded-2xl bg-linear-to-br from-[var(--color-panel)] to-white px-4 py-3 premium-shadow transition-colors hover:bg-white">
                     <div className="min-w-0">
-                      <div className="truncate font-semibold text-[var(--color-foreground)]">
+                      <div className="truncate font-bold text-[var(--color-foreground)]">
                         {supplier.supplier}
                       </div>
                       <div className="mt-1 text-xs text-[var(--color-muted-foreground)]">
@@ -269,7 +270,7 @@ export default async function DashboardPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold tabular-nums">
+                      <div className="font-bold tabular-nums text-[var(--color-accent)]">
                         {formatCurrency(supplier.gross, currency)}
                       </div>
                       <div className="text-xs text-[var(--color-muted-foreground)]">

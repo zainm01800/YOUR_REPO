@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import type { Workspace } from "@/lib/domain/types";
 
 export function VatRegistrationCard({
@@ -71,41 +72,23 @@ export function VatRegistrationCard({
           </select>
         </div>
 
-        <div className="flex flex-col gap-4 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-[var(--color-foreground)]">
-            {vatRegistered ? "VAT registered" : "Not VAT registered"}
-          </p>
-          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-            {vatRegistered
-              ? "Transactions can be split into net and VAT, and the VAT summary report is active."
-              : "Transactions are treated as gross-only for bookkeeping outputs and VAT complexity is reduced."}
-          </p>
+        <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-4">
+          <div>
+            <p className="text-sm font-semibold text-[var(--color-foreground)]">
+              VAT registration
+            </p>
+            <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+              {vatRegistered
+                ? "Transactions are split into net and VAT, and the VAT summary report is active."
+                : "Transactions are treated as gross-only for bookkeeping outputs."}
+            </p>
+          </div>
+          <Switch
+            checked={vatRegistered}
+            onCheckedChange={(checked) => save({ vatRegistered: checked })}
+            disabled={isPending}
+          />
         </div>
-
-        <button
-          type="button"
-          role="switch"
-          aria-checked={vatRegistered}
-          onClick={() => save({ vatRegistered: !vatRegistered })}
-          disabled={isPending}
-          className={`relative inline-flex h-11 w-24 items-center rounded-full border transition ${
-            vatRegistered
-              ? "border-emerald-300 bg-emerald-100"
-              : "border-[var(--color-border)] bg-white"
-          } ${isPending ? "opacity-70" : ""}`}
-        >
-          <span
-            className={`absolute left-1 top-1 inline-flex h-8 w-12 items-center justify-center rounded-full text-xs font-semibold transition ${
-              vatRegistered
-                ? "translate-x-[44px] bg-emerald-600 text-white"
-                : "translate-x-0 bg-[var(--color-foreground)] text-white"
-            }`}
-          >
-            {vatRegistered ? "On" : "Off"}
-          </span>
-        </button>
-      </div>
       </div>
 
       {status === "saved" ? (
