@@ -1199,7 +1199,32 @@ export const prismaRepository: Repository = {
   async deleteBankStatement(id: string): Promise<void> {
     const prisma = requirePrisma();
     try {
-      await prisma.bankStatement.delete({ where: { id } });
+      await prisma.$transaction(async (tx) => {
+        const sourceTransactions = await tx.bankTransaction.findMany({
+          where: { bankStatementId: id },
+          select: { id: true },
+        });
+        const sourceTransactionIds = sourceTransactions.map((transaction) => transaction.id);
+
+        if (sourceTransactionIds.length > 0) {
+          await tx.transaction.deleteMany({
+            where: {
+              sourceBankTransactionId: { in: sourceTransactionIds },
+            },
+          });
+        }
+
+        await tx.reconciliationRun.updateMany({
+          where: { bankStatementId: id },
+          data: {
+            bankStatementId: null,
+            bankSourceMode: "later",
+            bankSourceLabel: null,
+          },
+        });
+
+        await tx.bankStatement.delete({ where: { id } });
+      });
     } catch (error) {
       if (isSchemaMismatchError(error)) {
         throw new Error(
@@ -1458,15 +1483,46 @@ export const prismaRepository: Repository = {
 
   async deleteTransactions(ids: string[]): Promise<void> {
     const prisma = requirePrisma();
+    await prisma.$transaction(async (tx) => {
+      const runTransactions = await tx.transaction.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, sourceBankTransactionId: true },
+      });
+      const directBankTransactions = await tx.bankTransaction.findMany({
+        where: { id: { in: ids } },
+        select: { id: true },
+      });
 
-    await prisma.$transaction([
-      prisma.transaction.deleteMany({ where: { id: { in: ids } } }),
-      prisma.bankTransaction.deleteMany({
-        where: {
-          id: { in: ids },
-        },
-      }),
-    ]);
+      const sourceBankTransactionIds = Array.from(
+        new Set([
+          ...runTransactions
+            .map((transaction) => transaction.sourceBankTransactionId)
+            .filter((value): value is string => Boolean(value)),
+          ...directBankTransactions.map((transaction) => transaction.id),
+        ]),
+      );
+
+      if (sourceBankTransactionIds.length > 0) {
+        await tx.transaction.deleteMany({
+          where: {
+            OR: [
+              { id: { in: ids } },
+              { sourceBankTransactionId: { in: sourceBankTransactionIds } },
+            ],
+          },
+        });
+      } else {
+        await tx.transaction.deleteMany({ where: { id: { in: ids } } });
+      }
+
+      if (sourceBankTransactionIds.length > 0) {
+        await tx.bankTransaction.deleteMany({
+          where: {
+            id: { in: sourceBankTransactionIds },
+          },
+        });
+      }
+    });
   },
 
   async createRun(input: CreateRunInput): Promise<ReconciliationRun> {

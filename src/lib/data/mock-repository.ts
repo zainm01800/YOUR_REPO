@@ -177,18 +177,23 @@ export const mockRepository: Repository = {
   async deleteBankStatement(id: string): Promise<void> {
     const index = store.bankStatements.findIndex((s) => s.id === id);
     if (index === -1) throw new Error(`Bank statement ${id} was not found.`);
+    const sourceTransactionIds = new Set(
+      store.bankStatements[index].transactions.map((transaction) => transaction.id),
+    );
     for (const run of store.runs) {
       if (run.bankStatementId === id) {
         run.bankStatementId = undefined;
+        run.bankSourceMode = "later";
         run.bankSourceLabel = undefined;
       }
-      for (const tx of run.transactions) {
-        if (tx.bankStatementId === id) {
-          tx.bankStatementId = undefined;
-          tx.bankStatementName = undefined;
-          tx.sourceBankTransactionId = undefined;
-        }
-      }
+      run.transactions = run.transactions.filter(
+        (tx) =>
+          tx.bankStatementId !== id &&
+          (!tx.sourceBankTransactionId || !sourceTransactionIds.has(tx.sourceBankTransactionId)),
+      );
+      run.matches = run.matches.filter((match) =>
+        run.transactions.some((tx) => tx.id === match.transactionId),
+      );
     }
     store.bankStatements.splice(index, 1);
   },
@@ -342,11 +347,36 @@ export const mockRepository: Repository = {
 
   async deleteTransactions(ids: string[]): Promise<void> {
     const idSet = new Set(ids);
+    const sourceBankTransactionIds = new Set<string>();
+
     for (const run of store.runs) {
-      run.transactions = run.transactions.filter((t) => !idSet.has(t.id));
+      for (const transaction of run.transactions) {
+        if (idSet.has(transaction.id) && transaction.sourceBankTransactionId) {
+          sourceBankTransactionIds.add(transaction.sourceBankTransactionId);
+        }
+      }
+    }
+
+    for (const statement of store.bankStatements) {
+      for (const transaction of statement.transactions) {
+        if (idSet.has(transaction.id)) {
+          sourceBankTransactionIds.add(transaction.id);
+        }
+      }
+    }
+
+    for (const run of store.runs) {
+      run.transactions = run.transactions.filter(
+        (t) => !idSet.has(t.id) && (!t.sourceBankTransactionId || !sourceBankTransactionIds.has(t.sourceBankTransactionId)),
+      );
+      run.matches = run.matches.filter((match) =>
+        run.transactions.some((tx) => tx.id === match.transactionId),
+      );
     }
     for (const statement of store.bankStatements) {
-      statement.transactions = statement.transactions.filter((t) => !idSet.has(t.id));
+      statement.transactions = statement.transactions.filter(
+        (t) => !idSet.has(t.id) && !sourceBankTransactionIds.has(t.id),
+      );
     }
   },
 
