@@ -5,7 +5,7 @@ import { resolveCategory } from "@/lib/categories/suggester";
 import { TransactionsTable } from "@/components/bookkeeping/transactions-table";
 
 export default async function BookkeepingTransactionsPage() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const [settingsSnapshot, runsResult, unassignedBankTransactionsResult] = await Promise.all([
     repository.getSettingsSnapshot(),
     repository.getRunsWithTransactions().catch((error) => {

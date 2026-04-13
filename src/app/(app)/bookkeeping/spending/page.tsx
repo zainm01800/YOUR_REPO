@@ -32,7 +32,7 @@ function fmtAmount(amount: number, currency: string) {
 }
 
 export default async function SpendingPage() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const [settingsSnapshot, runs, unassignedBankTxns] = await Promise.all([
     repository.getSettingsSnapshot(),
     repository.getRunsWithTransactions(),

@@ -9,7 +9,7 @@ export default async function BankStatementDetailPage({
   params: Promise<{ statementId: string }>;
 }) {
   const { statementId } = await params;
-  const repository = getRepository();
+  const repository = await getRepository();
   const statement = await repository.getBankStatement(statementId);
 
   if (!statement) {

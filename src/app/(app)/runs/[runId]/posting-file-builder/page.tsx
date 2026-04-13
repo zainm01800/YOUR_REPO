@@ -11,7 +11,7 @@ export default async function PostingFileBuilderPage({
   params: Promise<{ runId: string }>;
 }) {
   const { runId } = await params;
-  const repository = getRepository();
+  const repository = await getRepository();
   const run = await repository.getRun(runId);
 
   if (!run) {

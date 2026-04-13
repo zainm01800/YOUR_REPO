@@ -45,7 +45,7 @@ function KpiCard({
 }
 
 export default async function DashboardPage() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const [snapshot, runsWithTransactions] = await Promise.all([
     repository.getDashboardSnapshot(),
     repository.getRunsWithTransactions(),

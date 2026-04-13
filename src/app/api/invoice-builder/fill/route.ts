@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   }
 
   const mappings = JSON.parse(mappingsRaw) as Record<string, InvoiceBuilderSourceField>;
-  const repository = getRepository();
+  const repository = await getRepository();
   const rows = await repository.getRunRows(runId);
 
   const arrayBuffer = await templateFile.arrayBuffer();

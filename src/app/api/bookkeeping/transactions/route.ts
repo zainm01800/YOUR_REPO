@@ -10,7 +10,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "ids must be a non-empty array of strings." }, { status: 400 });
     }
 
-    const repository = getRepository();
+    const repository = await getRepository();
     await repository.deleteTransactions(ids as string[]);
     return NextResponse.json({ ok: true, deleted: ids.length });
   } catch (error) {

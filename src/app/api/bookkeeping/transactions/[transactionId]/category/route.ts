@@ -17,7 +17,7 @@ export async function PUT(
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid body" }, { status: 400 });
     }
-    const repository = getRepository();
+    const repository = await getRepository();
     await repository.setTransactionCategory(transactionId, parsed.data.category);
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -9,7 +9,7 @@ import type { VatRule } from "@/lib/domain/types";
  * Used by the Country VAT Rate Manager in settings.
  */
 export async function PUT(request: Request) {
-  const repository = getRepository();
+  const repository = await getRepository();
 
   let body: { rules: Omit<VatRule, "id">[] };
   try {

@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   }
 
   const apiKey = process.env.GROQ_API_KEY;
-  const repository = getRepository();
+  const repository = await getRepository();
   const runSampleRows = typeof runId === "string"
     ? (await repository.getRunRows(runId))
         .filter((row) => !row.excludedFromExport)

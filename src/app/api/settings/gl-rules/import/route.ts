@@ -6,7 +6,7 @@ import {
 } from "@/lib/settings/rule-import";
 
 export async function POST(request: Request) {
-  const repository = getRepository();
+  const repository = await getRepository();
   const formData = await request.formData();
   const notes = String(formData.get("notes") || "");
   const file = formData.get("file");

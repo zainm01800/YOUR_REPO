@@ -3,7 +3,7 @@ import { NewRunForm } from "@/components/run-flow/new-run-form";
 import { getRepository } from "@/lib/data";
 
 export default async function NewRunPage() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const [workspace, templates, bankStatements] = await Promise.all([
     repository.getWorkspace(),
     repository.getTemplates(),

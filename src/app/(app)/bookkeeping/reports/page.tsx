@@ -12,7 +12,7 @@ import {
 import { resolveCategory } from "@/lib/categories/suggester";
 
 export default async function BookkeepingReportsPage() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const [settingsSnapshot, runs, unassignedBankTxns] = await Promise.all([
     repository.getSettingsSnapshot(),
     repository.getRunsWithTransactions(),

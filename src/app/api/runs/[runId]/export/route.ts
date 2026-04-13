@@ -67,7 +67,7 @@ export async function GET(
       ? (JSON.parse(url.searchParams.get("layout") as string) as ExportColumnLayout[])
       : undefined,
   );
-  const repository = getRepository();
+  const repository = await getRepository();
   const [rows, run] = await Promise.all([
     repository.getRunRows(runId),
     repository.getRun(runId),
@@ -122,7 +122,7 @@ export async function POST(
   };
   const format = body.format || "csv";
   const layout = normaliseExportLayout(body.layout);
-  const repository = getRepository();
+  const repository = await getRepository();
   const [rows, run] = await Promise.all([
     repository.getRunRows(runId),
     repository.getRun(runId),

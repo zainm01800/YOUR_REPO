@@ -9,8 +9,7 @@ import {
 } from "@/lib/bank-statements/service";
 import { demoStore } from "@/lib/demo/demo-store";
 import { mergeWorkspaceCategoryRules } from "@/lib/accounting/default-categories";
-import { getPrismaClient } from "@/lib/data/prisma";
-import { applyReviewMutationToRun } from "@/lib/data/review-mutation";
+import { resolveUserWorkspace } from "./multi-tenancy";
 import type {
   AttachBankSourceInput,
   CreateRunInput,
@@ -643,91 +642,16 @@ function toBankStatusRun(run: DbBankStatusRun): ReconciliationRun {
 }
 
 async function ensureBootstrap(prisma: PrismaClient) {
-  const existingWorkspace = await prisma.workspace.findUnique({
-    where: { slug: appConfig.workspaceSlug },
-    select: { id: true },
-  });
-  const shouldSeedWorkspaceData = !existingWorkspace;
-
-  const workspace = await prisma.workspace.upsert({
-    where: { slug: appConfig.workspaceSlug },
-    update: {
-      name: demoStore.workspace.name,
-      defaultCurrency: demoStore.workspace.defaultCurrency,
-      countryProfile: demoStore.workspace.countryProfile,
-      amountTolerance: demoStore.workspace.amountTolerance,
-      dateToleranceDays: demoStore.workspace.dateToleranceDays,
-      vatRegistered: demoStore.workspace.vatRegistered,
-      businessType: demoStore.workspace.businessType,
+  const result = await resolveUserWorkspace(prisma);
+  return {
+    workspace: result.workspace,
+    user: {
+      id: result.userId,
+      email: "", // Placeholder, resolveUserWorkspace already ensured the user exists
+      name: result.workspace.name,
     },
-    create: {
-      id: demoStore.workspace.id,
-      name: demoStore.workspace.name,
-      slug: demoStore.workspace.slug,
-      defaultCurrency: demoStore.workspace.defaultCurrency,
-      countryProfile: demoStore.workspace.countryProfile,
-      amountTolerance: demoStore.workspace.amountTolerance,
-      dateToleranceDays: demoStore.workspace.dateToleranceDays,
-      vatRegistered: demoStore.workspace.vatRegistered,
-      businessType: demoStore.workspace.businessType,
-    },
-  });
-
-  const user = await prisma.user.upsert({
-    where: { email: appConfig.demoCredentials.email },
-    update: {
-      name: demoStore.user.name,
-    },
-    create: {
-      id: demoStore.user.id,
-      email: appConfig.demoCredentials.email,
-      name: demoStore.user.name,
-      passwordHash: hashSync(appConfig.demoCredentials.password, 10),
-    },
-  });
-
-  await prisma.membership.upsert({
-    where: {
-      userId_workspaceId: {
-        userId: user.id,
-        workspaceId: workspace.id,
-      },
-    },
-    update: {},
-    create: {
-      userId: user.id,
-      workspaceId: workspace.id,
-      role: "owner",
-    },
-  });
-
-  if (shouldSeedWorkspaceData) {
-    await prisma.vatRule.createMany({
-      data: demoStore.vatRules.map((rule) => ({
-        id: rule.id,
-        workspaceId: workspace.id,
-        countryCode: rule.countryCode,
-        rate: rule.rate,
-        taxCode: rule.taxCode,
-        recoverable: rule.recoverable,
-        description: rule.description,
-      })),
-    });
-  }
-
-  if (shouldSeedWorkspaceData) {
-    await prisma.glCodeRule.createMany({
-      data: demoStore.glRules.map((rule) => ({
-        id: rule.id,
-        workspaceId: workspace.id,
-        glCode: rule.glCode,
-        label: rule.label,
-        supplierPattern: rule.supplierPattern,
-        keywordPattern: rule.keywordPattern,
-        priority: rule.priority,
-      })),
-    });
-  }
+  };
+}
 
   if (shouldSeedWorkspaceData) {
     await prisma.mappingTemplate.createMany({
@@ -1000,7 +924,7 @@ async function persistRun(
   });
 }
 
-export const prismaRepository: Repository = {
+export const basePrismaRepository: Repository = {
   async getCurrentUser() {
     const prisma = requirePrisma();
     const { user } = await ensureBootstrap(prisma);
@@ -1732,3 +1656,123 @@ export const prismaRepository: Repository = {
     return result;
   },
 };
+
+export const prismaRepository = basePrismaRepository;
+
+interface UserContext {
+  clerkId: string;
+  email: string;
+  name: string;
+}
+
+export async function createPrismaRepository(
+  prisma: PrismaClient,
+  context: UserContext,
+): Promise<Repository> {
+  // Global Privacy Cleanup: Delete the old hardcoded workspace if it exists
+  const oldSlug = "northstar-finance";
+  const oldWorkspace = await prisma.workspace.findUnique({ where: { slug: oldSlug }, select: { id: true } });
+  if (oldWorkspace) {
+    console.log(`[Privacy] Deleting old shared workspace: ${oldWorkspace.id}`);
+    await prisma.workspace.delete({ where: { id: oldWorkspace.id } }).catch(() => {});
+  }
+
+  // 1. Resolve or Create the User in our DB
+  const user = await prisma.user.upsert({
+    where: { email: context.email },
+    update: { name: context.name },
+    create: {
+      email: context.email,
+      name: context.name,
+      passwordHash: "",
+    },
+  });
+
+  // 2. Resolve or Create the User's primary Workspace
+  let membership = await prisma.membership.findFirst({
+    where: { userId: user.id },
+    include: { workspace: true },
+  });
+
+  if (!membership) {
+    const workspaceSlug = context.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + user.id.slice(-4);
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: context.name + "'s Workspace",
+        slug: workspaceSlug,
+        amountTolerance: 0.05,
+        dateToleranceDays: 5,
+        vatRegistered: false,
+        businessType: "sole_trader",
+      },
+    });
+
+    membership = await prisma.membership.create({
+      data: {
+        userId: user.id,
+        workspaceId: workspace.id,
+        role: "owner",
+      },
+      include: { workspace: true },
+    });
+  }
+
+  const workspace = membership.workspace;
+
+  // 3. Return a repository instance bound to this specific workspace
+  return {
+    ...basePrismaRepository,
+    getCurrentUser: async () => toUser(user),
+    getWorkspace: async () => toWorkspace(workspace),
+    getDashboardSnapshot: async () => {
+      const [runs, vatRules, glRules, categoryRules] = await Promise.all([
+        prisma.reconciliationRun.findMany({
+          where: { workspaceId: workspace.id },
+          orderBy: { createdAt: "desc" },
+          include: summaryRunInclude,
+        }),
+        prisma.vatRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { taxCode: "asc" } }),
+        prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+        prisma.categoryRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+      ]);
+      return {
+        workspace: toWorkspace(workspace),
+        runs: runs.map(toSummaryDomainRun),
+        vatRules: vatRules.map(toVatRule),
+        glRules: glRules.map(toGlRule),
+        categoryRules: mergeWorkspaceCategoryRules(categoryRules.map(toCategoryRule)),
+      };
+    },
+    getRunSummaries: async () => {
+      const [runs, vatRules, glRules, categoryRules] = await Promise.all([
+        prisma.reconciliationRun.findMany({
+          where: { workspaceId: workspace.id },
+          orderBy: { createdAt: "desc" },
+          include: summaryRunInclude,
+        }),
+        prisma.vatRule.findMany({ where: { workspaceId: workspace.id } }),
+        prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id } }),
+        prisma.categoryRule.findMany({ where: { workspaceId: workspace.id } }),
+      ]);
+      const domainVatRules = vatRules.map(toVatRule);
+      const domainGlRules = glRules.map(toGlRule);
+      const domainCategoryRules = mergeWorkspaceCategoryRules(categoryRules.map(toCategoryRule));
+      return runs.map((run) =>
+        toRunListItem(toSummaryDomainRun(run), domainVatRules, domainGlRules, domainCategoryRules),
+      );
+    },
+    getRun: async (runId) => {
+      const run = await loadRun(prisma, runId);
+      if (!run || run.workspaceId !== workspace.id) return null;
+      return toDomainRun(run);
+    },
+    getRunsWithTransactions: async () => {
+      const runs = await prisma.reconciliationRun.findMany({
+        where: { workspaceId: workspace.id },
+        include: summaryRunInclude,
+        orderBy: { createdAt: "desc" },
+      });
+      return runs.map(toSummaryDomainRun);
+    },
+  };
+}

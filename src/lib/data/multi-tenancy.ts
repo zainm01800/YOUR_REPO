@@ -1,0 +1,105 @@
+import { currentUser } from "@clerk/nextjs/server";
+import { type PrismaClient } from "@prisma/client";
+import { demoStore } from "@/lib/demo/demo-store";
+
+export interface UserContext {
+  clerkId: string;
+  email: string;
+  name: string;
+}
+
+export async function resolveUserWorkspace(prisma: PrismaClient) {
+  const clerkUser = await currentUser();
+  if (!clerkUser) {
+    throw new Error("Authentication required: No user found in session.");
+  }
+
+  const email = clerkUser.emailAddresses[0]?.emailAddress;
+  if (!email) {
+    throw new Error("User has no email address associated with their account.");
+  }
+
+  const context: UserContext = {
+    clerkId: clerkUser.id,
+    email,
+    name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || email,
+  };
+
+  // 1. Resolve or Create the User in our DB
+  const user = await prisma.user.upsert({
+    where: { email: context.email },
+    update: { name: context.name },
+    create: {
+      id: context.clerkId, // Use Clerk ID for consistency
+      email: context.email,
+      name: context.name,
+      passwordHash: "", // Clerk handles passwords
+    },
+  });
+
+  // 2. Resolve or Create the User's primary Workspace
+  let membership = await prisma.membership.findFirst({
+    where: { userId: user.id },
+    include: { workspace: true },
+  });
+
+  if (!membership) {
+    // New user signup onboarding: create a private workspace
+    const workspaceSlug = context.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + user.id.slice(-4);
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: `${context.name}'s Workspace`,
+        slug: workspaceSlug,
+        amountTolerance: 0.05,
+        dateToleranceDays: 5,
+        vatRegistered: false,
+        businessType: "sole_trader",
+      },
+    });
+
+    membership = await prisma.membership.create({
+      data: {
+        userId: user.id,
+        workspaceId: workspace.id,
+        role: "owner",
+      },
+      include: { workspace: true },
+    });
+
+    // Seed default rules for the new private workspace
+    await seedDefaultRules(prisma, workspace.id);
+  }
+
+  return {
+    userId: user.id,
+    workspaceId: membership.workspace.id,
+    workspace: membership.workspace,
+  };
+}
+
+async function seedDefaultRules(prisma: PrismaClient, workspaceId: string) {
+  // Seed demo rules as defaults for new users
+  await prisma.vatRule.createMany({
+    data: demoStore.vatRules.map((rule) => ({
+      workspaceId,
+      countryCode: rule.countryCode,
+      rate: rule.rate,
+      taxCode: rule.taxCode,
+      recoverable: rule.recoverable,
+      description: rule.description,
+    })),
+    skipDuplicates: true,
+  });
+
+  await prisma.glCodeRule.createMany({
+    data: demoStore.glRules.map((rule) => ({
+      workspaceId,
+      glCode: rule.glCode,
+      label: rule.label,
+      supplierPattern: rule.supplierPattern,
+      keywordPattern: rule.keywordPattern,
+      priority: rule.priority,
+    })),
+    skipDuplicates: true,
+  });
+}

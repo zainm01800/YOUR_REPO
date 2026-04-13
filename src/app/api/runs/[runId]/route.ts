@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ runId: string }> },
 ) {
   const { runId } = await params;
-  const repository = getRepository();
+  const repository = await getRepository();
   const run = await repository.getRun(runId);
 
   if (!run) {
@@ -27,7 +27,7 @@ export async function DELETE(
   { params }: { params: Promise<{ runId: string }> },
 ) {
   const { runId } = await params;
-  const repository = getRepository();
+  const repository = await getRepository();
 
   try {
     await repository.deleteRun(runId);

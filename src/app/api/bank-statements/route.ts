@@ -7,13 +7,13 @@ import {
 } from "@/lib/transactions/parser";
 
 export async function GET() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const statements = await repository.getBankStatements();
   return NextResponse.json(statements);
 }
 
 export async function POST(request: Request) {
-  const repository = getRepository();
+  const repository = await getRepository();
   const formData = await request.formData();
   const statementFile = formData.get("statementFile");
 

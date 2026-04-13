@@ -18,7 +18,7 @@ export default async function BookkeepingTaxSummaryPage({
   const params = await searchParams;
   const selectedPeriod = params.period;
 
-  const repository = getRepository();
+  const repository = await getRepository();
   const [settingsSnapshot, runs, unassignedBankTxns] = await Promise.all([
     repository.getSettingsSnapshot(),
     repository.getRunsWithTransactions(),

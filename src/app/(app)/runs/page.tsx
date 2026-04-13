@@ -5,7 +5,7 @@ import { RunsTable } from "@/components/runs/runs-table";
 import { getRepository } from "@/lib/data";
 
 export default async function RunsPage() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const runs = await repository.getRunSummaries();
 
   return (

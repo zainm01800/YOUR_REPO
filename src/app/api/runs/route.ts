@@ -68,7 +68,7 @@ function roundMoney(value: number) {
 }
 
 export async function GET() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const runs = await repository.getRunSummaries();
   return NextResponse.json(runs);
 }
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
 }
 
 async function handlePost(request: Request) {
-  const repository = getRepository();
+  const repository = await getRepository();
   const formData = await request.formData();
   const name = String(formData.get("name") || "New reconciliation run");
   const entity = String(formData.get("entity") || "");

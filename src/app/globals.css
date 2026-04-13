@@ -197,3 +197,35 @@ textarea {
   animation: shimmer 2s infinite linear;
   @apply rounded-lg;
 }
+.mesh-gradient {
+  background: 
+    radial-gradient(at 0% 0%, hsla(158, 58%, 22%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(158, 48%, 29%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(158, 38%, 35%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 100%, hsla(158, 58%, 22%, 1) 0, transparent 50%),
+    #133b2f;
+}
+
+.hero-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 600px;
+  background: radial-gradient(circle at 50% -10%, rgba(25, 94, 65, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-br from-[var(--color-foreground)] to-[var(--color-muted-foreground)];
+}
+
+.animate-in {
+  animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

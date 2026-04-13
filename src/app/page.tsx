@@ -120,56 +120,62 @@ const navLinks = [
 export default function Home() {
   return (
     <>
+    <div className="relative min-h-screen overflow-x-hidden pt-16">
+      <div className="hero-glow" />
       <LandingNav />
 
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-16 px-4 py-10 sm:px-6 lg:px-10">
-        <section className="overflow-hidden rounded-[40px] border border-[var(--color-border)] bg-white shadow-[0_34px_120px_rgba(15,23,31,0.10)]">
-          <div className="grid gap-0 lg:grid-cols-[1.08fr_0.92fr]">
-            <div className="px-6 py-10 lg:px-10 lg:py-12">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+      <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-16 px-4 py-10 sm:px-6 lg:px-10">
+        <section className="animate-in rounded-[48px] border border-[var(--color-border)] bg-white/40 shadow-[0_34px_120px_rgba(15,23,31,0.08)] backdrop-blur-sm transition-all duration-700 hover:shadow-[0_40px_140px_rgba(15,23,31,0.12)]">
+          <div className="grid gap-0 lg:grid-cols-[1fr_0.8fr]">
+            <div className="px-6 py-12 lg:px-12 lg:py-16">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-white/60 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-muted-foreground)] shadow-sm backdrop-blur-md transition-transform hover:scale-105">
+                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent)]" />
                 Reconciliation workflow for finance teams
               </div>
 
-              <h1 className="mt-6 max-w-4xl text-5xl font-semibold tracking-tight text-[var(--color-foreground)] lg:text-6xl">
-                Reconcile transactions, validate VAT, review exceptions, and export the final file.
+              <h1 className="mt-8 max-w-4xl text-5xl font-semibold tracking-tight text-[var(--color-foreground)] lg:text-7xl">
+                Reconcile, <span className="text-[var(--color-accent)]">validate</span>, and export.
               </h1>
 
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--color-muted-foreground)]">
-                {appConfig.name} is for finance teams and bookkeepers who work from transaction exports and invoice batches,
-                but need something stronger than email folders, OCR tools, and stitched spreadsheets. Upload the files you
-                already have, work the exceptions properly, and hand back a clean finance-ready output.
+              <p className="mt-8 max-w-2xl text-xl leading-8 text-[var(--color-muted-foreground)]">
+                {appConfig.name} is the opinionated workflow for finance teams who need something stronger than email folders
+                and stitched spreadsheets. Reconcile transaction exports at scale with absolute confidence.
               </p>
 
-              <div className="mt-8 flex flex-wrap gap-4">
+              <div className="mt-10 flex flex-wrap gap-4">
                 <Link href="/sign-up">
-                  <Button className="gap-2">
+                  <Button className="h-12 gap-2 rounded-2xl px-8 text-base shadow-[0_10px_30px_rgba(25,94,65,0.2)] transition-all hover:scale-105 hover:bg-[var(--color-accent-strong)]">
                     Start free workspace
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
                 <Link href="/sign-in">
-                  <Button variant="secondary">Sign in</Button>
+                  <Button variant="secondary" className="h-12 rounded-2xl px-8 text-base transition-all hover:bg-white">
+                    Sign in
+                  </Button>
                 </Link>
               </div>
 
-              <div className="mt-8 grid gap-3">
+              <div className="mt-12 grid gap-4">
                 {heroProof.map((point) => (
                   <div
                     key={point}
-                    className="flex items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3 text-sm leading-6 text-[var(--color-foreground)]"
+                    className="group flex items-start gap-4 rounded-3xl border border-[var(--color-border)] bg-white/40 p-5 text-sm leading-7 text-[var(--color-foreground)] transition-all hover:bg-white/60 hover:shadow-sm"
                   >
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-accent)]" />
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent)] group-hover:scale-110">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    </div>
                     <span>{point}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-10 flex flex-wrap gap-2">
+              <div className="mt-12 flex flex-wrap gap-3">
                 {navLinks.map((link) => (
                   <Link
                     key={link.id}
                     href={`#${link.id}`}
-                    className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                    className="rounded-2xl border border-[var(--color-border)] bg-white/30 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-foreground)] backdrop-blur-sm transition-all hover:border-[var(--color-accent)] hover:bg-white/50 hover:text-[var(--color-accent)]"
                   >
                     {link.label}
                   </Link>
@@ -177,137 +183,108 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="border-t border-[var(--color-border)] bg-[linear-gradient(180deg,#133b2f_0%,#1f5c45_100%)] p-5 text-white lg:border-l lg:border-t-0 lg:p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/60">
-                    Product snapshot
-                  </div>
-                  <div className="mt-1 text-xl font-semibold">What the product does today</div>
-                </div>
-                <div className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/80">
-                  Live workflow
-                </div>
-              </div>
+            <div className="mesh-gradient relative flex flex-col justify-center overflow-visible p-6 text-white lg:rounded-r-[48px] lg:p-10">
+              {/* Floating Decorative Elements */}
+              <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-white/5 blur-3xl animate-pulse" />
+              <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-[var(--color-accent)]/10 blur-3xl" />
 
-              <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2">
+              <div className="relative z-10 space-y-8">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">
+                      Product snapshot
+                    </div>
+                    <div className="text-3xl font-bold tracking-tight">System behavior</div>
+                  </div>
+                  <div className="rounded-full border border-white/20 bg-white/10 px-5 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/90 backdrop-blur-xl shadow-lg">
+                    Active Environment
+                  </div>
+                </div>
+
+                <div className="grid gap-5 sm:grid-cols-2">
                   {[
-                    { label: "Review workspace", value: "Spreadsheet-style" },
-                    { label: "VAT controls", value: "Country-aware" },
-                    { label: "Exports", value: "CSV, Excel, posting files" },
-                    { label: "Audit trail", value: "Saved runs + export history" },
+                    { label: "Interface", value: "Review-first" },
+                    { label: "Controls", value: "Locked periods" },
+                    { label: "Security", value: "Multi-tenant" },
+                    { label: "Output", value: "ERP-ready files" },
                   ].map((item) => (
-                    <div key={item.label} className="rounded-3xl border border-white/10 bg-white/10 p-4">
-                      <div className="text-sm text-white/70">{item.label}</div>
-                      <div className="mt-2 text-xl font-semibold">{item.value}</div>
+                    <div key={item.label} className="group rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-md transition-all hover:bg-white/10 hover:shadow-xl">
+                      <div className="text-xs font-medium text-white/40">{item.label}</div>
+                      <div className="mt-2 text-xl font-bold tracking-tight group-hover:text-white">{item.value}</div>
                     </div>
                   ))}
                 </div>
 
-                <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#f8f4ed] text-[var(--color-foreground)] shadow-[0_24px_60px_rgba(8,19,16,0.22)]">
-                  <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-white px-4 py-3">
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-                    <div className="ml-3 rounded-md bg-[var(--color-panel)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
-                      Review workspace
-                    </div>
-                  </div>
-
-                  <div className="grid gap-0 lg:grid-cols-[1fr_220px]">
-                    <div className="p-4">
-                      <div className="mb-3 grid grid-cols-4 gap-2">
-                        {[
-                          ["Matched", "12"],
-                          ["Needs review", "6"],
-                          ["Locked", "1 run"],
-                          ["Exported", "4 files"],
-                        ].map(([label, value]) => (
-                          <div key={label} className="rounded-2xl border border-[var(--color-border)] bg-white px-3 py-2.5">
-                            <div className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
-                              {label}
-                            </div>
-                            <div className="mt-1 text-lg font-semibold">{value}</div>
-                          </div>
-                        ))}
+                {/* The Mockup - Aggressive Cutoff Fix */}
+                <div className="relative">
+                  <div className="hover-lift absolute -right-4 top-0 h-full w-full rounded-[40px] bg-[var(--color-accent)]/10 blur-2xl lg:-right-12" />
+                  <div className="hover-lift relative z-20 overflow-visible rounded-[32px] border border-white/20 bg-white/10 p-1.5 backdrop-blur-2xl shadow-[0_48px_100px_rgba(0,0,0,0.3)] lg:-mr-24">
+                    <div className="overflow-hidden rounded-[28px] bg-[#f8f6f2]/95 backdrop-blur-sm">
+                      <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-white/80 px-6 py-5 backdrop-blur-md">
+                        <div className="flex gap-2">
+                          <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+                          <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
+                          <div className="h-3 w-3 rounded-full bg-[#28c840]" />
+                        </div>
+                        <div className="ml-6 rounded-lg bg-[var(--color-panel)] px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
+                          Production workspace
+                        </div>
                       </div>
 
-                      <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white">
-                        <table className="min-w-full text-left text-xs">
-                          <thead className="bg-[var(--color-panel)]">
-                            <tr>
-                              {["Supplier", "Original value", "Gross", "Net", "VAT", "VAT code", "GL code"].map((heading) => (
-                                <th
-                                  key={heading}
-                                  className="px-3 py-2.5 font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]"
-                                >
-                                  {heading}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-[var(--color-border)]">
-                            {[
-                              ["ABC Seller", "£3,360.00", "£360.00", "£300.00", "£60.00", "GB20", "650060"],
-                              ["ABC Seller", "", "£3,000.00", "£3,000.00", "£0.00", "GB0", "650060"],
-                              ["AWS Europe", "US$440.00", "£327.26", "£327.26", "£0.00", "Not claimable", "620000"],
-                              ["Uber", "£42.60", "£42.60", "£35.50", "£7.10", "GB20", "650060"],
-                            ].map((row, index) => (
-                              <tr key={`${row[0]}_${index}`} className={index % 2 === 0 ? "bg-[rgba(25,94,65,0.035)]" : "bg-white"}>
-                                {row.map((value, cellIndex) => (
-                                  <td key={`${row[0]}_${cellIndex}`} className="px-3 py-2.5 text-[var(--color-foreground)]">
-                                    {value || <span className="text-[var(--color-muted-foreground)]">—</span>}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                            <tr className="border-t border-[var(--color-border)] bg-[#f1ece3] font-semibold">
-                              <td className="px-3 py-2.5">Totals</td>
-                              <td className="px-3 py-2.5">£3,842.60</td>
-                              <td className="px-3 py-2.5">£3,729.86</td>
-                              <td className="px-3 py-2.5">£3,662.76</td>
-                              <td className="px-3 py-2.5">£67.10</td>
-                              <td className="px-3 py-2.5">Mixed</td>
-                              <td className="px-3 py-2.5">Mixed</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-[var(--color-border)] bg-white p-4 lg:border-l lg:border-t-0">
-                      <div className="space-y-3">
-                        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
-                            Current controls
-                          </div>
-                          <div className="mt-2 space-y-2 text-sm">
-                            <div className="flex items-center justify-between">
-                              <span>VAT sync</span>
-                              <span className="font-semibold text-[var(--color-accent)]">Live</span>
+                      <div className="p-6">
+                        <div className="mb-5 grid grid-cols-4 gap-4">
+                          {[
+                            ["Matched", "12"],
+                            ["To review", "6"],
+                            ["Locked", "Run 004"],
+                            ["Files", "4 CSVs"],
+                          ].map(([label, value]) => (
+                            <div key={label} className="rounded-2xl border border-[var(--color-border)] bg-white/90 p-4 shadow-sm backdrop-blur-sm transition-all hover:bg-white">
+                              <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                                {label}
+                              </div>
+                              <div className="mt-1.5 text-lg font-black text-[var(--color-foreground)]">{value}</div>
                             </div>
-                            <div className="flex items-center justify-between">
-                              <span>Period lock</span>
-                              <span className="font-semibold text-[var(--color-accent)]">Enabled</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>Export history</span>
-                              <span className="font-semibold text-[var(--color-accent)]">Tracked</span>
-                            </div>
-                          </div>
+                          ))}
                         </div>
 
-                        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
-                            Output options
-                          </div>
-                          <div className="mt-2 space-y-2 text-sm">
-                            <div>CSV / Excel export</div>
-                            <div>Posting-file builder</div>
-                            <div>Supplier analysis</div>
-                            <div>VAT summary</div>
-                          </div>
+                        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white shadow-xl">
+                          <table className="min-w-full text-left text-[12px]">
+                            <thead className="bg-[var(--color-panel)]/80 text-[var(--color-muted-foreground)] backdrop-blur-sm">
+                              <tr>
+                                {["Supplier", "Gross", "Net", "VAT", "GL"].map((heading) => (
+                                  <th
+                                    key={heading}
+                                    className="px-5 py-4 font-black uppercase tracking-[0.2em]"
+                                  >
+                                    {heading}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--color-border)]">
+                              {[
+                                ["Amazon.co.uk", "£420.00", "£350.00", "£70.00", "6500"],
+                                ["Stripe Tech", "£2,400.00", "£2,400.00", "£0.00", "6200"],
+                                ["Uber", "£12.60", "£10.50", "£2.10", "6500"],
+                              ].map((row, index) => (
+                                <tr key={index} className="transition-colors hover:bg-[var(--color-accent-soft)]">
+                                  {row.map((value, cellIndex) => (
+                                    <td key={cellIndex} className="whitespace-nowrap px-5 py-4 font-medium text-[var(--color-foreground)]">
+                                      {value}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                              <tr className="border-t border-[var(--color-border)] bg-[#f1ece3] font-black">
+                                <td className="px-5 py-4">Summary</td>
+                                <td className="px-5 py-4 text-[var(--color-accent)]">£2,832.60</td>
+                                <td className="px-5 py-4">£2,760.50</td>
+                                <td className="px-5 py-4">£72.10</td>
+                                <td className="px-5 py-4 text-[var(--color-muted-foreground)]">OK</td>
+                              </tr>
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     </div>
@@ -315,35 +292,37 @@ export default function Home() {
                 </div>
               </div>
             </div>
+              </div>
+            </div>
           </div>
         </section>
 
         <section id="features" className="scroll-mt-20">
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-muted-foreground)]">
-              Current product
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[var(--color-foreground)]">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+              Modular Capabilities
+            </div>
+            <h2 className="mt-4 text-4xl font-semibold tracking-tight text-[var(--color-foreground)]">
               This is already more than document extraction.
             </h2>
-            <p className="mt-3 text-sm leading-7 text-[var(--color-muted-foreground)]">
+            <p className="mt-4 text-base leading-7 text-[var(--color-muted-foreground)]">
               The product now covers the finance workflow around the receipt, not just the receipt itself. That means
               calculations, controls, history, settings, export structure, and review discipline all sit in one place.
             </p>
           </div>
 
-          <div className="mt-8 grid gap-5 lg:grid-cols-3">
+          <div className="mt-12 grid gap-6 lg:grid-cols-3">
             {capabilityCards.map((card) => {
               const Icon = card.icon;
 
               return (
-                <Card key={card.title} className="space-y-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-panel)] text-[var(--color-accent)]">
-                    <Icon className="h-5 w-5" />
+                <Card key={card.title} className="hover-lift card-premium flex flex-col gap-6 border-none bg-white/60 shadow-md backdrop-blur-sm">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-accent-soft)] text-[var(--color-accent)] transition-transform hover:rotate-3">
+                    <Icon className="h-6 w-6" />
                   </div>
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-[var(--color-foreground)]">{card.title}</h3>
-                    <p className="text-sm leading-6 text-[var(--color-muted-foreground)]">{card.description}</p>
+                  <div className="space-y-3">
+                    <h3 className="text-xl font-semibold text-[var(--color-foreground)]">{card.title}</h3>
+                    <p className="text-sm leading-7 text-[var(--color-muted-foreground)]">{card.description}</p>
                   </div>
                 </Card>
               );
@@ -353,142 +332,161 @@ export default function Home() {
 
         <section id="how-it-works" className="scroll-mt-20">
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-muted-foreground)]">
-              Workflow
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[var(--color-foreground)]">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+              The Roadmap
+            </div>
+            <h2 className="mt-4 text-4xl font-semibold tracking-tight text-[var(--color-foreground)]">
               The month-end path from upload to final posting file.
             </h2>
           </div>
 
-          <div className="mt-8 grid gap-5 lg:grid-cols-5">
+          <div className="mt-12 grid gap-6 lg:grid-cols-5">
             {workflowSteps.map((item) => (
               <div
                 key={item.step}
-                className="rounded-3xl border border-[var(--color-border)] bg-white p-6 shadow-[0_20px_80px_rgba(15,23,31,0.06)]"
+                className="hover-lift group relative overflow-hidden rounded-[32px] border border-[var(--color-border)] bg-white p-6 shadow-sm transition-all hover:shadow-xl"
               >
-                <div className="font-mono text-3xl font-bold text-[var(--color-accent)] opacity-35">{item.step}</div>
-                <h3 className="mt-4 text-base font-semibold text-[var(--color-foreground)]">{item.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">{item.description}</p>
+                <div className="absolute -right-4 -top-4 font-mono text-7xl font-bold text-[var(--color-accent)] opacity-[0.03] transition-all group-hover:scale-110">
+                  {item.step}
+                </div>
+                <div className="relative z-10">
+                  <div className="font-mono text-2xl font-bold text-[var(--color-accent)] opacity-40">{item.step}</div>
+                  <h3 className="mt-6 text-lg font-bold text-[var(--color-foreground)]">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-[var(--color-muted-foreground)]">{item.description}</p>
+                </div>
               </div>
             ))}
           </div>
         </section>
 
-        <section id="controls" className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <Card className="space-y-5 bg-[linear-gradient(180deg,#133b2f_0%,#1f5c45_100%)] text-white">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/60">
-                Built for control
-              </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                Finance can trust the output because the workflow is opinionated.
-              </h2>
-            </div>
+        <section id="controls" className="grid gap-10 lg:grid-cols-2">
+          <Card className="mesh-gradient relative overflow-hidden rounded-[48px] p-10 text-white border-none shadow-2xl">
+            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
+            
+            <div className="relative z-10 space-y-8">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/50">
+                  Built for control
+                </p>
+                <h2 className="mt-4 text-4xl font-semibold tracking-tight leading-tight">
+                  Finance can trust the output because the workflow is opinionated.
+                </h2>
+              </div>
 
-            <div className="grid gap-3">
-              {[
-                {
-                  icon: ShieldCheck,
-                  label: "Lock periods after sign-off",
-                  text: "Runs become read-only once a period is locked, and the lock is enforced through the data layer.",
-                },
-                {
-                  icon: Settings2,
-                  label: "Control the rule base",
-                  text: "Workspace settings now manage GL rules, VAT rules, tolerance settings, and mapping imports.",
-                },
-                {
-                  icon: Clock3,
-                  label: "Track what was exported",
-                  text: "Each run keeps export history so the team can see which files were generated and when.",
-                },
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.label} className="rounded-2xl border border-white/10 bg-white/10 p-4">
-                    <div className="flex items-center gap-2 text-sm font-semibold">
-                      <Icon className="h-4 w-4 text-white/80" />
-                      {item.label}
+              <div className="grid gap-4">
+                {[
+                  {
+                    icon: ShieldCheck,
+                    label: "Lock periods after sign-off",
+                    text: "Runs become read-only once a period is locked, and the lock is enforced through the data layer.",
+                  },
+                  {
+                    icon: Settings2,
+                    label: "Control the rule base",
+                    text: "Workspace settings now manage GL rules, VAT rules, tolerance settings, and mapping imports.",
+                  },
+                  {
+                    icon: Clock3,
+                    label: "Track what was exported",
+                    text: "Each run keeps export history so the team can see which files were generated and when.",
+                  },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.label} className="group rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur-sm transition-all hover:bg-white/10">
+                      <div className="flex items-center gap-3 text-base font-bold">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-white group-hover:bg-white group-hover:text-[var(--color-accent)] transition-all">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        {item.label}
+                      </div>
+                      <p className="mt-3 text-sm leading-7 text-white/60">{item.text}</p>
                     </div>
-                    <p className="mt-2 text-sm leading-6 text-white/70">{item.text}</p>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </Card>
 
-          <div className="space-y-5">
-            <Card className="space-y-4">
+          <div className="space-y-6">
+            <Card className="card-premium space-y-6 rounded-[40px] border-[var(--color-border)] shadow-lg hover:shadow-2xl transition-all">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-muted-foreground)]">
-                  Controls and calculations
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
+                  Continuous Improvement
                 </p>
-                <h3 className="mt-2 text-2xl font-semibold text-[var(--color-foreground)]">
-                  Product improvements already reflected in the app
+                <h3 className="mt-3 text-3xl font-semibold text-[var(--color-foreground)]">
+                  Native controls already in the app
                 </h3>
               </div>
               <div className="grid gap-3">
                 {controlPoints.map((point) => (
                   <div
                     key={point}
-                    className="flex items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3 text-sm leading-6 text-[var(--color-foreground)]"
+                    className="flex items-center gap-4 rounded-[20px] border border-[var(--color-border)] bg-[var(--color-panel)] px-5 py-4 text-sm font-medium transition-all hover:bg-white hover:shadow-md"
                   >
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-accent)]" />
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
+                      <CheckCircle2 className="h-3 w-3" />
+                    </div>
                     <span>{point}</span>
                   </div>
                 ))}
               </div>
             </Card>
 
-            <Card className="space-y-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-muted-foreground)]">
-                  Best fit
-                </p>
-                <h3 className="mt-2 text-2xl font-semibold text-[var(--color-foreground)]">
-                  Still deliberately focused on one strong niche
-                </h3>
-              </div>
-              <div className="grid gap-3">
-                {nicheBullets.map((point) => (
-                  <div key={point} className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
-                    {point}
-                  </div>
-                ))}
+            <Card className="mesh-gradient relative overflow-hidden rounded-[40px] px-8 py-10 text-white shadow-xl border-none">
+              <div className="absolute -right-10 -bottom-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+              <div className="relative z-10 space-y-5">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
+                    Target User
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold">
+                    Focused on the high-end niche
+                  </h3>
+                </div>
+                <div className="grid gap-3">
+                  {nicheBullets.map((point) => (
+                    <div key={point} className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-sm leading-6 text-white/70 backdrop-blur-sm transition-all hover:bg-white/20">
+                      {point}
+                    </div>
+                  ))}
+                </div>
               </div>
             </Card>
           </div>
         </section>
 
-        <section className="rounded-[40px] bg-[linear-gradient(180deg,#133b2f_0%,#1f5c45_100%)] px-8 py-14 text-center shadow-[0_30px_120px_rgba(15,23,31,0.12)]">
-          <h2 className="text-3xl font-semibold tracking-tight text-white lg:text-4xl">
-            Give finance a review workflow, not another inbox of files.
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white/72">
-            Start a workspace, upload the exports and invoices you already have, and move from extraction to approval,
-            reporting, and ERP-ready output in one product.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <Link href="/sign-up">
-              <Button className="gap-2 bg-white text-[var(--color-accent)] shadow-none hover:bg-white/90">
-                Start free workspace
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/sign-in">
-              <Button
-                variant="ghost"
-                className="border border-white/15 text-white hover:bg-white/10 hover:text-white"
-              >
-                Sign in
-              </Button>
-            </Link>
+        <section className="mesh-gradient relative overflow-hidden rounded-[64px] px-8 py-20 text-center shadow-[0_30px_120px_rgba(15,23,31,0.25)] border-none">
+          <div className="absolute inset-0 bg-white/5 opacity-50" />
+          <div className="relative z-10">
+            <h2 className="mx-auto max-w-4xl text-4xl font-bold tracking-tight text-white lg:text-6xl leading-[1.1]">
+              Give finance a review workflow, not another inbox of files.
+            </h2>
+            <p className="mx-auto mt-8 max-w-2xl text-lg leading-8 text-white/70">
+              Start a workspace, upload the exports and invoices you already have, and move from extraction to approval,
+              reporting, and ERP-ready output in one product.
+            </p>
+            <div className="mt-12 flex flex-wrap justify-center gap-6">
+              <Link href="/sign-up">
+                <Button className="h-14 gap-3 rounded-2xl bg-white px-10 text-lg font-bold text-[var(--color-accent)] shadow-2xl transition-all hover:scale-105 hover:bg-white/90">
+                  Start free workspace
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="/sign-in">
+                <Button
+                  variant="ghost"
+                  className="h-14 rounded-2xl border border-white/20 px-10 text-lg font-bold text-white transition-all hover:bg-white/10 hover:text-white"
+                >
+                  Sign in
+                </Button>
+              </Link>
+            </div>
           </div>
         </section>
       </main>
 
       <LandingFooter />
-    </>
+    </div>
   );
 }

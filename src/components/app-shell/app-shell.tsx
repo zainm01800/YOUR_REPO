@@ -111,13 +111,13 @@ export function AppShell({
   const workspaceCard = (
     <div className="rounded-3xl border border-[var(--color-border)] bg-white p-4">
       <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-muted-foreground)]">
-        {appConfig.name}
+        Workspace Profile
       </div>
-      <h1 className="mt-2 text-xl font-semibold text-[var(--color-foreground)]">
+      <h1 className="mt-2 text-xl font-semibold text-[var(--color-foreground)] line-clamp-1">
         {workspaceName}
       </h1>
       <p className="mt-1.5 text-xs leading-5 text-[var(--color-muted-foreground)]">
-        Reconciliation &amp; posting workflow
+        Private Financial Workspace
       </p>
     </div>
   );

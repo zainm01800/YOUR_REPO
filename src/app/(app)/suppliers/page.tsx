@@ -5,7 +5,7 @@ import { buildReviewRows } from "@/lib/reconciliation/review-rows";
 import { formatCurrency } from "@/lib/utils";
 
 export default async function SupplierAnalysisPage() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const [settingsSnapshot, runs] = await Promise.all([
     repository.getSettingsSnapshot(),
     repository.getRunsWithTransactions(),

@@ -3,7 +3,7 @@ import { BankStatementImportForm } from "@/components/bank-statements/bank-state
 import { getRepository } from "@/lib/data";
 
 export default async function ImportBankStatementPage() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const workspace = await repository.getWorkspace();
 
   return (

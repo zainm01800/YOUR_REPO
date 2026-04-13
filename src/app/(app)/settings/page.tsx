@@ -11,7 +11,7 @@ import { VatSyncCard } from "@/components/settings/vat-sync-card";
 import { getRepository } from "@/lib/data";
 
 export default async function SettingsPage() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const settings = await repository.getSettingsSnapshot();
   const workspace = settings.workspace;
 

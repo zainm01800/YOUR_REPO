@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ statementId: string }> },
 ) {
   const { statementId } = await params;
-  const repository = getRepository();
+  const repository = await getRepository();
   const statement = await repository.getBankStatement(statementId);
 
   if (!statement) {
@@ -21,7 +21,7 @@ export async function DELETE(
   { params }: { params: Promise<{ statementId: string }> },
 ) {
   const { statementId } = await params;
-  const repository = getRepository();
+  const repository = await getRepository();
   try {
     await repository.deleteBankStatement(statementId);
     return NextResponse.json({ ok: true });

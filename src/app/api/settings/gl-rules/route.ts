@@ -4,7 +4,7 @@ import { getRepository } from "@/lib/data";
 import type { GlCodeRule } from "@/lib/domain/types";
 
 export async function PUT(request: Request) {
-  const repository = getRepository();
+  const repository = await getRepository();
 
   let body: { rules: Omit<GlCodeRule, "id">[] };
   try {

@@ -13,7 +13,7 @@ function isAuthorizedCronRequest(request: Request) {
 }
 
 async function runSync() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const syncResult = await syncLiveVatRules();
   const vatRules = await repository.upsertVatRules({ rules: syncResult.rules });
 

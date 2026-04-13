@@ -53,7 +53,7 @@ const bodySchema = z.object({
 
 export async function GET() {
   try {
-    const repository = getRepository();
+    const repository = await getRepository();
     const rules = await repository.getCategoryRules();
     return NextResponse.json({ rules });
   } catch (error) {
@@ -69,7 +69,7 @@ export async function PUT(request: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid body", details: parsed.error.flatten() }, { status: 400 });
     }
-    const repository = getRepository();
+    const repository = await getRepository();
     const rules = await repository.replaceAllCategoryRules({ rules: parsed.data.rules });
     return NextResponse.json({ rules });
   } catch (error) {

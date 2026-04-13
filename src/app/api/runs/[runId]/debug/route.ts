@@ -6,7 +6,7 @@ export async function GET(
   context: { params: Promise<{ runId: string }> },
 ) {
   const { runId } = await context.params;
-  const repository = getRepository();
+  const repository = await getRepository();
   const run = await repository.getRun(runId);
 
   if (!run) {

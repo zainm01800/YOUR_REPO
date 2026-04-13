@@ -8,7 +8,7 @@ export async function POST(
   context: { params: Promise<{ runId: string }> },
 ) {
   const { runId } = await context.params;
-  const repository = getRepository();
+  const repository = await getRepository();
   const [run, vatRules, snapshot] = await Promise.all([
     repository.getRun(runId),
     repository.getVatRules(),

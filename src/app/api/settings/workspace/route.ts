@@ -18,7 +18,7 @@ export async function PUT(request: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid body", details: parsed.error.flatten() }, { status: 400 });
     }
-    const repository = getRepository();
+    const repository = await getRepository();
     const workspace = await repository.updateWorkspace(parsed.data);
     return NextResponse.json({ workspace });
   } catch (error) {

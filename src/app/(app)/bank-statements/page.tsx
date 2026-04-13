@@ -3,7 +3,7 @@ import { BankStatementsTable } from "@/components/bank-statements/bank-statement
 import { getRepository } from "@/lib/data";
 
 export default async function BankStatementsPage() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const statements = await repository.getBankStatementSummaries();
 
   return (

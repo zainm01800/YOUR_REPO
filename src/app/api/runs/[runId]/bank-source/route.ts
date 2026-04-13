@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ runId: string }> },
 ) {
   const { runId } = await params;
-  const repository = getRepository();
+  const repository = await getRepository();
   const body = (await request.json()) as {
     bankSourceMode: "statement" | "all_unreconciled" | "skip" | "later";
     bankStatementId?: string;

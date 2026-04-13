@@ -16,7 +16,7 @@ export default async function AuthenticatedLayout({
     redirect("/sign-in");
   }
 
-  const repository = getRepository();
+  const repository = await getRepository();
   const workspace = await repository.getWorkspace();
 
   if (!workspace) {

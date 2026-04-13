@@ -3,7 +3,7 @@ import { PostingFileBuilder } from "@/components/posting-file-builder/posting-fi
 import { getRepository } from "@/lib/data";
 
 export default async function PostingFileBuilderPage() {
-  const repository = getRepository();
+  const repository = await getRepository();
   const runs = await repository.getRunsWithTransactions();
 
   return (

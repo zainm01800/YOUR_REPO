@@ -14,7 +14,7 @@ export default async function ReviewPage({
 }) {
   const { runId } = await params;
   const { row } = await searchParams;
-  const repository = getRepository();
+  const repository = await getRepository();
   const run = await repository.getRun(runId);
 
   if (!run) {

@@ -5,7 +5,7 @@ import { DATA_TAGS } from "@/lib/data/cache-tags";
 const SHORT_REVALIDATE_SECONDS = 120;
 
 export const getCachedSettingsSnapshot = unstable_cache(
-  async () => getRepository().getSettingsSnapshot(),
+  async () => (await getRepository()).getSettingsSnapshot(),
   ["settings-snapshot-v1"],
   {
     revalidate: SHORT_REVALIDATE_SECONDS,
@@ -14,7 +14,7 @@ export const getCachedSettingsSnapshot = unstable_cache(
 );
 
 export const getCachedRunSummaries = unstable_cache(
-  async () => getRepository().getRunSummaries(),
+  async () => (await getRepository()).getRunSummaries(),
   ["run-summaries-v1"],
   {
     revalidate: SHORT_REVALIDATE_SECONDS,
@@ -23,7 +23,7 @@ export const getCachedRunSummaries = unstable_cache(
 );
 
 export const getCachedBankStatementSummaries = unstable_cache(
-  async () => getRepository().getBankStatementSummaries(),
+  async () => (await getRepository()).getBankStatementSummaries(),
   ["bank-statement-summaries-v1"],
   {
     revalidate: SHORT_REVALIDATE_SECONDS,
@@ -33,7 +33,7 @@ export const getCachedBankStatementSummaries = unstable_cache(
 
 export const getCachedBookkeepingDataset = unstable_cache(
   async () => {
-    const repository = getRepository();
+    const repository = await getRepository();
     const [settingsSnapshot, runs, unassignedBankTransactions] = await Promise.all([
       repository.getSettingsSnapshot(),
       repository.getRunsWithTransactions().catch((error) => {
@@ -69,7 +69,7 @@ export const getCachedBookkeepingDataset = unstable_cache(
 
 export const getCachedDashboardPageData = unstable_cache(
   async () => {
-    const repository = getRepository();
+    const repository = await getRepository();
     const [snapshot, runsWithTransactions] = await Promise.all([
       repository.getDashboardSnapshot(),
       repository.getRunsWithTransactions(),

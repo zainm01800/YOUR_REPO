@@ -3,7 +3,7 @@ import { getRepository } from "@/lib/data";
 import type { ReviewActionType } from "@/lib/domain/types";
 
 export async function POST(request: Request) {
-  const repository = getRepository();
+  const repository = await getRepository();
   const body = (await request.json()) as {
     runId: string;
     rowId: string;

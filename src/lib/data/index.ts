@@ -1,45 +1,53 @@
+import { currentUser } from "@clerk/nextjs/server";
 import { mockRepository } from "@/lib/data/mock-repository";
 import { getPrismaClient } from "@/lib/data/prisma";
-import { prismaRepository } from "@/lib/data/prisma-repository";
+import { createPrismaRepository } from "@/lib/data/prisma-repository";
 
 export function isDemoModeEnabled() {
-  // If explicitly set, respect the value
   if (process.env.DEMO_MODE !== undefined) {
     return process.env.DEMO_MODE.trim() === "true";
   }
-
-  // Fallback: If no DATABASE_URL is set, assume demo mode for usability
-  // This prevents site-wide 500 crashes for unconfigured local environments.
   if (!process.env.DATABASE_URL) {
     return true;
   }
-
   return false;
 }
 
 export function getRepositoryMode(): "demo" | "prisma" | "misconfigured" {
-  if (isDemoModeEnabled()) {
-    return "demo";
-  }
-  if (process.env.DATABASE_URL) {
-    return "prisma";
-  }
+  if (isDemoModeEnabled()) return "demo";
+  if (process.env.DATABASE_URL) return "prisma";
   return "misconfigured";
 }
 
-export function getRepository() {
+export async function getRepository() {
   const demoMode = isDemoModeEnabled();
-
   if (demoMode) {
     return mockRepository;
   }
 
   const prisma = getPrismaClient();
-  if (prisma) {
-    return prismaRepository;
+  if (!prisma) {
+    throw new Error("Prisma client not initialized");
   }
 
-  throw new Error(
-    `Configuration Error: Neither DEMO_MODE=true nor DATABASE_URL are set.`,
-  );
+  // Multi-tenancy: Resolve the user from the current Clerk session
+  const user = await currentUser();
+  if (!user) {
+    throw new Error("Authentication required: No user found in session.");
+  }
+
+  const email = user.emailAddresses[0]?.emailAddress;
+  if (!email) {
+    throw new Error("User has no email address associated with their account.");
+  }
+
+  // Resolve the individual workspace for this user
+  // (We'll implement this helper in prisma-repository)
+  const repo = await createPrismaRepository(prisma, {
+    clerkId: user.id,
+    email,
+    name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || email,
+  });
+
+  return repo;
 }
