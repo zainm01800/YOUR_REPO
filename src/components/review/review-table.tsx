@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowDown, ArrowUp, Filter, X } from "lucide-react";
 import {
@@ -324,7 +324,7 @@ function formatSummaryValue(value: number, currency?: string) {
   return formatCurrency(value, currency);
 }
 
-export function ReviewTable({
+export const ReviewTable = memo(function ReviewTable({
   rows,
   columns,
   selectedRowId,
@@ -733,4 +733,6 @@ export function ReviewTable({
       ) : null}
     </Card>
   );
-}
+});
+
+ReviewTable.displayName = "ReviewTable";

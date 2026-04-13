@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { getRepositoryMode, isDemoModeEnabled } from "@/lib/data";
 
 export async function GET() {
+  const mode = getRepositoryMode();
   return NextResponse.json({
-    ok: true,
-    mode: process.env.DEMO_MODE === "true" ? "demo" : "database",
+    ok: mode !== "misconfigured",
+    mode,
+    demoMode: isDemoModeEnabled(),
     timestamp: new Date().toISOString(),
   });
 }
-

@@ -362,7 +362,7 @@ export function ReviewWorkspace({
     sortedRows.find((candidate) => candidate.id === selectedRowId) ||
     rows.find((candidate) => candidate.id === selectedRowId) ||
     sortedRows[0];
-  const summary = buildRunSummary(rows);
+  const summary = useMemo(() => buildRunSummary(rows), [rows]);
   const hasPendingChanges = saveState === "saving" || pending || isLocking;
 
   useEffect(() => {
@@ -380,35 +380,38 @@ export function ReviewWorkspace({
   }, [hasPendingChanges]);
 
   // Approval progress
-  const approvedCount = rows.filter((r) => r.approved).length;
+  const approvedCount = useMemo(() => rows.filter((r) => r.approved).length, [rows]);
   const totalCount = rows.length;
-  const approvalPct = totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0;
+  const approvalPct = useMemo(
+    () => (totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0),
+    [approvedCount, totalCount],
+  );
 
-  function createSnapshot(): WorkspaceSnapshot {
+  const createSnapshot = useCallback((): WorkspaceSnapshot => {
     return {
       rows: deepClone(rows),
       columns: deepClone(columns),
       selectedTemplateId,
     };
-  }
+  }, [columns, rows, selectedTemplateId]);
 
-  function commitSnapshot(snapshot: WorkspaceSnapshot) {
+  const commitSnapshot = useCallback((snapshot: WorkspaceSnapshot) => {
     setRows(snapshot.rows);
     setColumns(snapshot.columns);
     setSelectedTemplateId(snapshot.selectedTemplateId);
-  }
+  }, []);
 
-  function rememberCurrentState() {
+  const rememberCurrentState = useCallback(() => {
     setHistoryPast((current) => [...current.slice(-39), createSnapshot()]);
     setHistoryFuture([]);
-  }
+  }, [createSnapshot]);
 
-  async function submitMutation(
+  const submitMutation = useCallback(async (
     rowId: string,
     actionType: ReviewActionType,
     value?: string,
     field?: string,
-  ) {
+  ) => {
     await fetch(`/api/runs/${run.id}/review`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -420,9 +423,9 @@ export function ReviewWorkspace({
         value,
       }),
     });
-  }
+  }, [run.id]);
 
-  function syncRowsToServer(previousRows: ReviewRow[], nextRows: ReviewRow[]) {
+  const syncRowsToServer = useCallback((previousRows: ReviewRow[], nextRows: ReviewRow[]) => {
     const previousById = new Map(previousRows.map((row) => [row.id, row]));
 
     setSaveState("saving");
@@ -458,9 +461,9 @@ export function ReviewWorkspace({
       setSaveState("saved");
       setTimeout(() => setSaveState("idle"), 2000);
     });
-  }
+  }, [startTransition, submitMutation]);
 
-  function handleEditField(rowId: string, field: string, value: string) {
+  const handleEditField = useCallback((rowId: string, field: string, value: string) => {
     const previousRows = deepClone(rows);
     const nextRows = previousRows.map((row) =>
       row.id === rowId ? patchRowValue(row, field, value) : row,
@@ -469,7 +472,7 @@ export function ReviewWorkspace({
     rememberCurrentState();
     setRows(nextRows);
     syncRowsToServer(previousRows, nextRows);
-  }
+  }, [rememberCurrentState, rows, syncRowsToServer]);
 
   function handleActionComplete(actionType: ReviewActionType, value?: string) {
     if (!selectedRow) {
@@ -500,16 +503,16 @@ export function ReviewWorkspace({
     );
   }
 
-  function handleToggleRowSelect(rowId: string) {
+  const handleToggleRowSelect = useCallback((rowId: string) => {
     setSelectedRowIds((prev) => {
       const next = new Set(prev);
       if (next.has(rowId)) next.delete(rowId);
       else next.add(rowId);
       return next;
     });
-  }
+  }, []);
 
-  function handleToggleSort(columnKey: string) {
+  const handleToggleSort = useCallback((columnKey: string) => {
     if (sortColumnKey === columnKey) {
       setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
       return;
@@ -517,11 +520,11 @@ export function ReviewWorkspace({
 
     setSortColumnKey(columnKey);
     setSortDirection("asc");
-  }
+  }, [sortColumnKey]);
 
-  function handleDeselectAll() {
+  const handleDeselectAll = useCallback(() => {
     setSelectedRowIds(new Set());
-  }
+  }, []);
 
   async function handleBulkApproveSelected() {
     const targets = filteredRows.filter((r) => selectedRowIds.has(r.id) && !r.approved);
@@ -593,7 +596,7 @@ export function ReviewWorkspace({
     setTimeout(() => setSaveState("idle"), 2000);
   }
 
-  function handleSelectTemplate(templateId: string) {
+  const handleSelectTemplate = useCallback((templateId: string) => {
     const nextTemplate = templates.find((template) => template.id === templateId);
     if (!nextTemplate) {
       return;
@@ -602,9 +605,9 @@ export function ReviewWorkspace({
     rememberCurrentState();
     setSelectedTemplateId(nextTemplate.id);
     setColumns(cloneReviewColumns(nextTemplate.columns));
-  }
+  }, [rememberCurrentState, templates]);
 
-  function handleUndo() {
+  const handleUndo = useCallback(() => {
     const previousSnapshot = historyPast.at(-1);
     if (!previousSnapshot) {
       return;
@@ -617,9 +620,9 @@ export function ReviewWorkspace({
     setHistoryFuture((current) => [...current, currentSnapshot]);
     commitSnapshot(previousSnapshot);
     syncRowsToServer(previousRows, previousSnapshot.rows);
-  }
+  }, [commitSnapshot, createSnapshot, historyPast, rows, syncRowsToServer]);
 
-  function handleRedo() {
+  const handleRedo = useCallback(() => {
     const nextSnapshot = historyFuture.at(-1);
     if (!nextSnapshot) {
       return;
@@ -632,7 +635,7 @@ export function ReviewWorkspace({
     setHistoryPast((current) => [...current, currentSnapshot]);
     commitSnapshot(nextSnapshot);
     syncRowsToServer(previousRows, nextSnapshot.rows);
-  }
+  }, [commitSnapshot, createSnapshot, historyFuture, rows, syncRowsToServer]);
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback(
@@ -668,6 +671,23 @@ export function ReviewWorkspace({
     { id: "detail", label: "Detail", icon: ListTree, disabled: !selectedRow },
     { id: "actions", label: "Actions", icon: SlidersHorizontal, disabled: !selectedRow },
   ];
+
+  const handleSelectRow = useCallback((rowId: string) => {
+    setSelectedRowId(rowId);
+  }, []);
+
+  const handleMoveColumn = useCallback((fromIndex: number, toIndex: number) => {
+    rememberCurrentState();
+    setColumns((current) => moveColumn(current, fromIndex, toIndex));
+  }, [rememberCurrentState]);
+
+  const handleFilterChange = useCallback((columnKey: string, value: string) => {
+    setColumnFilters((current) => ({ ...current, [columnKey]: value }));
+  }, []);
+
+  const handleToggleFilterMenu = useCallback((columnKey: string | null) => {
+    setActiveFilterColumnKey(columnKey);
+  }, []);
 
   function renderSidebarPanel() {
     if (sidebarTab === "template") {
@@ -930,6 +950,70 @@ export function ReviewWorkspace({
     (r) => r.matchStatus === "matched" && !r.approved,
   ).length;
 
+  const reviewTableNode = useMemo(() => {
+    if (sortedRows.length === 0) {
+      return (
+        <Card className="flex flex-col items-center gap-4 py-16 text-center">
+          <div>
+            <h2 className="text-xl font-semibold text-[var(--color-foreground)]">Nothing to review in this run</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--color-muted-foreground)]">
+              This run does not currently have review rows. That usually means there were no imported transactions,
+              everything has already been carried through export, or the current filters removed all rows from view.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button type="button" variant="secondary" onClick={() => setColumnFilters({})}>
+              Clear table filters
+            </Button>
+            <Link href="/runs">
+              <Button>Back to runs</Button>
+            </Link>
+          </div>
+        </Card>
+      );
+    }
+
+    return (
+      <ReviewTable
+        rows={sortedRows}
+        columns={columns}
+        selectedRowId={selectedRowId}
+        selectedRowIds={selectedRowIds}
+        columnFilters={columnFilters}
+        activeFilterColumnKey={activeFilterColumnKey}
+        sortColumnKey={sortColumnKey}
+        sortDirection={sortDirection}
+        onSelectRow={handleSelectRow}
+        onToggleRowSelect={handleToggleRowSelect}
+        onEditField={handleEditField}
+        onToggleSort={handleToggleSort}
+        onMoveColumn={handleMoveColumn}
+        onFilterChange={handleFilterChange}
+        onToggleFilterMenu={handleToggleFilterMenu}
+        isTableEditingEnabled={isTableEditingEnabled}
+        pending={pending}
+      />
+    );
+  }, [
+    activeFilterColumnKey,
+    columnFilters,
+    columns,
+    handleEditField,
+    handleFilterChange,
+    handleMoveColumn,
+    handleSelectRow,
+    handleToggleFilterMenu,
+    handleToggleRowSelect,
+    handleToggleSort,
+    isTableEditingEnabled,
+    pending,
+    selectedRowId,
+    selectedRowIds,
+    sortColumnKey,
+    sortDirection,
+    sortedRows,
+  ]);
+
   return (
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
       <div className="min-w-0 overflow-x-hidden space-y-6">
@@ -1117,50 +1201,7 @@ export function ReviewWorkspace({
           </div>
         )}
 
-        {sortedRows.length === 0 ? (
-          <Card className="flex flex-col items-center gap-4 py-16 text-center">
-            <div>
-              <h2 className="text-xl font-semibold text-[var(--color-foreground)]">Nothing to review in this run</h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--color-muted-foreground)]">
-                This run does not currently have review rows. That usually means there were no imported transactions,
-                everything has already been carried through export, or the current filters removed all rows from view.
-              </p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-3">
-              <Button type="button" variant="secondary" onClick={() => setColumnFilters({})}>
-                Clear table filters
-              </Button>
-              <Link href="/runs">
-                <Button>Back to runs</Button>
-              </Link>
-            </div>
-          </Card>
-        ) : (
-          <ReviewTable
-          rows={sortedRows}
-          columns={columns}
-          selectedRowId={selectedRowId}
-          selectedRowIds={selectedRowIds}
-          columnFilters={columnFilters}
-          activeFilterColumnKey={activeFilterColumnKey}
-          sortColumnKey={sortColumnKey}
-          sortDirection={sortDirection}
-          onSelectRow={setSelectedRowId}
-          onToggleRowSelect={handleToggleRowSelect}
-          onEditField={handleEditField}
-          onToggleSort={handleToggleSort}
-          onMoveColumn={(fromIndex, toIndex) => {
-            rememberCurrentState();
-            setColumns((current) => moveColumn(current, fromIndex, toIndex));
-          }}
-          onFilterChange={(columnKey, value) =>
-            setColumnFilters((current) => ({ ...current, [columnKey]: value }))
-          }
-          onToggleFilterMenu={setActiveFilterColumnKey}
-          isTableEditingEnabled={isTableEditingEnabled}
-          pending={pending}
-        />
-        )}
+        {reviewTableNode}
       </div>
 
       <div className="sticky top-6 flex h-[calc(100vh-3rem)] flex-col gap-4">
