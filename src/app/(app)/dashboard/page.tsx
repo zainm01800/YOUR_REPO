@@ -174,7 +174,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <Link href="/runs/new" className="shrink-0">
-            <Button size="lg" className="hover-lift gap-2 rounded-2xl">
+            <Button className="hover-lift gap-2 rounded-2xl">
               Start first run
               <ArrowRight className="h-4 w-4" />
             </Button>
