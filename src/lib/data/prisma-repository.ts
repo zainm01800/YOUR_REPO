@@ -1,3 +1,4 @@
+import { hashSync } from "bcryptjs";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { appConfig } from "@/lib/config";
 import {
