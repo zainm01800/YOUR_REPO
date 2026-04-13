@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { CheckCircle2, Search, Tag, Trash2 } from "lucide-react";
+import { CheckCircle2, Search, Tag, Trash2, Sparkles, Loader2 } from "lucide-react";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
 import { resolveCategory } from "@/lib/categories/suggester";
 import {
@@ -70,6 +70,10 @@ export function TransactionsTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [aiCategorising, setAiCategorising] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSuccessMsg, setAiSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalTransactions(transactions);
@@ -172,6 +176,78 @@ export function TransactionsTable({
     });
   }
 
+  async function handleAiCategorise() {
+    // Find visibly uncategorised transactions
+    const targets = filtered.filter(
+      (tx) => !tx.resolvedCategory || tx.resolvedCategory === "Uncategorised"
+    );
+
+    if (targets.length === 0) return;
+
+    setAiCategorising(true);
+    setAiError(null);
+    setAiSuccessMsg(null);
+
+    try {
+      const payload = targets.map((tx) => ({
+        id: tx.id,
+        merchant: tx.merchant,
+        description: tx.description,
+      }));
+
+      const res = await fetch("/api/ai/categorise-transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactions: payload }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "AI service failed");
+      }
+
+      const { results } = await res.json() as { results?: { id: string; category: string | null; reason: string }[] };
+      if (!results || !Array.isArray(results)) {
+        throw new Error("Invalid response from AI");
+      }
+
+      // Filter to only those where AI provided a valid mapped category
+      const validResults = results.filter((r) => r.category && r.id);
+
+      if (validResults.length === 0) {
+        setAiSuccessMsg("AI could not confidently categorise any items.");
+        setTimeout(() => setAiSuccessMsg(null), 4000);
+        return;
+      }
+
+      // Parallel apply via existing row API endpoint
+      await Promise.allSettled(
+        validResults.map(async (r) => {
+          await fetch(`/api/bookkeeping/transactions/${r.id}/category`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category: r.category }),
+          });
+        })
+      );
+
+      // Update UI optimistically
+      const newOverrides = { ...categoryOverrides };
+      for (const r of validResults) {
+        newOverrides[r.id] = r.category!;
+      }
+      setCategoryOverrides(newOverrides);
+
+      setAiSuccessMsg(`Categorised ${validResults.length} transaction${validResults.length === 1 ? "" : "s"}.`);
+      setTimeout(() => setAiSuccessMsg(null), 4000);
+
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "AI auto-categorisation failed.");
+    } finally {
+      setAiCategorising(false);
+    }
+  }
+
   const allFilteredIds = useMemo(() => filtered.map((tx) => tx.id), [filtered]);
   const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selected.has(id));
 
@@ -229,7 +305,45 @@ export function TransactionsTable({
         <span className="text-sm text-[var(--color-muted-foreground)]">
           {filtered.length} transaction{filtered.length !== 1 ? "s" : ""}
         </span>
+
+        {/* AI Categorise Button */}
+        <div className="ml-auto">
+          {filtered.some((tx) => !tx.resolvedCategory || tx.resolvedCategory === "Uncategorised") && (
+            <button
+              type="button"
+              onClick={handleAiCategorise}
+              disabled={aiCategorising}
+              className="group flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+            >
+              {aiCategorising ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Thinking…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 text-violet-200 transition group-hover:scale-110" />
+                  Auto-categorise with AI
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
+
+      {aiError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          <p className="font-semibold">AI Categorisation failed</p>
+          <p>{aiError}</p>
+        </div>
+      )}
+      
+      {aiSuccessMsg && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          <CheckCircle2 className="mr-2 inline h-4 w-4" />
+          {aiSuccessMsg}
+        </div>
+      )}
 
       {selected.size > 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5">
