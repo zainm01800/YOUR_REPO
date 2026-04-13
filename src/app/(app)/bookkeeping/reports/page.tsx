@@ -13,12 +13,12 @@ import { resolveCategory } from "@/lib/categories/suggester";
 
 export default async function BookkeepingReportsPage() {
   const repository = getRepository();
-  const [snapshot, runs, unassignedBankTxns] = await Promise.all([
-    repository.getDashboardSnapshot(),
+  const [settingsSnapshot, runs, unassignedBankTxns] = await Promise.all([
+    repository.getSettingsSnapshot(),
     repository.getRunsWithTransactions(),
     repository.getUnassignedBankTransactions().catch(() => []),
   ]);
-  const categoryRuleMap = buildCategoryRuleMap(snapshot.categoryRules);
+  const categoryRuleMap = buildCategoryRuleMap(settingsSnapshot.categoryRules);
 
   const allTransactions: ClassifiedTransaction[] = [];
 
@@ -27,34 +27,34 @@ export default async function BookkeepingReportsPage() {
 
     for (const transaction of run.transactions) {
       const resolvedCategoryName =
-        transaction.category ?? resolveCategory(transaction, snapshot.categoryRules);
+        transaction.category ?? resolveCategory(transaction, settingsSnapshot.categoryRules);
       const resolvedCategory = resolvedCategoryName
         ? categoryRuleMap.get(resolvedCategoryName)
         : undefined;
 
       allTransactions.push(
-        classifyTransaction(transaction, resolvedCategory, snapshot.workspace.vatRegistered),
+        classifyTransaction(transaction, resolvedCategory, settingsSnapshot.workspace.vatRegistered),
       );
     }
   }
 
   // Include bank statement transactions not yet attached to any run
   for (const tx of unassignedBankTxns) {
-    const resolvedCategoryName = tx.category ?? resolveCategory(tx, snapshot.categoryRules);
+    const resolvedCategoryName = tx.category ?? resolveCategory(tx, settingsSnapshot.categoryRules);
     const resolvedCategory = resolvedCategoryName
       ? categoryRuleMap.get(resolvedCategoryName)
       : undefined;
     allTransactions.push(
-      classifyTransaction(tx, resolvedCategory, snapshot.workspace.vatRegistered),
+      classifyTransaction(tx, resolvedCategory, settingsSnapshot.workspace.vatRegistered),
     );
   }
 
-  const pnl = buildPnL(allTransactions, snapshot.workspace.defaultCurrency);
-  const balanceSheet = buildBalanceSheet(allTransactions, snapshot.workspace.defaultCurrency);
+  const pnl = buildPnL(allTransactions, settingsSnapshot.workspace.defaultCurrency);
+  const balanceSheet = buildBalanceSheet(allTransactions, settingsSnapshot.workspace.defaultCurrency);
   const vatReport = buildVatReport(
     allTransactions,
-    snapshot.workspace.defaultCurrency,
-    snapshot.workspace.vatRegistered,
+    settingsSnapshot.workspace.defaultCurrency,
+    settingsSnapshot.workspace.vatRegistered,
   );
   const uncategorised = buildUncategorisedList(allTransactions);
 
@@ -71,7 +71,7 @@ export default async function BookkeepingReportsPage() {
         balanceSheet={balanceSheet}
         vatReport={vatReport}
         uncategorised={uncategorised}
-        currency={snapshot.workspace.defaultCurrency}
+        currency={settingsSnapshot.workspace.defaultCurrency}
       />
     </>
   );

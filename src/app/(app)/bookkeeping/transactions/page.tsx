@@ -6,16 +6,20 @@ import { TransactionsTable } from "@/components/bookkeeping/transactions-table";
 
 export default async function BookkeepingTransactionsPage() {
   const repository = getRepository();
-  const [snapshot, runs, unassignedBankTransactionsResult] = await Promise.all([
-    repository.getDashboardSnapshot(),
-    repository.getRunsWithTransactions(),
+  const [settingsSnapshot, runsResult, unassignedBankTransactionsResult] = await Promise.all([
+    repository.getSettingsSnapshot(),
+    repository.getRunsWithTransactions().catch((error) => {
+      console.error("[bookkeeping/transactions] failed to load runs with transactions:", error);
+      return [];
+    }),
     repository.getUnassignedBankTransactions().catch((error) => {
       console.error("[bookkeeping/transactions] failed to load unassigned bank transactions:", error);
       return [];
     }),
   ]);
+  const runs = runsResult;
   const unassignedBankTransactions = unassignedBankTransactionsResult;
-  const categoryRuleMap = buildCategoryRuleMap(snapshot.categoryRules);
+  const categoryRuleMap = buildCategoryRuleMap(settingsSnapshot.categoryRules);
 
   // Gather all transactions across all completed/reviewed runs
   const allTransactions: {
@@ -75,23 +79,23 @@ export default async function BookkeepingTransactionsPage() {
   // Derive the set of all known categories (from rules + manual assignments)
   const allCategories = Array.from(
     new Set([
-      ...snapshot.categoryRules.map((r) => r.category),
+      ...settingsSnapshot.categoryRules.map((r) => r.category),
       ...allTransactions
-        .map((tx) => tx.category ?? resolveCategory(tx, snapshot.categoryRules) ?? "")
+        .map((tx) => tx.category ?? resolveCategory(tx, settingsSnapshot.categoryRules) ?? "")
         .filter(Boolean),
     ]),
   ).sort();
 
   const totalCount = allTransactions.length;
   const categorisedCount = allTransactions.filter(
-    (tx) => tx.category || resolveCategory(tx, snapshot.categoryRules),
+    (tx) => tx.category || resolveCategory(tx, settingsSnapshot.categoryRules),
   ).length;
   const classifiedTransactions = allTransactions.map((tx) => {
-    const resolvedCategoryName = tx.category ?? resolveCategory(tx, snapshot.categoryRules);
+    const resolvedCategoryName = tx.category ?? resolveCategory(tx, settingsSnapshot.categoryRules);
     const resolvedCategory = resolvedCategoryName
       ? categoryRuleMap.get(resolvedCategoryName)
       : undefined;
-    return classifyTransaction(tx, resolvedCategory, snapshot.workspace.vatRegistered);
+    return classifyTransaction(tx, resolvedCategory, settingsSnapshot.workspace.vatRegistered);
   });
   const statementCounts = {
     pnl: classifiedTransactions.filter((tx) => tx.statementType === "p_and_l").length,
@@ -148,9 +152,9 @@ export default async function BookkeepingTransactionsPage() {
       ) : (
         <TransactionsTable
           transactions={allTransactions}
-          categoryRules={snapshot.categoryRules}
+          categoryRules={settingsSnapshot.categoryRules}
           allCategories={allCategories}
-          vatRegistered={snapshot.workspace.vatRegistered}
+          vatRegistered={settingsSnapshot.workspace.vatRegistered}
         />
       )}
     </>

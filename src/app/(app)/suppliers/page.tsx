@@ -6,14 +6,14 @@ import { formatCurrency } from "@/lib/utils";
 
 export default async function SupplierAnalysisPage() {
   const repository = getRepository();
-  const [snapshot, runs] = await Promise.all([
-    repository.getDashboardSnapshot(),
+  const [settingsSnapshot, runs] = await Promise.all([
+    repository.getSettingsSnapshot(),
     repository.getRunsWithTransactions(),
   ]);
-  const currency = snapshot.workspace.defaultCurrency ?? "GBP";
+  const currency = settingsSnapshot.workspace.defaultCurrency ?? "GBP";
   const runRows = runs.map((run) => ({
     run,
-    rows: buildReviewRows(run, snapshot.vatRules, snapshot.glRules, snapshot.categoryRules),
+    rows: buildReviewRows(run, settingsSnapshot.vatRules, settingsSnapshot.glRules, settingsSnapshot.categoryRules),
   }));
 
   const supplierStats = new Map<

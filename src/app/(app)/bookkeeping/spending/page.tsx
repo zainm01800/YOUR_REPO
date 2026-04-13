@@ -33,12 +33,12 @@ function fmtAmount(amount: number, currency: string) {
 
 export default async function SpendingPage() {
   const repository = getRepository();
-  const [snapshot, runs, unassignedBankTxns] = await Promise.all([
-    repository.getDashboardSnapshot(),
+  const [settingsSnapshot, runs, unassignedBankTxns] = await Promise.all([
+    repository.getSettingsSnapshot(),
     repository.getRunsWithTransactions(),
     repository.getUnassignedBankTransactions().catch(() => []),
   ]);
-  const categoryRuleMap = buildCategoryRuleMap(snapshot.categoryRules);
+  const categoryRuleMap = buildCategoryRuleMap(settingsSnapshot.categoryRules);
 
   const allTransactions: (TransactionRecord & { runId: string })[] = [];
   for (const run of runs) {
@@ -52,11 +52,11 @@ export default async function SpendingPage() {
   }
 
   const classifiedTransactions = allTransactions.map((tx) => {
-    const resolvedCategoryName = tx.category || resolveCategory(tx, snapshot.categoryRules);
+    const resolvedCategoryName = tx.category || resolveCategory(tx, settingsSnapshot.categoryRules);
     const resolvedCategory = resolvedCategoryName
       ? categoryRuleMap.get(resolvedCategoryName)
       : undefined;
-    return classifyTransaction(tx, resolvedCategory, snapshot.workspace.vatRegistered);
+    return classifyTransaction(tx, resolvedCategory, settingsSnapshot.workspace.vatRegistered);
   });
 
   const categoryMap = new Map<
@@ -177,7 +177,7 @@ export default async function SpendingPage() {
                 Total movement
               </p>
               <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">
-                {fmtAmount(totalSpend, snapshot.workspace.defaultCurrency)}
+                {fmtAmount(totalSpend, settingsSnapshot.workspace.defaultCurrency)}
               </p>
             </div>
             <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
@@ -239,7 +239,7 @@ export default async function SpendingPage() {
                   return (
                     <div key={month} className="flex flex-1 flex-col items-center gap-1">
                       <span className="text-xs font-mono text-[var(--color-muted-foreground)]">
-                        {fmtAmount(total, snapshot.workspace.defaultCurrency).replace(/\.00$/, "")}
+                        {fmtAmount(total, settingsSnapshot.workspace.defaultCurrency).replace(/\.00$/, "")}
                       </span>
                       <div className="relative w-full rounded-lg bg-[var(--color-panel)]" style={{ height: 80 }}>
                         <div
