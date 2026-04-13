@@ -43,7 +43,9 @@ export async function resolveUserWorkspace(prisma: PrismaClient) {
     include: { workspace: true },
   });
 
+  let isNewWorkspace = false;
   if (!membership) {
+    isNewWorkspace = true;
     // New user signup onboarding: create a private workspace
     const workspaceSlug = context.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + user.id.slice(-4);
     const workspace = await prisma.workspace.create({
@@ -74,6 +76,7 @@ export async function resolveUserWorkspace(prisma: PrismaClient) {
     userId: user.id,
     workspaceId: membership.workspace.id,
     workspace: membership.workspace,
+    isNewWorkspace,
   };
 }
 
