@@ -606,7 +606,7 @@ function UncategorisedTab({
           Uncategorised transactions
         </h3>
         <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-          These items are not included in Profit &amp; Loss or Balance Sheet reporting until they are assigned a category.
+          These items are still shown in the financial statements inside uncategorised buckets so totals stay complete, but they should still be reviewed and assigned properly before relying on the reports.
         </p>
       </div>
 

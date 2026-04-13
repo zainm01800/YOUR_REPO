@@ -165,9 +165,7 @@ export function buildPnL(
   transactions: ClassifiedTransaction[],
   currency: string,
 ): PnLReport {
-  const pnlTxs = transactions.filter(
-    (t) => t.statementType === "p_and_l" && t.category !== "Uncategorised",
-  );
+  const pnlTxs = transactions.filter((t) => t.statementType === "p_and_l");
 
   const incomeSection = buildSection(pnlTxs, "income", "Income");
   const expenseSection = buildSection(pnlTxs, "expense", "Expenses");
@@ -198,9 +196,7 @@ export function buildPnL(
       .reduce((s, t) => s + t.taxAmount, 0),
   );
 
-  const uncategorisedCount = transactions.filter(
-    (t) => t.category === "Uncategorised" && t.statementType === "p_and_l",
-  ).length;
+  const uncategorisedCount = pnlTxs.filter((t) => t.category === "Uncategorised").length;
 
   return {
     currency,
