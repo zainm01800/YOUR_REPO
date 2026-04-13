@@ -10,37 +10,41 @@ export async function GET() {
   const results: string[] = [];
 
   try {
-    results.push("Checking for 'slug' column in 'CategoryRule'...");
-    
-    // 1. Check if column exists
-    const columnExists: any[] = await prisma.$queryRawUnsafe(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'CategoryRule' AND column_name = 'slug';
-    `);
+    const columns = [
+      { name: "slug", type: "TEXT", populate: "LOWER(REGEXP_REPLACE(category, '[^a-zA-Z0-9]+', '-', 'g'))", constraints: "SET NOT NULL" },
+      { name: "description", type: "TEXT" },
+      { name: "section", type: "TEXT", default: "'Other & Special'" },
+      { name: "isSystemDefault", type: "BOOLEAN", default: "true" },
+      { name: "isVisible", type: "BOOLEAN", default: "true" },
+      { name: "sortOrder", type: "INTEGER", default: "1000" }
+    ];
 
-    if (columnExists.length === 0) {
-      results.push("Column 'slug' is missing. Adding it now...");
-      
-      // 2. Add the column
-      await prisma.$executeRawUnsafe('ALTER TABLE "CategoryRule" ADD COLUMN "slug" TEXT;');
-      results.push("Column added.");
-
-      // 3. Populate existing rows with slugs
-      results.push("Populating slugs from category names...");
-      await prisma.$executeRawUnsafe(`
-        UPDATE "CategoryRule" 
-        SET "slug" = LOWER(REGEXP_REPLACE(category, '[^a-zA-Z0-9]+', '-', 'g'))
-        WHERE "slug" IS NULL;
+    for (const col of columns) {
+      const columnExists: any[] = await prisma.$queryRawUnsafe(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'CategoryRule' AND column_name = '${col.name}';
       `);
-      results.push("Slugs populated.");
 
-      // 4. Set NOT NULL and UNIQUE constraints if needed
-      // (This is safer if we just added it)
-      await prisma.$executeRawUnsafe('ALTER TABLE "CategoryRule" ALTER COLUMN "slug" SET NOT NULL;');
-      results.push("Set NOT NULL constraint.");
-    } else {
-      results.push("Column 'slug' already exists. No changes needed.");
+      if (columnExists.length === 0) {
+        results.push(`Column '${col.name}' is missing. Adding it now...`);
+        let alterQuery = `ALTER TABLE "CategoryRule" ADD COLUMN "${col.name}" ${col.type}`;
+        if (col.default) alterQuery += ` DEFAULT ${col.default}`;
+        await prisma.$executeRawUnsafe(alterQuery + ";");
+        
+        if (col.populate) {
+          results.push(`Populating '${col.name}'...`);
+          await prisma.$executeRawUnsafe(`UPDATE "CategoryRule" SET "${col.name}" = ${col.populate} WHERE "${col.name}" IS NULL;`);
+        }
+        
+        if (col.constraints) {
+          results.push(`Applying constraints to '${col.name}'...`);
+          await prisma.$executeRawUnsafe(`ALTER TABLE "CategoryRule" ALTER COLUMN "${col.name}" ${col.constraints};`);
+        }
+        results.push(`Column '${col.name}' added successfully.`);
+      } else {
+        results.push(`Column '${col.name}' already exists.`);
+      }
     }
 
     return NextResponse.json({
