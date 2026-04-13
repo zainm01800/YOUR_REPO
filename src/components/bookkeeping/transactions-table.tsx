@@ -173,7 +173,7 @@ export function TransactionsTable({
 
         const similar = rowsWithCategory.filter((tx) => {
           if (tx.id === txId) return false;
-          if (tx.resolvedCategory && tx.resolvedCategory !== "Uncategorised") return false;
+          if (tx.resolvedCategory === newCategory) return false;
 
           const tm = tx.merchant.toLowerCase().trim();
           const td = tx.description.toLowerCase().trim();
@@ -697,7 +697,7 @@ export function TransactionsTable({
             <div className="px-6 py-5">
               <p className="mb-4 text-sm text-[var(--color-muted-foreground)]">
                 You just categorised a transaction as <span className="font-semibold text-black">{bulkPrompt.category}</span>.
-                We found <span className="font-semibold text-black">{bulkPrompt.matches.length}</span> other uncategorised transactions that look identical. Would you like to apply the same category to them?
+                We found <span className="font-semibold text-black">{bulkPrompt.matches.length}</span> other transactions that look identical. Would you like to apply the same category to them?
               </p>
 
               <div className="max-h-64 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)]">
