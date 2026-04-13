@@ -12,7 +12,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import type {
-  BankStatement,
+  BankStatementSummary,
   ClientExtractedDocumentInput,
   MappingTemplate,
   RunSetupPreset,
@@ -166,7 +166,7 @@ export function NewRunForm({
 }: {
   workspace: Workspace;
   templates: MappingTemplate[];
-  bankStatements: BankStatement[];
+  bankStatements: BankStatementSummary[];
 }) {
   const initialValues = useMemo(
     () => buildInitialValues(workspace, templates),

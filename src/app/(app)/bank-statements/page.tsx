@@ -4,7 +4,7 @@ import { getRepository } from "@/lib/data";
 
 export default async function BankStatementsPage() {
   const repository = getRepository();
-  const statements = await repository.getBankStatements();
+  const statements = await repository.getBankStatementSummaries();
 
   return (
     <>

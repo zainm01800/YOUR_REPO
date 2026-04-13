@@ -1,6 +1,7 @@
 import { demoStore } from "@/lib/demo/demo-store";
 import type {
   BankStatement,
+  BankStatementSummary,
   CategoryRule,
   DashboardSnapshot,
   GlCodeRule,
@@ -140,6 +141,22 @@ export const mockRepository: Repository = {
 
   async getTemplates() {
     return deepClone(store.templates);
+  },
+
+  async getBankStatementSummaries(): Promise<BankStatementSummary[]> {
+    return store.bankStatements.map((statement) => ({
+      id: statement.id,
+      name: statement.name,
+      fileName: statement.fileName,
+      bankName: statement.bankName,
+      accountName: statement.accountName,
+      currency: statement.currency,
+      importedAt: statement.importedAt,
+      importStatus: statement.importStatus,
+      dateRangeStart: statement.dateRangeStart,
+      dateRangeEnd: statement.dateRangeEnd,
+      transactionCount: statement.transactions.length,
+    }));
   },
 
   async getBankStatements(): Promise<BankStatement[]> {

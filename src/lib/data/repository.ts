@@ -1,5 +1,6 @@
 import type {
   BankStatement,
+  BankStatementSummary,
   CategoryRule,
   DashboardSnapshot,
   GlCodeRule,
@@ -92,6 +93,7 @@ export interface Repository {
   getRunsWithTransactions(): Promise<ReconciliationRun[]>;
   getRunRows(runId: string): Promise<ReviewRow[]>;
   getTemplates(): Promise<MappingTemplate[]>;
+  getBankStatementSummaries(): Promise<BankStatementSummary[]>;
   getBankStatements(): Promise<BankStatement[]>;
   getBankStatement(statementId: string): Promise<BankStatement | null>;
   importBankStatement(input: ImportBankStatementInput): Promise<BankStatement>;

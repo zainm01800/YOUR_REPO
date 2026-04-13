@@ -6,11 +6,15 @@ import { TransactionsTable } from "@/components/bookkeeping/transactions-table";
 
 export default async function BookkeepingTransactionsPage() {
   const repository = getRepository();
-  const [snapshot, runs, bankStatements] = await Promise.all([
+  const [snapshot, runs, bankStatementsResult] = await Promise.all([
     repository.getDashboardSnapshot(),
     repository.getRunsWithTransactions(),
-    repository.getBankStatements(),
+    repository.getBankStatements().catch((error) => {
+      console.error("[bookkeeping/transactions] failed to load bank statements:", error);
+      return [];
+    }),
   ]);
+  const bankStatements = bankStatementsResult;
   const categoryRuleMap = buildCategoryRuleMap(snapshot.categoryRules);
 
   // Gather all transactions across all completed/reviewed runs

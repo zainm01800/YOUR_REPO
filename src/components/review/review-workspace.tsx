@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import Link from "next/link";
 import { BarChart2, CheckCheck, Eye, EyeOff, FileSpreadsheet, Files, GripVertical, ListTree, Lock, Loader2, Redo2, SlidersHorizontal, Undo2, Unlock, X } from "lucide-react";
 import type {
-  BankStatement,
+  BankStatementSummary,
   ReconciliationRun,
   ReviewActionType,
   ReviewGridColumnLayout,
@@ -184,7 +184,7 @@ export function ReviewWorkspace({
   run: ReconciliationRun;
   initialRows: ReviewRow[];
   initialRowId?: string;
-  bankStatements: BankStatement[];
+  bankStatements: BankStatementSummary[];
 }) {
   const [rows, setRows] = useState(initialRows);
   const [runDocuments, setRunDocuments] = useState(run.documents);

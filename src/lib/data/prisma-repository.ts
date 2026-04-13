@@ -24,6 +24,7 @@ import type {
 } from "@/lib/data/repository";
 import type {
   BankStatement,
+  BankStatementSummary,
   BankTransaction,
   CategoryRule,
   DashboardSnapshot,
@@ -110,6 +111,26 @@ const bankStatementInclude = {
 
 type DbBankStatement = Prisma.BankStatementGetPayload<{ include: typeof bankStatementInclude }>;
 
+const bankStatementSummarySelect = {
+  id: true,
+  name: true,
+  fileName: true,
+  bankName: true,
+  accountName: true,
+  currency: true,
+  importedAt: true,
+  importStatus: true,
+  dateRangeStart: true,
+  dateRangeEnd: true,
+  _count: {
+    select: {
+      transactions: true,
+    },
+  },
+} satisfies Prisma.BankStatementSelect;
+
+type DbBankStatementSummary = Prisma.BankStatementGetPayload<{ select: typeof bankStatementSummarySelect }>;
+
 function requirePrisma() {
   const prisma = getPrismaClient();
   if (!prisma) {
@@ -123,6 +144,23 @@ function isSchemaMismatchError(error: unknown) {
     error instanceof Prisma.PrismaClientKnownRequestError &&
     (error.code === "P2021" || error.code === "P2022")
   );
+}
+
+async function loadBankStatusRunsSafe(prisma: PrismaClient, workspaceId: string) {
+  try {
+    return await prisma.reconciliationRun.findMany({
+      where: { workspaceId },
+      include: {
+        ...bankStatusRunInclude,
+      },
+    });
+  } catch (error) {
+    if (isSchemaMismatchError(error)) {
+      console.error("[bank-statements] status decoration is unavailable on this schema:", error);
+      return [] as DbBankStatusRun[];
+    }
+    throw error;
+  }
 }
 
 function toIso(value?: Date | null) {
@@ -339,6 +377,22 @@ function toBankStatement(statement: DbBankStatement): BankStatement {
     previewHeaders: statement.previewHeaders as string[] | undefined,
     savedColumnMappings: statement.savedColumnMappings as Record<string, string> | undefined,
     transactions: statement.transactions.map(toBankTransaction),
+  };
+}
+
+function toBankStatementSummary(statement: DbBankStatementSummary): BankStatementSummary {
+  return {
+    id: statement.id,
+    name: statement.name,
+    fileName: statement.fileName,
+    bankName: statement.bankName || undefined,
+    accountName: statement.accountName || undefined,
+    currency: statement.currency,
+    importedAt: statement.importedAt.toISOString(),
+    importStatus: statement.importStatus as BankStatementSummary["importStatus"],
+    dateRangeStart: toDateOnly(statement.dateRangeStart),
+    dateRangeEnd: toDateOnly(statement.dateRangeEnd),
+    transactionCount: statement._count.transactions,
   };
 }
 
@@ -1026,6 +1080,25 @@ export const prismaRepository: Repository = {
     return templates.map(toTemplate);
   },
 
+  async getBankStatementSummaries(): Promise<BankStatementSummary[]> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    try {
+      const statements = await prisma.bankStatement.findMany({
+        where: { workspaceId: workspace.id },
+        select: bankStatementSummarySelect,
+        orderBy: { importedAt: "desc" },
+      });
+      return statements.map(toBankStatementSummary);
+    } catch (error) {
+      if (isSchemaMismatchError(error)) {
+        console.error("[bank-statements] summary list is unavailable on this schema:", error);
+        return [];
+      }
+      throw error;
+    }
+  },
+
   async getBankStatements(): Promise<BankStatement[]> {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
@@ -1043,12 +1116,7 @@ export const prismaRepository: Repository = {
       }
       throw error;
     }
-    const runs = await prisma.reconciliationRun.findMany({
-      where: { workspaceId: workspace.id },
-      include: {
-        ...bankStatusRunInclude,
-      },
-    });
+    const runs = await loadBankStatusRunsSafe(prisma, workspace.id);
 
     return decorateBankStatementsWithStatuses(
       statements.map(toBankStatement),
@@ -1072,16 +1140,12 @@ export const prismaRepository: Repository = {
       }
       throw error;
     }
-    const runs = await prisma.reconciliationRun.findMany({
-      where: { workspaceId: workspace.id },
-      include: {
-        ...bankStatusRunInclude,
-      },
-    });
 
     if (!statement) {
       return null;
     }
+
+    const runs = await loadBankStatusRunsSafe(prisma, workspace.id);
 
     return decorateBankStatementsWithStatuses(
       [toBankStatement(statement)],
@@ -1149,19 +1213,14 @@ export const prismaRepository: Repository = {
   async attachBankSourceToRun(input: AttachBankSourceInput): Promise<ReconciliationRun> {
     const prisma = requirePrisma();
     const { workspace, user } = await ensureBootstrap(prisma);
-    const [run, statements, runs] = await Promise.all([
+    const [run, statements] = await Promise.all([
       loadRun(prisma, input.runId),
       prisma.bankStatement.findMany({
         where: { workspaceId: workspace.id },
         include: bankStatementInclude,
       }),
-      prisma.reconciliationRun.findMany({
-        where: { workspaceId: workspace.id },
-        include: {
-          ...bankStatusRunInclude,
-        },
-      }),
     ]);
+    const runs = await loadBankStatusRunsSafe(prisma, workspace.id);
 
     if (!run) {
       throw new Error(`Run ${input.runId} was not found.`);

@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import type { BankStatement } from "@/lib/domain/types";
+import type { BankStatementSummary } from "@/lib/domain/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 
-function statusLabel(status: BankStatement["importStatus"]) {
+function statusLabel(status: BankStatementSummary["importStatus"]) {
   switch (status) {
     case "imported":
       return "Imported";
@@ -23,7 +23,7 @@ function statusLabel(status: BankStatement["importStatus"]) {
 export function BankStatementsTable({
   statements,
 }: {
-  statements: BankStatement[];
+  statements: BankStatementSummary[];
 }) {
   const [localStatements, setLocalStatements] = useState(statements);
   const [query, setQuery] = useState("");
@@ -35,7 +35,7 @@ export function BankStatementsTable({
     setLocalStatements(statements);
   }, [statements]);
 
-  function handleDelete(statement: BankStatement) {
+  function handleDelete(statement: BankStatementSummary) {
     if (!window.confirm(`Delete "${statement.name}"?\n\nThis will permanently remove the statement and its transactions.`)) return;
     startTransition(async () => {
       setDeletingId(statement.id);

@@ -23,7 +23,7 @@ export default async function ReviewPage({
 
   const [rows, bankStatements] = await Promise.all([
     repository.getRunRows(runId),
-    repository.getBankStatements(),
+    repository.getBankStatementSummaries(),
   ]);
 
   return (

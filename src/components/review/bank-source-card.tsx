@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import type { BankSourceMode, BankStatement, ReviewRow } from "@/lib/domain/types";
+import type { BankSourceMode, BankStatementSummary, ReviewRow } from "@/lib/domain/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -16,7 +16,7 @@ export function BankSourceCard({
   onAttached,
 }: {
   runId: string;
-  bankStatements: BankStatement[];
+  bankStatements: BankStatementSummary[];
   currentBankStatementId?: string;
   currentBankSourceMode?: BankSourceMode;
   currentBankSourceLabel?: string;

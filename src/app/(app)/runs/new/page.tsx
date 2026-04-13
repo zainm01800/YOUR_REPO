@@ -7,7 +7,7 @@ export default async function NewRunPage() {
   const [workspace, templates, bankStatements] = await Promise.all([
     repository.getWorkspace(),
     repository.getTemplates(),
-    repository.getBankStatements(),
+    repository.getBankStatementSummaries(),
   ]);
 
   return (

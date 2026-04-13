@@ -208,6 +208,20 @@ export interface BankStatement {
   transactions: BankTransaction[];
 }
 
+export interface BankStatementSummary {
+  id: string;
+  name: string;
+  fileName: string;
+  bankName?: string;
+  accountName?: string;
+  currency: string;
+  importedAt: string;
+  importStatus: BankStatementImportStatus;
+  dateRangeStart?: string;
+  dateRangeEnd?: string;
+  transactionCount: number;
+}
+
 /**
  * A bookkeeping category with full accounting metadata.
  * Also carries optional pattern-matching rules for auto-assigning
