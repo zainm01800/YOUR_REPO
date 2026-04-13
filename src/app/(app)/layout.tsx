@@ -17,5 +17,9 @@ export default async function AuthenticatedLayout({
   const repository = getRepository();
   const workspace = await repository.getWorkspace();
 
+  if (!workspace) {
+    redirect("/sign-up");
+  }
+
   return <AppShell workspaceName={workspace.name}>{children}</AppShell>;
 }

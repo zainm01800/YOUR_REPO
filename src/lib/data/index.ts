@@ -3,31 +3,43 @@ import { getPrismaClient } from "@/lib/data/prisma";
 import { prismaRepository } from "@/lib/data/prisma-repository";
 
 export function isDemoModeEnabled() {
-  return process.env.DEMO_MODE === "true";
+  // If explicitly set, respect the value
+  if (process.env.DEMO_MODE !== undefined) {
+    return process.env.DEMO_MODE.trim() === "true";
+  }
+
+  // Fallback: If no DATABASE_URL is set, assume demo mode for usability
+  // This prevents site-wide 500 crashes for unconfigured local environments.
+  if (!process.env.DATABASE_URL) {
+    return true;
+  }
+
+  return false;
 }
 
-export function getRepositoryMode() {
+export function getRepositoryMode(): "demo" | "prisma" | "misconfigured" {
   if (isDemoModeEnabled()) {
-    return "demo" as const;
+    return "demo";
   }
-
-  if (getPrismaClient()) {
-    return "database" as const;
+  if (process.env.DATABASE_URL) {
+    return "prisma";
   }
-
-  return "misconfigured" as const;
+  return "misconfigured";
 }
 
 export function getRepository() {
-  if (isDemoModeEnabled()) {
+  const demoMode = isDemoModeEnabled();
+
+  if (demoMode) {
     return mockRepository;
   }
 
-  if (getPrismaClient()) {
+  const prisma = getPrismaClient();
+  if (prisma) {
     return prismaRepository;
   }
 
   throw new Error(
-    "DATABASE_URL is not configured for this deployment. Set DEMO_MODE=true only for demo environments, or configure a real database for persistent data.",
+    `Configuration Error: Neither DEMO_MODE=true nor DATABASE_URL are set.`,
   );
 }

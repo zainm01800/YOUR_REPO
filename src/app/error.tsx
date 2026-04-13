@@ -20,11 +20,9 @@ export default function Error({
       <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-[var(--color-danger-soft)]">
         <AlertTriangle className="h-7 w-7 text-[var(--color-danger)]" />
       </div>
-      <h1 className="mt-6 text-3xl font-semibold tracking-tight text-[var(--color-foreground)]">
-        Something went wrong
-      </h1>
-      <p className="mt-3 max-w-sm text-base text-[var(--color-muted-foreground)]">
-        An unexpected error occurred. This has been noted. Try refreshing or click below to retry.
+      <h2 className="mt-6 text-2xl font-bold tracking-tight text-slate-900">Something went wrong</h2>
+      <p className="mt-2 text-slate-600 max-w-md mx-auto">
+        {error.message || "An unexpected error occurred while loading this page. Our team has been notified."}
       </p>
       {error.digest && (
         <p className="mt-2 font-mono text-xs text-[var(--color-muted-foreground)] opacity-60">
