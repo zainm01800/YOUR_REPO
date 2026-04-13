@@ -35,7 +35,7 @@ export async function DELETE(
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Could not delete run." },
-      { status: 404 },
+      { status: 500 },
     );
   }
 }

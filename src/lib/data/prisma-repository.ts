@@ -79,6 +79,13 @@ function requirePrisma() {
   return prisma;
 }
 
+function isSchemaMismatchError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2021" || error.code === "P2022")
+  );
+}
+
 function toIso(value?: Date | null) {
   return value ? value.toISOString() : undefined;
 }
@@ -791,6 +798,21 @@ export const prismaRepository: Repository = {
     return run ? toDomainRun(run) : null;
   },
 
+  async getRunsWithTransactions(): Promise<ReconciliationRun[]> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const runs = await prisma.reconciliationRun.findMany({
+      where: { workspaceId: workspace.id },
+      include: {
+        ...runInclude,
+        workspace: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return runs.map(toDomainRun);
+  },
+
   async getRunRows(runId): Promise<ReviewRow[]> {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
@@ -821,20 +843,27 @@ export const prismaRepository: Repository = {
   async getBankStatements(): Promise<BankStatement[]> {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
-    const [statements, runs] = await Promise.all([
-      prisma.bankStatement.findMany({
+    let statements: DbBankStatement[] = [];
+    try {
+      statements = await prisma.bankStatement.findMany({
         where: { workspaceId: workspace.id },
         include: bankStatementInclude,
         orderBy: { importedAt: "desc" },
-      }),
-      prisma.reconciliationRun.findMany({
-        where: { workspaceId: workspace.id },
-        include: {
-          ...runInclude,
-          workspace: true,
-        },
-      }),
-    ]);
+      });
+    } catch (error) {
+      if (isSchemaMismatchError(error)) {
+        console.error("[bank-statements] schema is behind the deployed code:", error);
+        return [];
+      }
+      throw error;
+    }
+    const runs = await prisma.reconciliationRun.findMany({
+      where: { workspaceId: workspace.id },
+      include: {
+        ...runInclude,
+        workspace: true,
+      },
+    });
 
     return decorateBankStatementsWithStatuses(
       statements.map(toBankStatement),
@@ -845,19 +874,26 @@ export const prismaRepository: Repository = {
   async getBankStatement(statementId: string): Promise<BankStatement | null> {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
-    const [statement, runs] = await Promise.all([
-      prisma.bankStatement.findFirst({
+    let statement: DbBankStatement | null = null;
+    try {
+      statement = await prisma.bankStatement.findFirst({
         where: { id: statementId, workspaceId: workspace.id },
         include: bankStatementInclude,
-      }),
-      prisma.reconciliationRun.findMany({
-        where: { workspaceId: workspace.id },
-        include: {
-          ...runInclude,
-          workspace: true,
-        },
-      }),
-    ]);
+      });
+    } catch (error) {
+      if (isSchemaMismatchError(error)) {
+        console.error("[bank-statements] schema is behind the deployed code:", error);
+        return null;
+      }
+      throw error;
+    }
+    const runs = await prisma.reconciliationRun.findMany({
+      where: { workspaceId: workspace.id },
+      include: {
+        ...runInclude,
+        workspace: true,
+      },
+    });
 
     if (!statement) {
       return null;
@@ -914,7 +950,16 @@ export const prismaRepository: Repository = {
 
   async deleteBankStatement(id: string): Promise<void> {
     const prisma = requirePrisma();
-    await prisma.bankStatement.delete({ where: { id } });
+    try {
+      await prisma.bankStatement.delete({ where: { id } });
+    } catch (error) {
+      if (isSchemaMismatchError(error)) {
+        throw new Error(
+          "Bank statement storage is not ready yet. Run the latest database migrations and try again.",
+        );
+      }
+      throw error;
+    }
   },
 
   async attachBankSourceToRun(input: AttachBankSourceInput): Promise<ReconciliationRun> {
@@ -1171,25 +1216,13 @@ export const prismaRepository: Repository = {
 
   async deleteTransactions(ids: string[]): Promise<void> {
     const prisma = requirePrisma();
-    
-    // Find associated bank transaction IDs before deleting transactions
-    const transactions = await prisma.transaction.findMany({
-      where: { id: { in: ids } },
-      select: { sourceBankTransactionId: true },
-    });
-    const sourceBankTxIds = transactions
-      .map((tx) => tx.sourceBankTransactionId)
-      .filter((id): id is string => id !== null);
 
     await prisma.$transaction([
       prisma.transaction.deleteMany({ where: { id: { in: ids } } }),
-      prisma.bankTransaction.deleteMany({ 
-        where: { 
-          OR: [
-            { id: { in: ids } },       // the ID itself might be a bank transaction ID
-            { id: { in: sourceBankTxIds } } // or it might be the source of a run transaction
-          ]
-        } 
+      prisma.bankTransaction.deleteMany({
+        where: {
+          id: { in: ids },
+        },
       }),
     ]);
   },
@@ -1237,20 +1270,8 @@ export const prismaRepository: Repository = {
   async deleteRun(runId: string): Promise<void> {
     const prisma = requirePrisma();
     await ensureBootstrap(prisma);
-    
-    // Collect bank transaction IDs associated with this run before deletion
-    const runTransactions = await prisma.transaction.findMany({
-      where: { runId },
-      select: { sourceBankTransactionId: true },
-    });
-    const sourceBankTxIds = runTransactions
-      .map((tx) => tx.sourceBankTransactionId)
-      .filter((id): id is string => id !== null);
 
-    await prisma.$transaction([
-      prisma.reconciliationRun.delete({ where: { id: runId } }),
-      prisma.bankTransaction.deleteMany({ where: { id: { in: sourceBankTxIds } } }),
-    ]);
+    await prisma.reconciliationRun.delete({ where: { id: runId } });
   },
 
   async updateRun(run: ReconciliationRun): Promise<ReconciliationRun> {

@@ -85,6 +85,7 @@ export interface Repository {
   updateWorkspace(input: UpdateWorkspaceInput): Promise<Workspace>;
   getDashboardSnapshot(): Promise<DashboardSnapshot>;
   getRun(runId: string): Promise<ReconciliationRun | null>;
+  getRunsWithTransactions(): Promise<ReconciliationRun[]>;
   getRunRows(runId: string): Promise<ReviewRow[]>;
   getTemplates(): Promise<MappingTemplate[]>;
   getBankStatements(): Promise<BankStatement[]>;

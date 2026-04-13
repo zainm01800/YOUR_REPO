@@ -101,6 +101,10 @@ export const mockRepository: Repository = {
     return run ? deepClone(run) : null;
   },
 
+  async getRunsWithTransactions() {
+    return deepClone(store.runs);
+  },
+
   async getRunRows(runId): Promise<ReviewRow[]> {
     const run = getRunOrThrow(runId);
     return buildReviewRows(run, store.vatRules, store.glRules, store.categoryRules);
@@ -126,9 +130,21 @@ export const mockRepository: Repository = {
   },
 
   async deleteBankStatement(id: string): Promise<void> {
-    console.log("[deleteBankStatement] ids in store:", store.bankStatements.map((s) => s.id));
     const index = store.bankStatements.findIndex((s) => s.id === id);
     if (index === -1) throw new Error(`Bank statement ${id} was not found.`);
+    for (const run of store.runs) {
+      if (run.bankStatementId === id) {
+        run.bankStatementId = undefined;
+        run.bankSourceLabel = undefined;
+      }
+      for (const tx of run.transactions) {
+        if (tx.bankStatementId === id) {
+          tx.bankStatementId = undefined;
+          tx.bankStatementName = undefined;
+          tx.sourceBankTransactionId = undefined;
+        }
+      }
+    }
     store.bankStatements.splice(index, 1);
   },
 

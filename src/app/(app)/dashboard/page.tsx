@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { RunStatusPill } from "@/components/ui/status-pill";
 import { getRepository } from "@/lib/data";
+import { buildReviewRows } from "@/lib/reconciliation/review-rows";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 function KpiCard({
@@ -45,9 +46,13 @@ function KpiCard({
 
 export default async function DashboardPage() {
   const repository = getRepository();
-  const snapshot = await repository.getDashboardSnapshot();
+  const [snapshot, runsWithTransactions] = await Promise.all([
+    repository.getDashboardSnapshot(),
+    repository.getRunsWithTransactions(),
+  ]);
   const latest = snapshot.runs[0];
   const hasRuns = snapshot.runs.length > 0;
+  const runSummaryById = new Map(snapshot.runs.map((run) => [run.id, run.summary]));
 
   const currency = snapshot.workspace.defaultCurrency ?? "GBP";
   const needsReview = snapshot.runs.filter((run) => run.status === "review_required").length;
@@ -66,17 +71,16 @@ export default async function DashboardPage() {
       : 0;
   const lockedRuns = snapshot.runs.filter((run) => run.locked).length;
 
-  const runRows = await Promise.all(
-    snapshot.runs.slice(0, 24).map(async (run) => ({
-      run,
-      rows: await repository.getRunRows(run.id),
-    })),
-  );
+  const runRows = runsWithTransactions.slice(0, 24).map((run) => ({
+    run,
+    rows: buildReviewRows(run, snapshot.vatRules, snapshot.glRules, snapshot.categoryRules),
+  }));
 
   const spendTrend = runRows
     .slice(0, 12)
     .reverse()
     .map(({ run, rows }) => {
+      const summary = runSummaryById.get(run.id);
       const gross = rows
         .filter((row) => !row.excludedFromExport)
         .reduce((sum, row) => sum + (row.grossInRunCurrency ?? row.gross ?? 0), 0);
@@ -88,7 +92,7 @@ export default async function DashboardPage() {
         label: run.period || formatDate(run.createdAt),
         gross,
         vat,
-        matchRate: run.summary.matchRatePct ?? 0,
+        matchRate: summary?.matchRatePct ?? 0,
       };
     });
 

@@ -6,7 +6,11 @@ import { TransactionsTable } from "@/components/bookkeeping/transactions-table";
 
 export default async function BookkeepingTransactionsPage() {
   const repository = getRepository();
-  const snapshot = await repository.getDashboardSnapshot();
+  const [snapshot, runs, bankStatements] = await Promise.all([
+    repository.getDashboardSnapshot(),
+    repository.getRunsWithTransactions(),
+    repository.getBankStatements(),
+  ]);
   const categoryRuleMap = buildCategoryRuleMap(snapshot.categoryRules);
 
   // Gather all transactions across all completed/reviewed runs
@@ -36,9 +40,8 @@ export default async function BookkeepingTransactionsPage() {
   }[] = [];
 
   // Collect all run transactions
-  for (const runSummary of snapshot.runs) {
-    const run = await repository.getRun(runSummary.id);
-    if (!run || run.transactions.length === 0) continue;
+  for (const run of runs) {
+    if (run.transactions.length === 0) continue;
     for (const tx of run.transactions) {
       allTransactions.push({
         ...tx,
@@ -53,7 +56,6 @@ export default async function BookkeepingTransactionsPage() {
   const clonedBankTxIds = new Set(
     allTransactions.map((tx) => tx.sourceBankTransactionId).filter(Boolean),
   );
-  const bankStatements = await repository.getBankStatements();
   for (const statement of bankStatements) {
     for (const bt of statement.transactions) {
       if (clonedBankTxIds.has(bt.id)) continue; // already in a run

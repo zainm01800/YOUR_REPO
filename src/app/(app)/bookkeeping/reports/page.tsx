@@ -13,14 +13,16 @@ import { resolveCategory } from "@/lib/categories/suggester";
 
 export default async function BookkeepingReportsPage() {
   const repository = getRepository();
-  const snapshot = await repository.getDashboardSnapshot();
+  const [snapshot, runs] = await Promise.all([
+    repository.getDashboardSnapshot(),
+    repository.getRunsWithTransactions(),
+  ]);
   const categoryRuleMap = buildCategoryRuleMap(snapshot.categoryRules);
 
   const allTransactions: ClassifiedTransaction[] = [];
 
-  for (const runSummary of snapshot.runs) {
-    const run = await repository.getRun(runSummary.id);
-    if (!run || run.transactions.length === 0) continue;
+  for (const run of runs) {
+    if (run.transactions.length === 0) continue;
 
     for (const transaction of run.transactions) {
       const resolvedCategoryName =
