@@ -8,7 +8,7 @@ async function wipeOldData() {
     
     const workspace = await prisma.workspace.findUnique({
       where: { slug },
-      include: { _count: { select: { runs: true, members: true } } }
+      include: { _count: { select: { runs: true, memberships: true } } }
     });
 
     if (!workspace) {
