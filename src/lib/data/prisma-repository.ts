@@ -131,6 +131,28 @@ const bankStatementSummarySelect = {
 
 type DbBankStatementSummary = Prisma.BankStatementGetPayload<{ select: typeof bankStatementSummarySelect }>;
 
+const unassignedBankTransactionSelect = {
+  id: true,
+  externalId: true,
+  sourceLineNumber: true,
+  transactionDate: true,
+  postedDate: true,
+  amount: true,
+  currency: true,
+  merchant: true,
+  description: true,
+  employee: true,
+  reference: true,
+  bankStatementId: true,
+  bankStatement: {
+    select: {
+      name: true,
+    },
+  },
+} satisfies Prisma.BankTransactionSelect;
+
+type DbUnassignedBankTransaction = Prisma.BankTransactionGetPayload<{ select: typeof unassignedBankTransactionSelect }>;
+
 function requirePrisma() {
   const prisma = getPrismaClient();
   if (!prisma) {
@@ -393,6 +415,25 @@ function toBankStatementSummary(statement: DbBankStatementSummary): BankStatemen
     dateRangeStart: toDateOnly(statement.dateRangeStart),
     dateRangeEnd: toDateOnly(statement.dateRangeEnd),
     transactionCount: statement._count.transactions,
+  };
+}
+
+function toUnassignedBankTransaction(transaction: DbUnassignedBankTransaction): TransactionRecord {
+  return {
+    id: transaction.id,
+    sourceBankTransactionId: transaction.id,
+    bankStatementId: transaction.bankStatementId,
+    bankStatementName: transaction.bankStatement.name,
+    externalId: transaction.externalId || undefined,
+    sourceLineNumber: transaction.sourceLineNumber || undefined,
+    transactionDate: toDateOnly(transaction.transactionDate),
+    postedDate: toDateOnly(transaction.postedDate),
+    amount: Number(transaction.amount),
+    currency: transaction.currency || "",
+    merchant: transaction.merchant || "",
+    description: transaction.description || "",
+    employee: transaction.employee || undefined,
+    reference: transaction.reference || undefined,
   };
 }
 
@@ -1068,6 +1109,33 @@ export const prismaRepository: Repository = {
     }
 
     return buildReviewRows(toDomainRun(run), vatRules.map(toVatRule), glRules.map(toGlRule), categoryRules.map(toCategoryRule));
+  },
+
+  async getUnassignedBankTransactions(): Promise<TransactionRecord[]> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+
+    try {
+      const transactions = await prisma.bankTransaction.findMany({
+        where: {
+          bankStatement: { workspaceId: workspace.id },
+          runTransactions: { none: {} },
+        },
+        select: unassignedBankTransactionSelect,
+        orderBy: [
+          { transactionDate: "desc" },
+          { postedDate: "desc" },
+        ],
+      });
+
+      return transactions.map(toUnassignedBankTransaction);
+    } catch (error) {
+      if (isSchemaMismatchError(error)) {
+        console.error("[bank-transactions] unassigned pool is unavailable on this schema:", error);
+        return [];
+      }
+      throw error;
+    }
   },
 
   async getTemplates() {

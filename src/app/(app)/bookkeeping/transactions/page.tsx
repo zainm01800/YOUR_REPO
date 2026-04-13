@@ -6,15 +6,15 @@ import { TransactionsTable } from "@/components/bookkeeping/transactions-table";
 
 export default async function BookkeepingTransactionsPage() {
   const repository = getRepository();
-  const [snapshot, runs, bankStatementsResult] = await Promise.all([
+  const [snapshot, runs, unassignedBankTransactionsResult] = await Promise.all([
     repository.getDashboardSnapshot(),
     repository.getRunsWithTransactions(),
-    repository.getBankStatements().catch((error) => {
-      console.error("[bookkeeping/transactions] failed to load bank statements:", error);
+    repository.getUnassignedBankTransactions().catch((error) => {
+      console.error("[bookkeeping/transactions] failed to load unassigned bank transactions:", error);
       return [];
     }),
   ]);
-  const bankStatements = bankStatementsResult;
+  const unassignedBankTransactions = unassignedBankTransactionsResult;
   const categoryRuleMap = buildCategoryRuleMap(snapshot.categoryRules);
 
   // Gather all transactions across all completed/reviewed runs
@@ -56,19 +56,13 @@ export default async function BookkeepingTransactionsPage() {
     }
   }
 
-  // Also include bank statement transactions not already cloned into a run
-  const clonedBankTxIds = new Set(
-    allTransactions.map((tx) => tx.sourceBankTransactionId).filter(Boolean),
-  );
-  for (const statement of bankStatements) {
-    for (const bt of statement.transactions) {
-      if (clonedBankTxIds.has(bt.id)) continue; // already in a run
-      allTransactions.push({
-        ...bt,
-        runName: statement.name,
-        runId: statement.id,
-      });
-    }
+  // Also include centrally stored bank transactions not yet pulled into a run
+  for (const transaction of unassignedBankTransactions) {
+    allTransactions.push({
+      ...transaction,
+      runName: transaction.bankStatementName || "Imported bank statement",
+      runId: transaction.bankStatementId || transaction.id,
+    });
   }
 
   // Sort by date descending

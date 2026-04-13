@@ -92,6 +92,7 @@ export interface Repository {
   getRun(runId: string): Promise<ReconciliationRun | null>;
   getRunsWithTransactions(): Promise<ReconciliationRun[]>;
   getRunRows(runId: string): Promise<ReviewRow[]>;
+  getUnassignedBankTransactions(): Promise<TransactionRecord[]>;
   getTemplates(): Promise<MappingTemplate[]>;
   getBankStatementSummaries(): Promise<BankStatementSummary[]>;
   getBankStatements(): Promise<BankStatement[]>;

@@ -8,6 +8,7 @@ import type {
   RunListItem,
   ReviewRow,
   SettingsSnapshot,
+  TransactionRecord,
   User,
   VatRule,
   Workspace,
@@ -137,6 +138,26 @@ export const mockRepository: Repository = {
   async getRunRows(runId): Promise<ReviewRow[]> {
     const run = getRunOrThrow(runId);
     return buildReviewRows(run, store.vatRules, store.glRules, store.categoryRules);
+  },
+
+  async getUnassignedBankTransactions(): Promise<TransactionRecord[]> {
+    const usedSourceIds = new Set(
+      store.runs.flatMap((run) =>
+        run.transactions
+          .map((transaction) => transaction.sourceBankTransactionId)
+          .filter((value): value is string => Boolean(value)),
+      ),
+    );
+
+    return store.bankStatements.flatMap((statement) =>
+      statement.transactions
+        .filter((transaction) => !usedSourceIds.has(transaction.id))
+        .map((transaction) => ({
+          ...transaction,
+          bankStatementId: statement.id,
+          bankStatementName: statement.name,
+        })),
+    );
   },
 
   async getTemplates() {
