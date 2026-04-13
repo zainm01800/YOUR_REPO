@@ -10,6 +10,7 @@ import {
 import { demoStore } from "@/lib/demo/demo-store";
 import { mergeWorkspaceCategoryRules } from "@/lib/accounting/default-categories";
 import { resolveUserWorkspace } from "./multi-tenancy";
+import { getPrismaClient } from "./prisma";
 import type {
   AttachBankSourceInput,
   CreateRunInput,
