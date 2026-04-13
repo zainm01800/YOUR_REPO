@@ -3,10 +3,10 @@ import { getRepository } from "@/lib/data";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { category: string } }
+  { params }: { params: Promise<{ category: string }> }
 ) {
   try {
-    const { category } = params;
+    const { category } = await params;
     const body = await request.json();
 
     if (typeof body.allowableForTax !== "boolean") {
