@@ -147,7 +147,8 @@ If you set:
 
 ```bash
 DEMO_MODE=false
-DATABASE_URL=your-postgres-connection-string
+  DATABASE_URL=your-postgres-pooled-connection-string
+  DIRECT_DATABASE_URL=your-postgres-direct-connection-string
 ```
 
 the app now switches automatically to the Prisma-backed PostgreSQL repository.
@@ -187,7 +188,8 @@ For production persistence:
 
 - `SESSION_SECRET=replace-with-a-long-random-string`
 - `DEMO_MODE=false`
-- `DATABASE_URL=your-postgres-connection-string`
+- `DATABASE_URL=your-postgres-pooled-connection-string`
+- `DIRECT_DATABASE_URL=your-postgres-direct-connection-string`
 - `CRON_SECRET=replace-with-a-long-random-string`
 
 ### GitHub integration behavior
@@ -233,7 +235,8 @@ To move toward production persistence:
 
 1. Provision PostgreSQL
 2. Set `DATABASE_URL`
-3. Set `DEMO_MODE=false`
+3. Set `DIRECT_DATABASE_URL`
+4. Set `DEMO_MODE=false`
 4. Run:
 
 ```bash
