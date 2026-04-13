@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { CheckCircle2, Search, Tag, Trash2, Sparkles, Loader2 } from "lucide-react";
+import { CheckCircle2, Search, Tag, Trash2, Sparkles, Loader2, X } from "lucide-react";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
 import { resolveCategory } from "@/lib/categories/suggester";
 import {
@@ -67,6 +67,7 @@ export function TransactionsTable({
   const [saving, setSaving] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [categoryOverrides, setCategoryOverrides] = useState<Record<string, string>>({});
+  const [allowabilityOverrides, setAllowabilityOverrides] = useState<Record<string, boolean>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -74,6 +75,14 @@ export function TransactionsTable({
   const [aiCategorising, setAiCategorising] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiSuccessMsg, setAiSuccessMsg] = useState<string | null>(null);
+
+  const [bulkPrompt, setBulkPrompt] = useState<{
+    originalTxId: string;
+    category: string;
+    matches: TransactionRow[];
+  } | null>(null);
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkApplying, setBulkApplying] = useState(false);
 
   useEffect(() => {
     setLocalTransactions(transactions);
@@ -90,17 +99,23 @@ export function TransactionsTable({
           resolveCategory(tx, categoryRules) ??
           "";
         const resolvedRule = resolvedCategory ? categoryRuleMap.get(resolvedCategory) : undefined;
+        // Optimistically apply override, fall back to rule, default to true
+        const isAllowable = resolvedCategory 
+          ? (allowabilityOverrides[resolvedCategory] ?? resolvedRule?.allowableForTax ?? true)
+          : true;
+
         const classification = classifyTransaction(tx, resolvedRule, vatRegistered);
 
         return {
           ...tx,
           resolvedCategory,
+          allowableForTax: isAllowable,
           accountType: classification.accountType,
           statementType: classification.statementType,
           taxTreatment: classification.effectiveTaxTreatment,
         };
       }),
-    [localTransactions, categoryRules, categoryOverrides, categoryRuleMap, vatRegistered],
+    [localTransactions, categoryRules, categoryOverrides, allowabilityOverrides, categoryRuleMap, vatRegistered],
   );
 
   const filtered = useMemo(() => {
@@ -134,22 +149,89 @@ export function TransactionsTable({
   }, [rowsWithCategory]);
 
   async function handleSaveCategory(txId: string, newCategory: string) {
+    if (!newCategory) {
+      setEditingId(null);
+      return;
+    }
+    
     setSaving(txId);
     try {
       await fetch(`/api/bookkeeping/transactions/${txId}/category`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: newCategory || null }),
+        body: JSON.stringify({ category: newCategory }),
       });
       setCategoryOverrides((prev) => ({ ...prev, [txId]: newCategory }));
       setSavedId(txId);
       setTimeout(() => setSavedId((id) => (id === txId ? null : id)), 2000);
+
+      // Similarity check logic
+      const sourceTx = rowsWithCategory.find((t) => t.id === txId);
+      if (sourceTx) {
+        const sourceMerchant = sourceTx.merchant.toLowerCase().trim();
+        const sourceDesc = sourceTx.description.toLowerCase().trim();
+
+        const similar = rowsWithCategory.filter((tx) => {
+          if (tx.id === txId) return false;
+          if (tx.resolvedCategory && tx.resolvedCategory !== "Uncategorised") return false;
+
+          const tm = tx.merchant.toLowerCase().trim();
+          const td = tx.description.toLowerCase().trim();
+
+          return (tm && tm === sourceMerchant) || (td && td === sourceDesc);
+        });
+
+        if (similar.length > 0) {
+          setBulkPrompt({
+            originalTxId: txId,
+            category: newCategory,
+            matches: similar,
+          });
+          setBulkSelectedIds(new Set(similar.map((t) => t.id)));
+          setEditingId(null);
+          setSaving(null);
+          return;
+        }
+      }
     } catch {
-      // keep current optimistic feel for now
+      // Optimistic failure
     } finally {
-      setSaving(null);
-      setEditingId(null);
+      if (!bulkPrompt) {
+        setSaving(null);
+        setEditingId(null);
+      }
     }
+  }
+
+  async function handleApplyBulk() {
+    if (!bulkPrompt) return;
+    setBulkApplying(true);
+    try {
+      const idsToUpdate = Array.from(bulkSelectedIds);
+      if (idsToUpdate.length > 0) {
+        await Promise.allSettled(
+          idsToUpdate.map(async (id) => {
+            await fetch(`/api/bookkeeping/transactions/${id}/category`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ category: bulkPrompt.category }),
+            });
+          })
+        );
+        const nextOverrides = { ...categoryOverrides };
+        for (const id of idsToUpdate) {
+          nextOverrides[id] = bulkPrompt.category;
+        }
+        setCategoryOverrides(nextOverrides);
+      }
+      setBulkPrompt(null);
+    } finally {
+      setBulkApplying(false);
+    }
+  }
+
+  function handleCancelBulk() {
+    setBulkPrompt(null);
   }
 
   function handleDeleteSelected() {
@@ -245,6 +327,28 @@ export function TransactionsTable({
       setAiError(err instanceof Error ? err.message : "AI auto-categorisation failed.");
     } finally {
       setAiCategorising(false);
+    }
+  }
+
+  async function handleToggleAllowable(category: string, currentVal: boolean) {
+    if (!category) return;
+    const newVal = !currentVal;
+    
+    // Optimistic update
+    setAllowabilityOverrides((prev) => ({ ...prev, [category]: newVal }));
+    
+    try {
+      const res = await fetch(`/api/settings/category-rules/${encodeURIComponent(category)}/allowability`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allowableForTax: newVal }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to update allowability");
+      }
+    } catch {
+      // Revert if failed
+      setAllowabilityOverrides((prev) => ({ ...prev, [category]: currentVal }));
     }
   }
 
@@ -404,6 +508,9 @@ export function TransactionsTable({
                 <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)] lg:table-cell">
                   Account type
                 </th>
+                <th className="hidden px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)] xl:table-cell">
+                  Allowable
+                </th>
                 <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)] xl:table-cell">
                   Tax treatment
                 </th>
@@ -474,19 +581,19 @@ export function TransactionsTable({
                             }}
                             className="flex items-center gap-1"
                           >
-                            <input
-                              list={`cat-list-${tx.id}`}
+                            <select
                               autoFocus
                               value={editValue}
                               onChange={(event) => setEditValue(event.target.value)}
-                              placeholder="Category…"
-                              className="h-7 w-36 rounded-lg border border-[var(--color-accent)] bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                            />
-                            <datalist id={`cat-list-${tx.id}`}>
+                              className="h-7 w-36 rounded-lg border border-[var(--color-accent)] bg-white px-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                            >
+                              <option value="" disabled>Select category…</option>
                               {categoryOptions.map((category) => (
-                                <option key={category} value={category} />
+                                <option key={category} value={category}>
+                                  {category}
+                                </option>
                               ))}
-                            </datalist>
+                            </select>
                             <button
                               type="submit"
                               disabled={isSaving}
@@ -541,6 +648,16 @@ export function TransactionsTable({
                           ] ?? tx.accountType}
                         </span>
                       </td>
+                      <td className="hidden px-4 py-3 text-center xl:table-cell">
+                        <input
+                          type="checkbox"
+                          checked={tx.allowableForTax}
+                          disabled={!tx.resolvedCategory}
+                          onChange={() => handleToggleAllowable(tx.resolvedCategory, !!tx.allowableForTax)}
+                          className="h-4 w-4 cursor-pointer rounded border-[var(--color-border)] accent-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                          title={tx.resolvedCategory ? `Toggle allowability for all ${tx.resolvedCategory} items` : "Set a category first"}
+                        />
+                      </td>
                       <td className="hidden px-4 py-3 text-xs text-[var(--color-muted-foreground)] xl:table-cell">
                         {TAX_TREATMENT_LABELS[
                           tx.taxTreatment as keyof typeof TAX_TREATMENT_LABELS
@@ -560,6 +677,110 @@ export function TransactionsTable({
           </table>
         </div>
       </div>
+
+      {/* Bulk Categorisation Prompt Modal */}
+      {bulkPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-panel)] px-6 py-4">
+              <h2 className="text-lg font-semibold text-[var(--color-foreground)]">
+                Similar Transactions Detected
+              </h2>
+              <button
+                onClick={handleCancelBulk}
+                className="rounded-lg p-1 text-[var(--color-muted-foreground)] hover:bg-[var(--color-border)] hover:text-black"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="px-6 py-5">
+              <p className="mb-4 text-sm text-[var(--color-muted-foreground)]">
+                You just categorised a transaction as <span className="font-semibold text-black">{bulkPrompt.category}</span>.
+                We found <span className="font-semibold text-black">{bulkPrompt.matches.length}</span> other uncategorised transactions that look identical. Would you like to apply the same category to them?
+              </p>
+
+              <div className="max-h-64 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)]">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--color-border)]">
+                      <th className="w-10 px-4 py-2">
+                        <input
+                          type="checkbox"
+                          checked={bulkSelectedIds.size === bulkPrompt.matches.length && bulkPrompt.matches.length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) setBulkSelectedIds(new Set(bulkPrompt.matches.map(m => m.id)));
+                            else setBulkSelectedIds(new Set());
+                          }}
+                          className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                        />
+                      </th>
+                      <th className="px-4 py-2 text-left font-medium text-[var(--color-muted-foreground)]">Date</th>
+                      <th className="px-4 py-2 text-left font-medium text-[var(--color-muted-foreground)]">Merchant</th>
+                      <th className="px-4 py-2 text-right font-medium text-[var(--color-muted-foreground)]">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bulkPrompt.matches.map((match) => (
+                      <tr key={match.id} className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-accent-soft)]">
+                        <td className="px-4 py-2">
+                          <input
+                            type="checkbox"
+                            checked={bulkSelectedIds.has(match.id)}
+                            onChange={(e) => {
+                              setBulkSelectedIds(prev => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(match.id);
+                                else next.delete(match.id);
+                                return next;
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                          />
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-[var(--color-muted-foreground)]">
+                          {fmtDate(match.transactionDate)}
+                        </td>
+                        <td className="px-4 py-2 font-medium text-[var(--color-foreground)]">
+                          {match.merchant}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2 text-right font-mono font-semibold text-[var(--color-foreground)]">
+                          {fmtAmount(match.amount, match.currency)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-[var(--color-border)] bg-[var(--color-panel)] px-6 py-4">
+              <button
+                type="button"
+                onClick={handleCancelBulk}
+                className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-[var(--color-foreground)] transition hover:bg-gray-50 hover:text-black"
+              >
+                Skip 
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyBulk}
+                disabled={bulkApplying || bulkSelectedIds.size === 0}
+                className="flex min-w-[140px] items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+              >
+                {bulkApplying ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Applying…
+                  </>
+                ) : (
+                  `Apply to ${bulkSelectedIds.size}`
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
