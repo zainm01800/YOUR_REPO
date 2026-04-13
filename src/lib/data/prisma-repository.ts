@@ -11,6 +11,7 @@ import { demoStore } from "@/lib/demo/demo-store";
 import { mergeWorkspaceCategoryRules } from "@/lib/accounting/default-categories";
 import { resolveUserWorkspace } from "./multi-tenancy";
 import { getPrismaClient } from "./prisma";
+import { applyReviewMutationToRun } from "./review-mutation";
 import type {
   AttachBankSourceInput,
   CreateRunInput,
@@ -1726,7 +1727,7 @@ export async function createPrismaRepository(
     getCurrentUser: async () => toUser(user),
     getWorkspace: async () => toWorkspace(workspace),
     getDashboardSnapshot: async () => {
-      const [runs, vatRules, glRules, categoryRules] = await Promise.all([
+      const [runs, vatRules, glRules, categoryRules, templates] = await Promise.all([
         prisma.reconciliationRun.findMany({
           where: { workspaceId: workspace.id },
           orderBy: { createdAt: "desc" },
@@ -1735,13 +1736,23 @@ export async function createPrismaRepository(
         prisma.vatRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { taxCode: "asc" } }),
         prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
         prisma.categoryRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+        prisma.mappingTemplate.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "desc" } }),
       ]);
+      const domainVatRules = vatRules.map(toVatRule);
+      const domainGlRules = glRules.map(toGlRule);
+      const domainCategoryRules = categoryRules.map(toCategoryRule);
+      const domainTemplates = templates.map(toTemplate);
+
       return {
         workspace: toWorkspace(workspace),
-        runs: runs.map(toSummaryDomainRun),
-        vatRules: vatRules.map(toVatRule),
-        glRules: glRules.map(toGlRule),
-        categoryRules: mergeWorkspaceCategoryRules(categoryRules.map(toCategoryRule)),
+        user: toUser(user),
+        runs: runs.map((r) =>
+          toRunListItem(toSummaryDomainRun(r), domainVatRules, domainGlRules, domainCategoryRules)
+        ),
+        templates: domainTemplates,
+        vatRules: domainVatRules,
+        glRules: domainGlRules,
+        categoryRules: mergeWorkspaceCategoryRules(domainCategoryRules),
       };
     },
     getRunSummaries: async () => {
