@@ -13,9 +13,10 @@ import { resolveCategory } from "@/lib/categories/suggester";
 
 export default async function BookkeepingReportsPage() {
   const repository = getRepository();
-  const [snapshot, runs] = await Promise.all([
+  const [snapshot, runs, unassignedBankTxns] = await Promise.all([
     repository.getDashboardSnapshot(),
     repository.getRunsWithTransactions(),
+    repository.getUnassignedBankTransactions().catch(() => []),
   ]);
   const categoryRuleMap = buildCategoryRuleMap(snapshot.categoryRules);
 
@@ -35,6 +36,17 @@ export default async function BookkeepingReportsPage() {
         classifyTransaction(transaction, resolvedCategory, snapshot.workspace.vatRegistered),
       );
     }
+  }
+
+  // Include bank statement transactions not yet attached to any run
+  for (const tx of unassignedBankTxns) {
+    const resolvedCategoryName = tx.category ?? resolveCategory(tx, snapshot.categoryRules);
+    const resolvedCategory = resolvedCategoryName
+      ? categoryRuleMap.get(resolvedCategoryName)
+      : undefined;
+    allTransactions.push(
+      classifyTransaction(tx, resolvedCategory, snapshot.workspace.vatRegistered),
+    );
   }
 
   const pnl = buildPnL(allTransactions, snapshot.workspace.defaultCurrency);

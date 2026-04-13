@@ -33,9 +33,10 @@ function fmtAmount(amount: number, currency: string) {
 
 export default async function SpendingPage() {
   const repository = getRepository();
-  const [snapshot, runs] = await Promise.all([
+  const [snapshot, runs, unassignedBankTxns] = await Promise.all([
     repository.getDashboardSnapshot(),
     repository.getRunsWithTransactions(),
+    repository.getUnassignedBankTransactions().catch(() => []),
   ]);
   const categoryRuleMap = buildCategoryRuleMap(snapshot.categoryRules);
 
@@ -45,6 +46,9 @@ export default async function SpendingPage() {
     for (const tx of run.transactions) {
       allTransactions.push({ ...tx, runId: run.id });
     }
+  }
+  for (const tx of unassignedBankTxns) {
+    allTransactions.push({ ...tx, runId: tx.bankStatementId ?? tx.id });
   }
 
   const classifiedTransactions = allTransactions.map((tx) => {
