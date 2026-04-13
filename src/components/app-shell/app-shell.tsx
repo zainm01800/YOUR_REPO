@@ -13,6 +13,7 @@ import {
   LayoutTemplate,
   Landmark,
   Menu,
+  PackageOpen,
   PlusSquare,
   Settings2,
   Table2,
@@ -46,6 +47,7 @@ const navigation = [
     label: "Export & Output",
     items: [
       { href: "/posting-file-builder", label: "Posting File Builder", icon: FileOutput },
+      { href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen },
     ],
   },
   {
