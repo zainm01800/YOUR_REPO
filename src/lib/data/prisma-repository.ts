@@ -35,6 +35,8 @@ import type {
   ReconciliationRun,
   ReviewAction,
   ReviewRow,
+  RunListItem,
+  SettingsSnapshot,
   TransactionRecord,
   UploadedFileMeta,
   User,
@@ -44,7 +46,7 @@ import type {
 import { buildReviewRows } from "@/lib/reconciliation/review-rows";
 import { buildRunSummary } from "@/lib/reconciliation/summary";
 
-const runInclude = {
+const detailedRunInclude = {
   workspace: true,
   bankStatement: true,
   uploadedFiles: true,
@@ -63,7 +65,44 @@ const runInclude = {
   exports: { include: { actor: true } },
 } satisfies Prisma.ReconciliationRunInclude;
 
-type DbRun = Prisma.ReconciliationRunGetPayload<{ include: typeof runInclude }>;
+const summaryRunInclude = {
+  workspace: true,
+  bankStatement: true,
+  transactions: {
+    include: {
+      sourceBankTransaction: {
+        include: {
+          bankStatement: true,
+        },
+      },
+    },
+  },
+  documents: { include: { taxLines: true } },
+  matches: true,
+} satisfies Prisma.ReconciliationRunInclude;
+
+const bankStatusRunInclude = {
+  transactions: {
+    select: {
+      id: true,
+      excludedFromExport: true,
+      sourceBankTransactionId: true,
+    },
+  },
+  matches: {
+    select: {
+      id: true,
+      documentId: true,
+      selected: true,
+      status: true,
+      transactionId: true,
+    },
+  },
+} satisfies Prisma.ReconciliationRunInclude;
+
+type DbDetailedRun = Prisma.ReconciliationRunGetPayload<{ include: typeof detailedRunInclude }>;
+type DbSummaryRun = Prisma.ReconciliationRunGetPayload<{ include: typeof summaryRunInclude }>;
+type DbBankStatusRun = Prisma.ReconciliationRunGetPayload<{ include: typeof bankStatusRunInclude }>;
 
 const bankStatementInclude = {
   transactions: true,
@@ -238,7 +277,9 @@ function toUploadedFile(file: {
   };
 }
 
-function toTransaction(transaction: DbRun["transactions"][number]): TransactionRecord {
+function toTransaction(
+  transaction: DbDetailedRun["transactions"][number] | DbSummaryRun["transactions"][number],
+): TransactionRecord {
   return {
     id: transaction.id,
     sourceBankTransactionId: transaction.sourceBankTransactionId || undefined,
@@ -301,7 +342,9 @@ function toBankStatement(statement: DbBankStatement): BankStatement {
   };
 }
 
-function toDocument(document: DbRun["documents"][number]): ExtractedDocument {
+function toDocument(
+  document: DbDetailedRun["documents"][number] | DbSummaryRun["documents"][number],
+): ExtractedDocument {
   return {
     id: document.id,
     fileName: document.fileName,
@@ -330,7 +373,9 @@ function toDocument(document: DbRun["documents"][number]): ExtractedDocument {
   };
 }
 
-function toMatch(match: DbRun["matches"][number]): MatchDecision {
+function toMatch(
+  match: DbDetailedRun["matches"][number] | DbSummaryRun["matches"][number],
+): MatchDecision {
   return {
     id: match.id,
     transactionId: match.transactionId,
@@ -342,7 +387,7 @@ function toMatch(match: DbRun["matches"][number]): MatchDecision {
   };
 }
 
-function toReviewAction(action: DbRun["reviewActions"][number]): ReviewAction {
+function toReviewAction(action: DbDetailedRun["reviewActions"][number]): ReviewAction {
   return {
     id: action.id,
     runId: action.runId,
@@ -356,7 +401,7 @@ function toReviewAction(action: DbRun["reviewActions"][number]): ReviewAction {
   };
 }
 
-function toExportRecord(record: DbRun["exports"][number]): ExportRecord {
+function toExportRecord(record: DbDetailedRun["exports"][number]): ExportRecord {
   return {
     id: record.id,
     format: record.format as ExportRecord["format"],
@@ -365,7 +410,7 @@ function toExportRecord(record: DbRun["exports"][number]): ExportRecord {
   };
 }
 
-function toDomainRun(run: DbRun): ReconciliationRun {
+function toDomainRun(run: DbDetailedRun): ReconciliationRun {
   return {
     id: run.id,
     name: run.name,
@@ -390,6 +435,102 @@ function toDomainRun(run: DbRun): ReconciliationRun {
     matches: run.matches.map(toMatch),
     auditTrail: run.reviewActions.map(toReviewAction),
     exports: run.exports.map(toExportRecord),
+  };
+}
+
+function toSummaryDomainRun(run: DbSummaryRun): ReconciliationRun {
+  return {
+    id: run.id,
+    name: run.name,
+    status: run.status as ReconciliationRun["status"],
+    createdAt: run.createdAt.toISOString(),
+    processedAt: toIso(run.processedAt),
+    entity: run.entity || undefined,
+    period: run.period || undefined,
+    locked: run.locked,
+    lockedAt: toIso(run.lockedAt),
+    lockedBy: run.lockedBy || undefined,
+    countryProfile: run.countryProfile || undefined,
+    bankStatementId: run.bankStatementId || undefined,
+    bankSourceMode: run.bankSourceMode as ReconciliationRun["bankSourceMode"] | undefined,
+    bankSourceLabel: run.bankSourceLabel || run.bankStatement?.name || undefined,
+    defaultCurrency: run.workspace.defaultCurrency,
+    transactionFileName: run.transactionFileName || undefined,
+    fxRates: (run.fxRates as Record<string, number> | null) || undefined,
+    uploadedFiles: [],
+    transactions: run.transactions.map(toTransaction),
+    documents: run.documents.map(toDocument),
+    matches: run.matches.map(toMatch),
+    auditTrail: [],
+    exports: [],
+  };
+}
+
+function toRunListItem(
+  run: ReconciliationRun,
+  vatRules: VatRule[],
+  glRules: GlCodeRule[],
+  categoryRules: CategoryRule[],
+): RunListItem {
+  return {
+    id: run.id,
+    name: run.name,
+    status: run.status,
+    createdAt: run.createdAt,
+    processedAt: run.processedAt,
+    entity: run.entity,
+    period: run.period,
+    locked: run.locked,
+    summary: buildRunSummary(buildReviewRows(run, vatRules, glRules, categoryRules)),
+  };
+}
+
+function toBankStatusRun(run: DbBankStatusRun): ReconciliationRun {
+  return {
+    id: run.id,
+    name: run.name,
+    status: run.status as ReconciliationRun["status"],
+    createdAt: run.createdAt.toISOString(),
+    processedAt: toIso(run.processedAt),
+    entity: run.entity || undefined,
+    period: run.period || undefined,
+    locked: run.locked,
+    lockedAt: toIso(run.lockedAt),
+    lockedBy: run.lockedBy || undefined,
+    countryProfile: run.countryProfile || undefined,
+    defaultCurrency: undefined,
+    uploadedFiles: [],
+    transactions: run.transactions.map((transaction) => ({
+      id: transaction.id,
+      sourceBankTransactionId: transaction.sourceBankTransactionId || undefined,
+      amount: 0,
+      currency: "",
+      merchant: "",
+      description: "",
+      excludedFromExport: transaction.excludedFromExport,
+    })),
+    documents: [],
+    matches: run.matches.map((match) => ({
+      id: match.id,
+      transactionId: match.transactionId,
+      documentId: match.documentId || undefined,
+      status: match.status as MatchDecision["status"],
+      score: 0,
+      rationale: {
+        amountScore: 0,
+        dateScore: 0,
+        supplierScore: 0,
+        filenameScore: 0,
+        employeeScore: 0,
+        currencyScore: 0,
+        invoiceNumberScore: 0,
+        referenceScore: 0,
+        notes: [],
+      },
+      selected: match.selected,
+    })),
+    auditTrail: [],
+    exports: [],
   };
 }
 
@@ -530,7 +671,7 @@ async function loadRun(prisma: PrismaClient, runId: string) {
   return prisma.reconciliationRun.findUnique({
     where: { id: runId },
     include: {
-      ...runInclude,
+      ...detailedRunInclude,
       workspace: true,
     },
   });
@@ -754,7 +895,7 @@ export const prismaRepository: Repository = {
         where: { workspaceId: workspace.id },
         orderBy: { createdAt: "desc" },
         include: {
-          ...runInclude,
+          ...summaryRunInclude,
           workspace: true,
         },
       }),
@@ -767,28 +908,73 @@ export const prismaRepository: Repository = {
       prisma.categoryRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
     ]);
 
-    const domainRuns = runs.map(toDomainRun);
+    const domainRuns = runs.map(toSummaryDomainRun);
+    const domainVatRules = vatRules.map(toVatRule);
+    const domainGlRules = glRules.map(toGlRule);
     const domainCatRules = categoryRules.map(toCategoryRule);
 
     return {
       workspace: toWorkspace(workspace),
       user: toUser(user),
-      runs: domainRuns.map((run) => ({
-        id: run.id,
-        name: run.name,
-        status: run.status,
-        createdAt: run.createdAt,
-        processedAt: run.processedAt,
-        entity: run.entity,
-        period: run.period,
-        locked: run.locked,
-        summary: buildRunSummary(buildReviewRows(run, vatRules.map(toVatRule), glRules.map(toGlRule), domainCatRules)),
-      })),
+      runs: domainRuns.map((run) => toRunListItem(run, domainVatRules, domainGlRules, domainCatRules)),
+      templates: templates.map(toTemplate),
+      vatRules: domainVatRules,
+      glRules: domainGlRules,
+      categoryRules: domainCatRules,
+    };
+  },
+
+  async getSettingsSnapshot(): Promise<SettingsSnapshot> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const [templates, vatRules, glRules, categoryRules] = await Promise.all([
+      prisma.mappingTemplate.findMany({
+        where: { workspaceId: workspace.id },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.vatRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { taxCode: "asc" } }),
+      prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+      prisma.categoryRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+    ]);
+
+    return {
+      workspace: toWorkspace(workspace),
       templates: templates.map(toTemplate),
       vatRules: vatRules.map(toVatRule),
       glRules: glRules.map(toGlRule),
-      categoryRules: domainCatRules,
+      categoryRules: categoryRules.map(toCategoryRule),
     };
+  },
+
+  async getRunSummaries() {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const [runs, vatRules, glRules, categoryRules] = await Promise.all([
+      prisma.reconciliationRun.findMany({
+        where: { workspaceId: workspace.id },
+        orderBy: { createdAt: "desc" },
+        include: {
+          ...summaryRunInclude,
+          workspace: true,
+        },
+      }),
+      prisma.vatRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { taxCode: "asc" } }),
+      prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+      prisma.categoryRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+    ]);
+
+    const domainVatRules = vatRules.map(toVatRule);
+    const domainGlRules = glRules.map(toGlRule);
+    const domainCategoryRules = categoryRules.map(toCategoryRule);
+
+    return runs.map((run) =>
+      toRunListItem(
+        toSummaryDomainRun(run),
+        domainVatRules,
+        domainGlRules,
+        domainCategoryRules,
+      ),
+    );
   },
 
   async getRun(runId) {
@@ -804,13 +990,13 @@ export const prismaRepository: Repository = {
     const runs = await prisma.reconciliationRun.findMany({
       where: { workspaceId: workspace.id },
       include: {
-        ...runInclude,
+        ...summaryRunInclude,
         workspace: true,
       },
       orderBy: { createdAt: "desc" },
     });
 
-    return runs.map(toDomainRun);
+    return runs.map(toSummaryDomainRun);
   },
 
   async getRunRows(runId): Promise<ReviewRow[]> {
@@ -860,14 +1046,13 @@ export const prismaRepository: Repository = {
     const runs = await prisma.reconciliationRun.findMany({
       where: { workspaceId: workspace.id },
       include: {
-        ...runInclude,
-        workspace: true,
+        ...bankStatusRunInclude,
       },
     });
 
     return decorateBankStatementsWithStatuses(
       statements.map(toBankStatement),
-      runs.map(toDomainRun),
+      runs.map(toBankStatusRun),
     );
   },
 
@@ -890,8 +1075,7 @@ export const prismaRepository: Repository = {
     const runs = await prisma.reconciliationRun.findMany({
       where: { workspaceId: workspace.id },
       include: {
-        ...runInclude,
-        workspace: true,
+        ...bankStatusRunInclude,
       },
     });
 
@@ -901,7 +1085,7 @@ export const prismaRepository: Repository = {
 
     return decorateBankStatementsWithStatuses(
       [toBankStatement(statement)],
-      runs.map(toDomainRun),
+      runs.map(toBankStatusRun),
     )[0];
   },
 
@@ -974,8 +1158,7 @@ export const prismaRepository: Repository = {
       prisma.reconciliationRun.findMany({
         where: { workspaceId: workspace.id },
         include: {
-          ...runInclude,
-          workspace: true,
+          ...bankStatusRunInclude,
         },
       }),
     ]);
@@ -996,7 +1179,7 @@ export const prismaRepository: Repository = {
 
     const picked = pickTransactionsForBankSource(
       statements.map(toBankStatement),
-      runs.filter((candidate) => candidate.id !== input.runId).map(toDomainRun),
+      runs.filter((candidate) => candidate.id !== input.runId).map(toBankStatusRun),
       input.bankSourceMode,
       input.bankStatementId,
     );
@@ -1249,7 +1432,7 @@ export const prismaRepository: Repository = {
         workspaceId: workspace.id,
       },
       include: {
-        ...runInclude,
+        ...detailedRunInclude,
         workspace: true,
       },
     });

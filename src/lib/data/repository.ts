@@ -6,8 +6,10 @@ import type {
   BankSourceMode,
   MappingTemplate,
   ReconciliationRun,
+  RunListItem,
   ReviewActionType,
   ReviewRow,
+  SettingsSnapshot,
   TransactionRecord,
   User,
   VatRule,
@@ -84,6 +86,8 @@ export interface Repository {
   getWorkspace(): Promise<Workspace>;
   updateWorkspace(input: UpdateWorkspaceInput): Promise<Workspace>;
   getDashboardSnapshot(): Promise<DashboardSnapshot>;
+  getSettingsSnapshot(): Promise<SettingsSnapshot>;
+  getRunSummaries(): Promise<RunListItem[]>;
   getRun(runId: string): Promise<ReconciliationRun | null>;
   getRunsWithTransactions(): Promise<ReconciliationRun[]>;
   getRunRows(runId: string): Promise<ReviewRow[]>;

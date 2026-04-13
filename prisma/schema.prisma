@@ -117,6 +117,9 @@ model ReconciliationRun {
   matches             MatchDecision[]
   reviewActions       ReviewAction[]
   exports             ExportHistory[]
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([bankStatementId])
 }
 
 model BankStatement {
@@ -136,6 +139,8 @@ model BankStatement {
   workspace          Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   transactions       BankTransaction[]
   runs               ReconciliationRun[]
+
+  @@index([workspaceId, importedAt(sort: Desc)])
 }
 
 model BankTransaction {
@@ -153,6 +158,9 @@ model BankTransaction {
   bankStatementId  String
   bankStatement    BankStatement  @relation(fields: [bankStatementId], references: [id], onDelete: Cascade)
   runTransactions  Transaction[]
+
+  @@index([bankStatementId, transactionDate])
+  @@index([bankStatementId, postedDate])
 }
 
 model UploadedFile {
@@ -192,6 +200,10 @@ model Transaction {
   run                 ReconciliationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   sourceBankTransaction BankTransaction? @relation(fields: [sourceBankTransactionId], references: [id], onDelete: SetNull)
   matches             MatchDecision[]
+
+  @@index([runId, transactionDate])
+  @@index([runId, postedDate])
+  @@index([sourceBankTransactionId])
 }
 
 model Document {
@@ -213,6 +225,8 @@ model Document {
   run                  ReconciliationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   taxLines             DocumentTaxLine[]
   matches              MatchDecision[]
+
+  @@index([runId, issueDate])
 }
 
 model DocumentTaxLine {
@@ -241,6 +255,9 @@ model MatchDecision {
   transaction   Transaction       @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   document      Document?         @relation(fields: [documentId], references: [id], onDelete: SetNull)
   run           ReconciliationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, transactionId])
+  @@index([documentId])
 }
 
 model ReviewAction {
@@ -257,6 +274,8 @@ model ReviewAction {
   actorId       String
   run           ReconciliationRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
   actor         User               @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([runId, createdAt(sort: Desc)])
 }
 
 model VatRule {
@@ -268,6 +287,8 @@ model VatRule {
   description String?
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, taxCode])
 }
 
 model GlCodeRule {
@@ -279,6 +300,8 @@ model GlCodeRule {
   priority       Int       @default(100)
   workspaceId    String
   workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, priority])
 }
 
 model CategoryRule {
@@ -299,6 +322,8 @@ model CategoryRule {
   allowablePercentage   Decimal   @default(100) @db.Decimal(5, 2)
   workspaceId           String
   workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, priority])
 }
 
 model MappingTemplate {
@@ -309,6 +334,8 @@ model MappingTemplate {
   createdAt      DateTime  @default(now())
   workspaceId    String
   workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
 }
 
 model ExportHistory {
@@ -320,4 +347,6 @@ model ExportHistory {
   actorId   String
   run       ReconciliationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   actor     User              @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([runId, createdAt(sort: Desc)])
 }

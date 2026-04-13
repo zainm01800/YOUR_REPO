@@ -19,7 +19,10 @@ export default async function BookkeepingTaxSummaryPage({
   const selectedPeriod = params.period;
 
   const repository = getRepository();
-  const snapshot = await repository.getDashboardSnapshot();
+  const [snapshot, runs] = await Promise.all([
+    repository.getDashboardSnapshot(),
+    repository.getRunsWithTransactions(),
+  ]);
   const categoryRuleMap = buildCategoryRuleMap(snapshot.categoryRules);
   const periodOptions = Array.from(
     new Set(snapshot.runs.map((run) => run.period).filter((period): period is string => Boolean(period))),
@@ -27,13 +30,11 @@ export default async function BookkeepingTaxSummaryPage({
 
   const allTransactions: ClassifiedTransaction[] = [];
 
-  for (const runSummary of snapshot.runs) {
-    if (selectedPeriod && runSummary.period !== selectedPeriod) {
+  for (const run of runs) {
+    if (selectedPeriod && run.period !== selectedPeriod) {
       continue;
     }
-
-    const run = await repository.getRun(runSummary.id);
-    if (!run || run.transactions.length === 0) continue;
+    if (run.transactions.length === 0) continue;
 
     for (const transaction of run.transactions) {
       const resolvedCategoryName =

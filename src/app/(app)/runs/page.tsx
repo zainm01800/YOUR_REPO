@@ -6,7 +6,7 @@ import { getRepository } from "@/lib/data";
 
 export default async function RunsPage() {
   const repository = getRepository();
-  const snapshot = await repository.getDashboardSnapshot();
+  const runs = await repository.getRunSummaries();
 
   return (
     <>
@@ -21,7 +21,7 @@ export default async function RunsPage() {
         }
       />
 
-      <RunsTable runs={snapshot.runs} />
+      <RunsTable runs={runs} />
     </>
   );
 }

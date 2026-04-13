@@ -1,19 +1,20 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Card } from "@/components/ui/card";
 import { getRepository } from "@/lib/data";
+import { buildReviewRows } from "@/lib/reconciliation/review-rows";
 import { formatCurrency } from "@/lib/utils";
 
 export default async function SupplierAnalysisPage() {
   const repository = getRepository();
-  const snapshot = await repository.getDashboardSnapshot();
+  const [snapshot, runs] = await Promise.all([
+    repository.getDashboardSnapshot(),
+    repository.getRunsWithTransactions(),
+  ]);
   const currency = snapshot.workspace.defaultCurrency ?? "GBP";
-
-  const runRows = await Promise.all(
-    snapshot.runs.map(async (run) => ({
-      run,
-      rows: await repository.getRunRows(run.id),
-    })),
-  );
+  const runRows = runs.map((run) => ({
+    run,
+    rows: buildReviewRows(run, snapshot.vatRules, snapshot.glRules, snapshot.categoryRules),
+  }));
 
   const supplierStats = new Map<
     string,

@@ -69,8 +69,8 @@ function roundMoney(value: number) {
 
 export async function GET() {
   const repository = getRepository();
-  const snapshot = await repository.getDashboardSnapshot();
-  return NextResponse.json(snapshot.runs);
+  const runs = await repository.getRunSummaries();
+  return NextResponse.json(runs);
 }
 
 export async function POST(request: Request) {

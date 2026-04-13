@@ -420,6 +420,18 @@ export interface RunProcessingSummary {
   matchRatePct: number;
 }
 
+export interface RunListItem {
+  id: string;
+  name: string;
+  status: RunStatus;
+  createdAt: string;
+  processedAt?: string;
+  entity?: string;
+  period?: string;
+  locked?: boolean;
+  summary: RunProcessingSummary;
+}
+
 export interface ReconciliationRun {
   id: string;
   name: string;
@@ -521,17 +533,15 @@ export interface ReviewRow {
 export interface DashboardSnapshot {
   workspace: Workspace;
   user: User;
-  runs: Array<{
-    id: string;
-    name: string;
-    status: RunStatus;
-    createdAt: string;
-    processedAt?: string;
-    entity?: string;
-    period?: string;
-    locked?: boolean;
-    summary: RunProcessingSummary;
-  }>;
+  runs: RunListItem[];
+  templates: MappingTemplate[];
+  vatRules: VatRule[];
+  glRules: GlCodeRule[];
+  categoryRules: CategoryRule[];
+}
+
+export interface SettingsSnapshot {
+  workspace: Workspace;
   templates: MappingTemplate[];
   vatRules: VatRule[];
   glRules: GlCodeRule[];

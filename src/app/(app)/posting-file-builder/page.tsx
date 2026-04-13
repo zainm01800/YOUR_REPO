@@ -1,15 +1,10 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { PostingFileBuilder } from "@/components/posting-file-builder/posting-file-builder";
 import { getRepository } from "@/lib/data";
-import type { ReconciliationRun } from "@/lib/domain/types";
 
 export default async function PostingFileBuilderPage() {
   const repository = getRepository();
-  const snapshot = await repository.getDashboardSnapshot();
-
-  const runs = (
-    await Promise.all(snapshot.runs.map((r) => repository.getRun(r.id)))
-  ).filter((r): r is ReconciliationRun => r !== null);
+  const runs = await repository.getRunsWithTransactions();
 
   return (
     <>

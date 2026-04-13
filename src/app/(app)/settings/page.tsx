@@ -12,8 +12,8 @@ import { getRepository } from "@/lib/data";
 
 export default async function SettingsPage() {
   const repository = getRepository();
-  const snapshot = await repository.getDashboardSnapshot();
-  const workspace = snapshot.workspace;
+  const settings = await repository.getSettingsSnapshot();
+  const workspace = settings.workspace;
 
   return (
     <>
@@ -29,7 +29,7 @@ export default async function SettingsPage() {
           initialBusinessType={workspace.businessType}
         />
 
-        <VatSyncCard currentRuleCount={snapshot.vatRules.length} />
+        <VatSyncCard currentRuleCount={settings.vatRules.length} />
 
         <RuleImportCard
           title="Import GL codes"
@@ -44,7 +44,7 @@ export default async function SettingsPage() {
         />
 
         <Card className="space-y-5">
-          <CountryVatPicker initialRules={snapshot.vatRules} />
+          <CountryVatPicker initialRules={settings.vatRules} />
         </Card>
 
         <RuleImportCard
@@ -59,13 +59,13 @@ export default async function SettingsPage() {
           helperText={`Paste one row per line.\nAccepted formats:\nGB,20,GB20,true,Standard UK VAT\nDE | 19 | DE19 | true | German standard VAT\n\nSpreadsheet headers can be: country/countryCode, rate/taxRate, taxCode/vatCode, recoverable, description.`}
         />
 
-        <VatRuleManager initialRules={snapshot.vatRules} />
+        <VatRuleManager initialRules={settings.vatRules} />
 
-        <GlRuleManager initialRules={snapshot.glRules} />
+        <GlRuleManager initialRules={settings.glRules} />
 
         {/* Category rules */}
         <Card className="space-y-5">
-          <CategoryRuleManager initialRules={snapshot.categoryRules} />
+          <CategoryRuleManager initialRules={settings.categoryRules} />
         </Card>
 
         <Card className="space-y-5">
@@ -76,12 +76,12 @@ export default async function SettingsPage() {
             </p>
           </div>
           <div className="space-y-3">
-            {snapshot.templates.length === 0 ? (
+            {settings.templates.length === 0 ? (
               <p className="rounded-2xl bg-[var(--color-panel)] p-5 text-sm text-[var(--color-muted-foreground)]">
                 No mapping templates saved yet. They appear here after you save one during a run.
               </p>
             ) : (
-              snapshot.templates.map((template) => (
+              settings.templates.map((template) => (
                 <div key={template.id} className="rounded-2xl bg-[var(--color-panel)] p-5 text-sm">
                   <div className="font-semibold text-[var(--color-foreground)]">{template.name}</div>
                   <div className="mt-2 flex flex-wrap gap-2">

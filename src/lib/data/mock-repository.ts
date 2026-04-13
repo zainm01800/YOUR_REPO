@@ -4,7 +4,9 @@ import type {
   CategoryRule,
   DashboardSnapshot,
   GlCodeRule,
+  RunListItem,
   ReviewRow,
+  SettingsSnapshot,
   User,
   VatRule,
   Workspace,
@@ -71,7 +73,7 @@ export const mockRepository: Repository = {
   },
 
   async getDashboardSnapshot(): Promise<DashboardSnapshot> {
-    const runs = store.runs.map((run) => ({
+    const runs: RunListItem[] = store.runs.map((run) => ({
       id: run.id,
       name: run.name,
       status: run.status,
@@ -94,6 +96,32 @@ export const mockRepository: Repository = {
       glRules: deepClone(store.glRules),
       categoryRules: deepClone(store.categoryRules),
     };
+  },
+
+  async getSettingsSnapshot(): Promise<SettingsSnapshot> {
+    return {
+      workspace: deepClone(store.workspace),
+      templates: deepClone(store.templates),
+      vatRules: deepClone(store.vatRules),
+      glRules: deepClone(store.glRules),
+      categoryRules: deepClone(store.categoryRules),
+    };
+  },
+
+  async getRunSummaries(): Promise<RunListItem[]> {
+    return store.runs.map((run) => ({
+      id: run.id,
+      name: run.name,
+      status: run.status,
+      createdAt: run.createdAt,
+      processedAt: run.processedAt,
+      entity: run.entity,
+      period: run.period,
+      locked: run.locked,
+      summary: buildRunSummary(
+        buildReviewRows(run, store.vatRules, store.glRules, store.categoryRules),
+      ),
+    }));
   },
 
   async getRun(runId) {
