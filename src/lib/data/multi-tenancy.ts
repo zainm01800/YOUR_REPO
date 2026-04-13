@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { currentUser } from "@clerk/nextjs/server";
 import { type PrismaClient } from "@prisma/client";
 import { demoStore } from "@/lib/demo/demo-store";
@@ -22,7 +23,7 @@ async function getResilientClerkUser(retries = 3) {
   return null;
 }
 
-export async function resolveUserWorkspace(prisma: PrismaClient) {
+export const resolveUserWorkspace = cache(async (prisma: PrismaClient) => {
   const clerkUser = await getResilientClerkUser();
   if (!clerkUser) {
     throw new Error("Authentication session failed to synchronize. Please refresh the page.");
@@ -92,7 +93,7 @@ export async function resolveUserWorkspace(prisma: PrismaClient) {
     workspace: membership.workspace,
     isNewWorkspace,
   };
-}
+});
 
 async function seedDefaultRules(prisma: PrismaClient, workspaceId: string) {
   // Seed demo rules as defaults for new users

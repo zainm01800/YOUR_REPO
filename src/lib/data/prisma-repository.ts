@@ -84,6 +84,38 @@ const summaryRunInclude = {
   matches: true,
 } satisfies Prisma.ReconciliationRunInclude;
 
+// Lean include for the bookkeeping/transactions page — only pulls tx fields, no documents or matches
+const transactionOnlyRunInclude = {
+  transactions: {
+    select: {
+      id: true,
+      sourceBankTransactionId: true,
+      externalId: true,
+      sourceLineNumber: true,
+      transactionDate: true,
+      postedDate: true,
+      amount: true,
+      currency: true,
+      merchant: true,
+      description: true,
+      employee: true,
+      reference: true,
+      vatCode: true,
+      glCode: true,
+      category: true,
+      taxTreatment: true,
+      taxRate: true,
+      noReceiptRequired: true,
+      excludedFromExport: true,
+      sourceBankTransaction: {
+        select: { id: true, bankStatementId: true, bankStatement: { select: { name: true } } },
+      },
+    },
+  },
+} satisfies Prisma.ReconciliationRunInclude;
+
+type DbTransactionOnlyRun = Prisma.ReconciliationRunGetPayload<{ include: typeof transactionOnlyRunInclude }>;
+
 const bankStatusRunInclude = {
   transactions: {
     select: {
@@ -1671,13 +1703,6 @@ export async function createPrismaRepository(
   prisma: PrismaClient,
   context: UserContext,
 ): Promise<Repository> {
-  // Global Privacy Cleanup: Delete the old hardcoded workspace if it exists
-  const oldSlug = "northstar-finance";
-  const oldWorkspace = await prisma.workspace.findUnique({ where: { slug: oldSlug }, select: { id: true } });
-  if (oldWorkspace) {
-    console.log(`[Privacy] Deleting old shared workspace: ${oldWorkspace.id}`);
-    await prisma.workspace.delete({ where: { id: oldWorkspace.id } }).catch(() => {});
-  }
 
   // 1. Resolve or Create the User in our DB
   const user = await prisma.user.upsert({
@@ -1781,10 +1806,44 @@ export async function createPrismaRepository(
     getRunsWithTransactions: async () => {
       const runs = await prisma.reconciliationRun.findMany({
         where: { workspaceId: workspace.id },
-        include: summaryRunInclude,
+        include: transactionOnlyRunInclude,
         orderBy: { createdAt: "desc" },
       });
-      return runs.map(toSummaryDomainRun);
+      // Map to a partial ReconciliationRun compatible with the transactions page
+      return runs.map((run) => ({
+        id: run.id,
+        name: run.name,
+        status: run.status as import("@/lib/domain/types").RunStatus,
+        createdAt: run.createdAt.toISOString(),
+        period: run.period ?? undefined,
+        uploadedFiles: [],
+        documents: [],
+        matches: [],
+        auditTrail: [],
+        exports: [],
+        transactions: run.transactions.map((tx) => ({
+          id: tx.id,
+          sourceBankTransactionId: tx.sourceBankTransactionId ?? undefined,
+          bankStatementName: tx.sourceBankTransaction?.bankStatement?.name ?? undefined,
+          bankStatementId: tx.sourceBankTransaction?.bankStatementId ?? undefined,
+          externalId: tx.externalId ?? undefined,
+          sourceLineNumber: tx.sourceLineNumber ?? undefined,
+          transactionDate: tx.transactionDate?.toISOString().slice(0, 10) ?? undefined,
+          postedDate: tx.postedDate?.toISOString().slice(0, 10) ?? undefined,
+          amount: tx.amount.toNumber(),
+          currency: tx.currency ?? "GBP",
+          merchant: tx.merchant ?? "",
+          description: tx.description ?? "",
+          employee: tx.employee ?? undefined,
+          reference: tx.reference ?? undefined,
+          vatCode: tx.vatCode ?? undefined,
+          glCode: tx.glCode ?? undefined,
+          category: tx.category ?? undefined,
+          taxTreatment: (tx.taxTreatment ?? undefined) as import("@/lib/domain/types").TaxTreatment | undefined,
+          noReceiptRequired: tx.noReceiptRequired ?? undefined,
+          excludedFromExport: tx.excludedFromExport ?? false,
+        })),
+      }));
     },
   };
 }

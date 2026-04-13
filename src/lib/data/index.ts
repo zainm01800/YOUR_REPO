@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { currentUser } from "@clerk/nextjs/server";
 import { mockRepository } from "@/lib/data/mock-repository";
 import { getPrismaClient } from "@/lib/data/prisma";
@@ -19,7 +20,7 @@ export function getRepositoryMode(): "demo" | "prisma" | "misconfigured" {
   return "misconfigured";
 }
 
-export async function getRepository() {
+export const getRepository = cache(async () => {
   const demoMode = isDemoModeEnabled();
   if (demoMode) {
     return mockRepository;
@@ -50,4 +51,4 @@ export async function getRepository() {
   });
 
   return repo;
-}
+});
