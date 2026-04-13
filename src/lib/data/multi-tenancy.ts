@@ -8,10 +8,24 @@ export interface UserContext {
   name: string;
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function getResilientClerkUser(retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    const user = await currentUser();
+    if (user) return user;
+    if (i < retries - 1) {
+      console.log(`[Auth] Session cold, retrying in 1s... (Attempt ${i + 1})`);
+      await sleep(1000);
+    }
+  }
+  return null;
+}
+
 export async function resolveUserWorkspace(prisma: PrismaClient) {
-  const clerkUser = await currentUser();
+  const clerkUser = await getResilientClerkUser();
   if (!clerkUser) {
-    throw new Error("Authentication required: No user found in session.");
+    throw new Error("Authentication session failed to synchronize. Please refresh the page.");
   }
 
   const email = clerkUser.emailAddresses[0]?.emailAddress;

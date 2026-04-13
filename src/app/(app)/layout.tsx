@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getRepository } from "@/lib/data";
 import { AppShell } from "@/components/app-shell/app-shell";
+import { RecoveryUI } from "@/components/auth/recovery-ui";
 
 export default async function AuthenticatedLayout({
   children,
@@ -9,19 +10,22 @@ export default async function AuthenticatedLayout({
   children: React.ReactNode;
 }) {
   const { userId } = await auth();
-  console.log(`[Layout] userId: ${userId}`);
 
   if (!userId) {
-    console.log("[Layout] No userId, redirecting to sign-in");
     redirect("/sign-in");
   }
 
-  const repository = await getRepository();
-  const workspace = await repository.getWorkspace();
+  try {
+    const repository = await getRepository();
+    const workspace = await repository.getWorkspace();
 
-  if (!workspace) {
-    redirect("/sign-up");
+    if (!workspace) {
+      redirect("/sign-up");
+    }
+
+    return <AppShell workspaceName={workspace.name}>{children}</AppShell>;
+  } catch (error) {
+    console.error(`[Layout] Workspace resolution failed:`, error);
+    return <RecoveryUI />;
   }
-
-  return <AppShell workspaceName={workspace.name}>{children}</AppShell>;
 }
