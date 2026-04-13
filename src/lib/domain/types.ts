@@ -90,6 +90,18 @@ export type TaxTreatment =
   | "non_recoverable";  // Input VAT paid but not recoverable (e.g. business entertainment)
 
 export type BusinessType = "sole_trader" | "general_small_business";
+export type CategorySection =
+  | "Income"
+  | "Cost of Sales"
+  | "Travel & Vehicle"
+  | "Office & Admin"
+  | "Marketing & Sales"
+  | "Staff & Payroll"
+  | "Property & Premises"
+  | "Tax & Compliance"
+  | "Equity & Owner Items"
+  | "Assets, Liabilities & Transfers"
+  | "Other & Special";
 
 export interface Workspace {
   id: string;
@@ -153,6 +165,30 @@ export interface UploadedFileMeta {
   mimeType: string;
   sizeBytes: number;
   fileKind: "transaction_file" | "document" | "archive" | "export_file";
+}
+
+export interface CategoryRule {
+  id: string;
+  category: string;
+  slug: string;
+  description?: string;
+  section: CategorySection;
+  supplierPattern?: string;
+  keywordPattern?: string;
+  priority: number;
+  accountType: AccountType;
+  statementType: StatementType;
+  reportingBucket: string;
+  defaultTaxTreatment: TaxTreatment;
+  defaultVatRate: number;
+  defaultVatRecoverable: boolean;
+  glCode?: string;
+  isSystemDefault: boolean;
+  isActive: boolean;
+  isVisible: boolean;
+  allowableForTax: boolean;
+  allowablePercentage: number;
+  sortOrder: number;
 }
 
 export interface TransactionRecord {

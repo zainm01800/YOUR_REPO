@@ -8,6 +8,7 @@ import {
   pickTransactionsForBankSource,
 } from "@/lib/bank-statements/service";
 import { demoStore } from "@/lib/demo/demo-store";
+import { mergeWorkspaceCategoryRules } from "@/lib/accounting/default-categories";
 import { getPrismaClient } from "@/lib/data/prisma";
 import { applyReviewMutationToRun } from "@/lib/data/review-mutation";
 import type {
@@ -272,6 +273,9 @@ function toGlRule(rule: {
 function toCategoryRule(rule: {
   id: string;
   category: string;
+  slug: string;
+  description: string | null;
+  section: string;
   supplierPattern: string | null;
   keywordPattern: string | null;
   priority: number;
@@ -282,13 +286,19 @@ function toCategoryRule(rule: {
   defaultVatRate: Prisma.Decimal;
   defaultVatRecoverable: boolean;
   glCode: string | null;
+  isSystemDefault: boolean;
   isActive: boolean;
+  isVisible: boolean;
   allowableForTax?: boolean;
   allowablePercentage?: Prisma.Decimal | null;
+  sortOrder: number;
 }): CategoryRule {
   return {
     id: rule.id,
     category: rule.category,
+    slug: rule.slug,
+    description: rule.description || undefined,
+    section: rule.section as CategoryRule["section"],
     supplierPattern: rule.supplierPattern || undefined,
     keywordPattern: rule.keywordPattern || undefined,
     priority: rule.priority,
@@ -299,9 +309,12 @@ function toCategoryRule(rule: {
     defaultVatRate: Number(rule.defaultVatRate),
     defaultVatRecoverable: rule.defaultVatRecoverable,
     glCode: rule.glCode || undefined,
+    isSystemDefault: rule.isSystemDefault,
     isActive: rule.isActive,
+    isVisible: rule.isVisible,
     allowableForTax: rule.allowableForTax ?? true,
     allowablePercentage: rule.allowablePercentage != null ? Number(rule.allowablePercentage) : 100,
+    sortOrder: rule.sortOrder,
   };
 }
 
@@ -729,6 +742,35 @@ async function ensureBootstrap(prisma: PrismaClient) {
   }
 
   if (shouldSeedWorkspaceData) {
+    await prisma.categoryRule.createMany({
+      data: demoStore.categoryRules.map((rule) => ({
+        id: rule.id,
+        workspaceId: workspace.id,
+        category: rule.category,
+        slug: rule.slug,
+        description: rule.description,
+        section: rule.section,
+        supplierPattern: rule.supplierPattern,
+        keywordPattern: rule.keywordPattern,
+        priority: rule.priority,
+        accountType: rule.accountType,
+        statementType: rule.statementType,
+        reportingBucket: rule.reportingBucket,
+        defaultTaxTreatment: rule.defaultTaxTreatment,
+        defaultVatRate: rule.defaultVatRate,
+        defaultVatRecoverable: rule.defaultVatRecoverable,
+        glCode: rule.glCode,
+        isSystemDefault: rule.isSystemDefault,
+        isActive: rule.isActive,
+        isVisible: rule.isVisible,
+        allowableForTax: rule.allowableForTax ?? true,
+        allowablePercentage: rule.allowablePercentage ?? 100,
+        sortOrder: rule.sortOrder,
+      })),
+    });
+  }
+
+  if (shouldSeedWorkspaceData) {
     for (const statement of demoStore.bankStatements) {
       await prisma.bankStatement.create({
         data: {
@@ -1012,7 +1054,7 @@ export const prismaRepository: Repository = {
     const domainRuns = runs.map(toSummaryDomainRun);
     const domainVatRules = vatRules.map(toVatRule);
     const domainGlRules = glRules.map(toGlRule);
-    const domainCatRules = categoryRules.map(toCategoryRule);
+    const domainCatRules = mergeWorkspaceCategoryRules(categoryRules.map(toCategoryRule));
 
     return {
       workspace: toWorkspace(workspace),
@@ -1043,7 +1085,7 @@ export const prismaRepository: Repository = {
       templates: templates.map(toTemplate),
       vatRules: vatRules.map(toVatRule),
       glRules: glRules.map(toGlRule),
-      categoryRules: categoryRules.map(toCategoryRule),
+      categoryRules: mergeWorkspaceCategoryRules(categoryRules.map(toCategoryRule)),
     };
   },
 
@@ -1066,7 +1108,7 @@ export const prismaRepository: Repository = {
 
     const domainVatRules = vatRules.map(toVatRule);
     const domainGlRules = glRules.map(toGlRule);
-    const domainCategoryRules = categoryRules.map(toCategoryRule);
+    const domainCategoryRules = mergeWorkspaceCategoryRules(categoryRules.map(toCategoryRule));
 
     return runs.map((run) =>
       toRunListItem(
@@ -1114,7 +1156,12 @@ export const prismaRepository: Repository = {
       throw new Error(`Run ${runId} was not found.`);
     }
 
-    return buildReviewRows(toDomainRun(run), vatRules.map(toVatRule), glRules.map(toGlRule), categoryRules.map(toCategoryRule));
+    return buildReviewRows(
+      toDomainRun(run),
+      vatRules.map(toVatRule),
+      glRules.map(toGlRule),
+      mergeWorkspaceCategoryRules(categoryRules.map(toCategoryRule)),
+    );
   },
 
   async getUnassignedBankTransactions(): Promise<TransactionRecord[]> {
@@ -1505,9 +1552,9 @@ export const prismaRepository: Repository = {
     const { workspace } = await ensureBootstrap(prisma);
     const rules = await prisma.categoryRule.findMany({
       where: { workspaceId: workspace.id },
-      orderBy: { priority: "asc" },
+      orderBy: [{ sortOrder: "asc" }, { priority: "asc" }, { category: "asc" }],
     });
-    return rules.map(toCategoryRule);
+    return mergeWorkspaceCategoryRules(rules.map(toCategoryRule));
   },
 
   async replaceAllCategoryRules(input: ReplaceCategoryRulesInput): Promise<CategoryRule[]> {
@@ -1522,6 +1569,9 @@ export const prismaRepository: Repository = {
             id: rule.id,
             workspaceId: workspace.id,
             category: rule.category,
+            slug: rule.slug,
+            description: rule.description,
+            section: rule.section,
             supplierPattern: rule.supplierPattern,
             keywordPattern: rule.keywordPattern,
             priority: rule.priority,
@@ -1532,9 +1582,12 @@ export const prismaRepository: Repository = {
             defaultVatRate: rule.defaultVatRate,
             defaultVatRecoverable: rule.defaultVatRecoverable,
             glCode: rule.glCode,
+            isSystemDefault: rule.isSystemDefault,
             isActive: rule.isActive,
+            isVisible: rule.isVisible,
             allowableForTax: rule.allowableForTax ?? true,
             allowablePercentage: rule.allowablePercentage ?? 100,
+            sortOrder: rule.sortOrder,
           })),
         });
       }
@@ -1542,7 +1595,7 @@ export const prismaRepository: Repository = {
 
     const updated = await prisma.categoryRule.findMany({
       where: { workspaceId: workspace.id },
-      orderBy: { priority: "asc" },
+      orderBy: [{ sortOrder: "asc" }, { priority: "asc" }, { category: "asc" }],
     });
     return updated.map(toCategoryRule);
   },

@@ -13,7 +13,7 @@ import type {
   Workspace,
 } from "@/lib/domain/types";
 import { appConfig } from "@/lib/config";
-import { DRIVING_SCHOOL_CATEGORIES } from "@/lib/accounting/default-categories";
+import { buildMasterCategoryLibrary } from "@/lib/accounting/default-categories";
 
 const user: User = {
   id: "user_demo_owner",
@@ -222,8 +222,8 @@ const glRules: GlCodeRule[] = [
   },
 ];
 
-// Use driving school presets as the default category rules
-const categoryRules: CategoryRule[] = DRIVING_SCHOOL_CATEGORIES;
+// Use the built-in master category library as the default category rules
+const categoryRules: CategoryRule[] = buildMasterCategoryLibrary();
 
 const runFiles: UploadedFileMeta[] = [
   {
@@ -454,7 +454,7 @@ const run: ReconciliationRun = {
       employee: "No cardholder",
       reference: "AWS-APR",
       glCode: "7200",
-      category: "Software & Subscriptions",
+      category: "Software Subscriptions",
     },
     {
       id: "txn_hotel",

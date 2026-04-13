@@ -307,6 +307,9 @@ model GlCodeRule {
 model CategoryRule {
   id                    String    @id @default(cuid())
   category              String
+  slug                  String
+  description           String?
+  section               String    @default("Other & Special")
   supplierPattern       String?
   keywordPattern        String?
   priority              Int       @default(100)
@@ -317,13 +320,18 @@ model CategoryRule {
   defaultVatRate        Decimal   @default(20) @db.Decimal(5, 2)
   defaultVatRecoverable Boolean   @default(true)
   glCode                String?
+  isSystemDefault       Boolean   @default(true)
   isActive              Boolean   @default(true)
+  isVisible             Boolean   @default(true)
   allowableForTax       Boolean   @default(true)
   allowablePercentage   Decimal   @default(100) @db.Decimal(5, 2)
+  sortOrder             Int       @default(1000)
   workspaceId           String
   workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, priority])
+  @@index([workspaceId, section, sortOrder])
+  @@unique([workspaceId, slug])
 }
 
 model MappingTemplate {

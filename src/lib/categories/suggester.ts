@@ -22,6 +22,7 @@ export function resolveCategory(
 
   const haystack = `${transaction.merchant} ${transaction.description}`;
   const match = [...categoryRules]
+    .filter((rule) => rule.isActive)
     .sort((a, b) => a.priority - b.priority)
     .find(
       (rule) =>

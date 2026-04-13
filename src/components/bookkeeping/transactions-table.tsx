@@ -49,14 +49,14 @@ function fmtDate(dateStr?: string) {
 interface Props {
   transactions: TransactionRow[];
   categoryRules: CategoryRule[];
-  allCategories: string[];
+  visibleCategories: string[];
   vatRegistered: boolean;
 }
 
 export function TransactionsTable({
   transactions,
   categoryRules,
-  allCategories,
+  visibleCategories,
   vatRegistered,
 }: Props) {
   const [localTransactions, setLocalTransactions] = useState(transactions);
@@ -317,6 +317,9 @@ export function TransactionsTable({
                   const isSaving = saving === tx.id;
                   const justSaved = savedId === tx.id;
                   const isSelected = selected.has(tx.id);
+                  const categoryOptions = tx.resolvedCategory && !visibleCategories.includes(tx.resolvedCategory)
+                    ? [...visibleCategories, tx.resolvedCategory].sort((a, b) => a.localeCompare(b))
+                    : visibleCategories;
 
                   return (
                     <tr
@@ -366,7 +369,7 @@ export function TransactionsTable({
                               className="h-7 w-36 rounded-lg border border-[var(--color-accent)] bg-white px-2 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                             />
                             <datalist id={`cat-list-${tx.id}`}>
-                              {allCategories.map((category) => (
+                              {categoryOptions.map((category) => (
                                 <option key={category} value={category} />
                               ))}
                             </datalist>

@@ -86,6 +86,11 @@ export default async function BookkeepingTransactionsPage() {
     ]),
   ).sort();
 
+  const visibleCategories = settingsSnapshot.categoryRules
+    .filter((rule) => rule.isActive && rule.isVisible)
+    .map((rule) => rule.category)
+    .sort((a, b) => a.localeCompare(b));
+
   const totalCount = allTransactions.length;
   const categorisedCount = allTransactions.filter(
     (tx) => tx.category || resolveCategory(tx, settingsSnapshot.categoryRules),
@@ -153,7 +158,7 @@ export default async function BookkeepingTransactionsPage() {
         <TransactionsTable
           transactions={allTransactions}
           categoryRules={settingsSnapshot.categoryRules}
-          allCategories={allCategories}
+          visibleCategories={visibleCategories}
           vatRegistered={settingsSnapshot.workspace.vatRegistered}
         />
       )}
