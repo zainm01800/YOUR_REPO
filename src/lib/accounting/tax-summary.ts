@@ -14,6 +14,21 @@ export interface TaxAdjustment {
   transactionCount: number;
 }
 
+/** A per-category line in the tax claimability breakdown */
+export interface TaxCategoryLine {
+  category: string;
+  reportingBucket: string;
+  /** Total net amount of this category (accounting view) */
+  accountingAmount: number;
+  /** Amount that reduces taxable profit */
+  claimableAmount: number;
+  /** Amount added back for tax (non-claimable) */
+  nonClaimableAmount: number;
+  /** % of expense allowable per HMRC rules */
+  allowablePercentage: number;
+  transactionCount: number;
+}
+
 export const UK_SOLE_TRADER_ESTIMATE_2026_27 = {
   taxYearLabel: "2026/27",
   personalAllowance: 12_570,
@@ -50,6 +65,10 @@ export interface TaxSummaryReport {
     accountingProfit: number;
     /** Sum of disallowed expense amounts to be added back */
     disallowedExpenses: number;
+    /** Sum of partially claimable adjustment amounts */
+    partiallyClaimableAdjustments: number;
+    /** Total claimable expenses that reduce taxable profit */
+    totalClaimableExpenses: number;
     /** accountingProfit + disallowedExpenses — used for tax estimation */
     taxableProfit: number;
     /** @deprecated use taxableProfit */
@@ -68,6 +87,12 @@ export interface TaxSummaryReport {
   };
   /** Per-category breakdown of disallowed add-backs, sorted by disallowedAmount desc */
   taxAdjustments: TaxAdjustment[];
+  /** Fully claimable expense categories */
+  fullyClaimableCategories: TaxCategoryLine[];
+  /** Partially claimable expense categories (0 < allowablePercentage < 100) */
+  partiallyClaimableCategories: TaxCategoryLine[];
+  /** Non-claimable expense categories (allowableForTax = false or allowablePercentage = 0) */
+  nonClaimableCategories: TaxCategoryLine[];
   estimatedTax: EstimatedTaxSummary | null;
   assumptions: string[];
 }
@@ -140,10 +165,67 @@ export function buildTaxSummaryReport({
   currency: string;
   classifiedTransactions?: ClassifiedTransaction[];
 }): TaxSummaryReport {
-  // ── Disallowed expense add-backs ───────────────────────────────────────────
-  // Aggregate disallowed amounts per category (only P&L expenses matter)
+  // ── Per-category tax claimability aggregation ─────────────────────────────
+  // Only P&L expense transactions are relevant to tax allowability.
+  const expensePnLTxs = classifiedTransactions.filter(
+    (tx) => tx.accountType === "expense" && tx.statementType === "p_and_l",
+  );
+
+  interface CategoryAgg {
+    category: string;
+    reportingBucket: string;
+    accountingAmount: number;
+    claimableAmount: number;
+    nonClaimableAmount: number;
+    allowablePercentage: number;
+    transactionCount: number;
+  }
+
+  const categoryMap = new Map<string, CategoryAgg>();
+  for (const tx of expensePnLTxs) {
+    const existing = categoryMap.get(tx.category);
+    if (existing) {
+      existing.accountingAmount = round2(existing.accountingAmount + tx.netAmount);
+      existing.claimableAmount = round2(existing.claimableAmount + tx.allowableAmount);
+      existing.nonClaimableAmount = round2(existing.nonClaimableAmount + tx.disallowedAmount);
+      existing.transactionCount += 1;
+    } else {
+      categoryMap.set(tx.category, {
+        category: tx.category,
+        reportingBucket: tx.reportingBucket,
+        accountingAmount: tx.netAmount,
+        claimableAmount: tx.allowableAmount,
+        nonClaimableAmount: tx.disallowedAmount,
+        allowablePercentage: tx.allowablePercentage,
+        transactionCount: 1,
+      });
+    }
+  }
+
+  const allCategoryLines: TaxCategoryLine[] = Array.from(categoryMap.values());
+
+  // Classify into fully / partially / non-claimable
+  const fullyClaimableCategories: TaxCategoryLine[] = [];
+  const partiallyClaimableCategories: TaxCategoryLine[] = [];
+  const nonClaimableCategories: TaxCategoryLine[] = [];
+
+  for (const line of allCategoryLines) {
+    if (line.nonClaimableAmount <= 0) {
+      fullyClaimableCategories.push(line);
+    } else if (line.claimableAmount > 0) {
+      partiallyClaimableCategories.push(line);
+    } else {
+      nonClaimableCategories.push(line);
+    }
+  }
+
+  fullyClaimableCategories.sort((a, b) => b.claimableAmount - a.claimableAmount);
+  partiallyClaimableCategories.sort((a, b) => b.accountingAmount - a.accountingAmount);
+  nonClaimableCategories.sort((a, b) => b.nonClaimableAmount - a.nonClaimableAmount);
+
+  // ── Disallowed expense add-backs (legacy TaxAdjustment format) ──────────────
   const adjustmentMap = new Map<string, TaxAdjustment>();
-  for (const tx of classifiedTransactions) {
+  for (const tx of expensePnLTxs) {
     if (tx.disallowedAmount <= 0) continue;
     const existing = adjustmentMap.get(tx.category);
     if (existing) {
@@ -162,10 +244,15 @@ export function buildTaxSummaryReport({
     (a, b) => b.disallowedAmount - a.disallowedAmount,
   );
   const totalDisallowed = round2(taxAdjustments.reduce((s, a) => s + a.disallowedAmount, 0));
+  const partiallyClaimableAdjustments = round2(
+    partiallyClaimableCategories.reduce((s, c) => s + c.nonClaimableAmount, 0),
+  );
+  const totalClaimableExpenses = round2(
+    allCategoryLines.reduce((s, c) => s + c.claimableAmount, 0),
+  );
 
   const accountingProfit = round2(pnl.netProfit);
   const taxableProfit = round2(Math.max(accountingProfit + totalDisallowed, 0));
-  // For backward compat keep taxableProfitStartingPoint = taxableProfit
   const taxableProfitStartingPoint = taxableProfit;
   const assumptions = [
     "Built from categorised bookkeeping transactions rather than raw bank lines.",
@@ -222,6 +309,8 @@ export function buildTaxSummaryReport({
       totalExpenses,
       accountingProfit,
       disallowedExpenses: totalDisallowed,
+      partiallyClaimableAdjustments,
+      totalClaimableExpenses,
       taxableProfit,
       // deprecated aliases kept for backward compat
       allowableExpenses,
@@ -236,6 +325,9 @@ export function buildTaxSummaryReport({
       netVatPosition: round2(vatReport.netVatPosition),
     },
     taxAdjustments,
+    fullyClaimableCategories,
+    partiallyClaimableCategories,
+    nonClaimableCategories,
     estimatedTax,
     assumptions,
   };
