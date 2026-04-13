@@ -147,8 +147,8 @@ If you set:
 
 ```bash
 DEMO_MODE=false
-  DATABASE_URL=your-postgres-pooled-connection-string
-  DIRECT_DATABASE_URL=your-postgres-direct-connection-string
+DATABASE_URL=your-postgres-pooled-connection-string
+DIRECT_DATABASE_URL=your-postgres-direct-connection-string
 ```
 
 the app now switches automatically to the Prisma-backed PostgreSQL repository.
@@ -191,6 +191,17 @@ For production persistence:
 - `DATABASE_URL=your-postgres-pooled-connection-string`
 - `DIRECT_DATABASE_URL=your-postgres-direct-connection-string`
 - `CRON_SECRET=replace-with-a-long-random-string`
+
+Recommended production release flow:
+
+1. Keep Vercel builds for app compilation only
+2. Run Prisma migrations as a separate controlled step using:
+   - `npm run db:migrate:deploy`
+3. Use:
+   - `DATABASE_URL` for runtime traffic
+   - `DIRECT_DATABASE_URL` for migration commands
+
+This keeps deployments faster and avoids production builds hanging on database migration connections.
 
 ### GitHub integration behavior
 

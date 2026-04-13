@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && node -e \"const env={...process.env}; if(env.DIRECT_DATABASE_URL){env.DATABASE_URL=env.DIRECT_DATABASE_URL;} if(env.DATABASE_URL){require('child_process').execSync('npx prisma migrate deploy',{stdio:'inherit',env});}\" && next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
+    "db:migrate:deploy": "node -e \"const env={...process.env}; if(env.DIRECT_DATABASE_URL){env.DATABASE_URL=env.DIRECT_DATABASE_URL;} require('child_process').execSync('npx prisma migrate deploy',{stdio:'inherit',env});\"",
     "db:push": "prisma db push",
     "seed": "tsx prisma/seed.ts",
     "worker:demo": "tsx src/workers/demo-worker.ts"
