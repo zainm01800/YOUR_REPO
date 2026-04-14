@@ -112,7 +112,7 @@ export const resolveUserWorkspace = async (prisma: PrismaClient) => {
     workspace: membership.workspace,
     isNewWorkspace,
   };
-});
+};
 
 async function seedDefaultRules(prisma: PrismaClient, workspaceId: string) {
   // Seed demo rules as defaults for new users
