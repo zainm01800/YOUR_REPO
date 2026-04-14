@@ -73,8 +73,8 @@ export default async function OcrExtractionPage({ params }: { params: Promise<{ 
                             {doc.gross ? formatCurrency(Number(doc.gross), currency) : "-"}
                           </td>
                           <td className="px-6 py-5 text-right tabular-nums text-[var(--color-muted-foreground)]">
-                            {doc.extractionConfidence 
-                              ? `${(Number(doc.extractionConfidence) * 100).toFixed(0)}%`
+                            {doc.confidence 
+                              ? `${(Number(doc.confidence) * 100).toFixed(0)}%`
                               : "-"}
                           </td>
                         </tr>

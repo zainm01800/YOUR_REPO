@@ -480,6 +480,8 @@ export interface RunListItem {
   entity?: string;
   period?: string;
   locked?: boolean;
+  bankSourceMode?: BankSourceMode;
+  bankSourceLabel?: string;
   summary: RunProcessingSummary;
 }
 

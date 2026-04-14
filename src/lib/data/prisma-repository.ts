@@ -622,6 +622,8 @@ function toRunListItem(
     entity: run.entity,
     period: run.period,
     locked: run.locked,
+    bankSourceMode: run.bankSourceMode,
+    bankSourceLabel: run.bankSourceLabel,
     summary: buildRunSummary(buildReviewRows(run, vatRules, glRules, categoryRules)),
   };
 }
