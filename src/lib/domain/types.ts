@@ -25,7 +25,8 @@ export type BankSourceMode =
   | "statement"
   | "all_unreconciled"
   | "skip"
-  | "later";
+  | "later"
+  | "ocr_only";
 
 export type MatchStatus =
   | "matched"
