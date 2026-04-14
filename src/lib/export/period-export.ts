@@ -288,8 +288,9 @@ export function buildTaxSummarySheet(sheet: ExcelJS.Worksheet, tax: TaxSummaryRe
   applyHeaderRow(tpHeader, BRAND_ACCENT);
   sheet.mergeCells(`A${tpHeader.number}:E${tpHeader.number}`);
 
+  const categorizedDisallowed = Math.max(0, tax.profitSummary.totalTaxAdjustments - tax.profitSummary.uncategorizedExpenses);
   sheet.addRow(["Accounting Profit", "", "", "", tax.profitSummary.accountingProfit]);
-  sheet.addRow(["Add: Disallowed Expenses", "", "", "", tax.profitSummary.disallowedExpenses]);
+  sheet.addRow(["Add: Disallowed Expenses", "", "", "", categorizedDisallowed]);
   if (tax.profitSummary.uncategorizedExpenses > 0) {
     sheet.addRow(["Add: Uncategorized Expenses", "", "", "", tax.profitSummary.uncategorizedExpenses]);
   }
