@@ -156,7 +156,13 @@ model BankTransaction {
   employee         String?
   reference        String?
   bankStatementId  String
-  bankStatement    BankStatement  @relation(fields: [bankStatementId], references: [id], onDelete: Cascade)
+  vatCode            String?
+  glCode             String?
+  category           String?
+  taxTreatment       String?
+  taxRate            Decimal?       @db.Decimal(5, 2)
+  noReceiptRequired  Boolean        @default(false)
+  excludedFromExport Boolean        @default(false)
   runTransactions  Transaction[]
 
   @@index([bankStatementId, transactionDate])
