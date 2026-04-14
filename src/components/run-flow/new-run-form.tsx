@@ -328,7 +328,7 @@ export function NewRunForm({
               <p className="mt-1 text-sm">
                 Reconciliation requires an imported bank statement. Please import one first to begin matching documents.
               </p>
-              <Button asChild variant="default" className="mt-4">
+              <Button variant="primary" className="mt-4">
                 <Link href="/bank-statements/import">Import Bank Statement</Link>
               </Button>
             </div>
