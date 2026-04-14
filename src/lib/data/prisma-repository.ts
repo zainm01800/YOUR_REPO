@@ -433,6 +433,13 @@ function toBankTransaction(transaction: DbBankStatement["transactions"][number])
     description: transaction.description || "",
     employee: transaction.employee || undefined,
     reference: transaction.reference || undefined,
+    vatCode: transaction.vatCode || undefined,
+    glCode: transaction.glCode || undefined,
+    category: transaction.category || undefined,
+    taxTreatment: transaction.taxTreatment ? (transaction.taxTreatment as TaxTreatment) : undefined,
+    taxRate: transaction.taxRate !== null && transaction.taxRate !== undefined ? Number(transaction.taxRate) : undefined,
+    noReceiptRequired: transaction.noReceiptRequired || undefined,
+    excludedFromExport: transaction.excludedFromExport || undefined,
   };
 }
 
@@ -487,6 +494,13 @@ function toUnassignedBankTransaction(transaction: DbUnassignedBankTransaction): 
     description: transaction.description || "",
     employee: transaction.employee || undefined,
     reference: transaction.reference || undefined,
+    vatCode: transaction.vatCode || undefined,
+    glCode: transaction.glCode || undefined,
+    category: transaction.category || undefined,
+    taxTreatment: transaction.taxTreatment ? (transaction.taxTreatment as TaxTreatment) : undefined,
+    taxRate: transaction.taxRate !== null && transaction.taxRate !== undefined ? Number(transaction.taxRate) : undefined,
+    noReceiptRequired: transaction.noReceiptRequired || undefined,
+    excludedFromExport: transaction.excludedFromExport || undefined,
   };
 }
 
@@ -1863,6 +1877,7 @@ export async function createPrismaRepository(
           category: tx.category ?? undefined,
           taxTreatment: (tx.taxTreatment ?? undefined) as import("@/lib/domain/types").TaxTreatment | undefined,
           noReceiptRequired: tx.noReceiptRequired ?? undefined,
+          taxRate: tx.taxRate ? tx.taxRate.toNumber() : undefined,
           excludedFromExport: tx.excludedFromExport ?? false,
         })),
       }));
