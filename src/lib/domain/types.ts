@@ -593,6 +593,8 @@ export interface DashboardSnapshot {
   categoryRules: CategoryRule[];
 }
 
+export type WorkspaceRole = "owner" | "admin" | "accountant" | "viewer";
+
 export interface WorkspaceMember {
   id: string;
   userId: string;
