@@ -1,9 +1,16 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useState, useTransition, useCallback } from "react";
 import { CheckCircle2, Search, Tag, Trash2, Sparkles, Loader2, X, ChevronDown, ChevronRight, ListCollapse, ListFilter } from "lucide-react";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
 import { resolveCategory } from "@/lib/categories/suggester";
+import { TransactionRowComponent, fmtAmount, fmtDate } from "./transaction-row";
+import { 
+  updateTransactionCategoryAction, 
+  bulkUpdateTransactionCategoryAction, 
+  updateCategoryAllowabilityAction, 
+  deleteTransactionsAction 
+} from "@/app/actions/bookkeeping";
 import {
   ACCOUNT_TYPE_COLORS,
   ACCOUNT_TYPE_LABELS,
@@ -16,34 +23,6 @@ interface TransactionRow extends TransactionRecord {
   runName: string;
   runId: string;
   period?: string;
-}
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  GBP: "£",
-  USD: "$",
-  EUR: "€",
-  CHF: "Fr",
-  SEK: "kr",
-  NOK: "kr",
-  DKK: "kr",
-};
-
-function fmtAmount(amount: number, currency: string) {
-  const sym = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
-  return `${sym}${Math.abs(amount).toFixed(2)}`;
-}
-
-function fmtDate(dateStr?: string) {
-  if (!dateStr) return "—";
-  try {
-    return new Date(dateStr).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
 }
 
 interface Props {
@@ -183,7 +162,7 @@ export function TransactionsTable({
     return Array.from(set).sort();
   }, [rowsWithCategory]);
 
-  async function handleSaveCategory(txId: string, newCategory: string) {
+  const handleSaveCategory = useCallback(async (txId: string, newCategory: string) => {
     if (!newCategory) {
       setEditingId(null);
       return;
@@ -191,14 +170,9 @@ export function TransactionsTable({
     
     setSaving(txId);
     try {
-      await fetch(`/api/bookkeeping/transactions/${txId}/category`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: newCategory }),
-      });
+      await updateTransactionCategoryAction(txId, newCategory);
       setCategoryOverrides((prev) => ({ ...prev, [txId]: newCategory }));
       setSavedId(txId);
-      router.refresh();
       setTimeout(() => setSavedId((id) => (id === txId ? null : id)), 2000);
 
       // Similarity check logic
@@ -237,7 +211,7 @@ export function TransactionsTable({
         setEditingId(null);
       }
     }
-  }
+  }, [rowsWithCategory, bulkPrompt, router]);
 
   async function handleApplyBulk() {
     if (!bulkPrompt) return;
@@ -245,21 +219,12 @@ export function TransactionsTable({
     try {
       const idsToUpdate = Array.from(bulkSelectedIds);
       if (idsToUpdate.length > 0) {
-        await Promise.allSettled(
-          idsToUpdate.map(async (id) => {
-            await fetch(`/api/bookkeeping/transactions/${id}/category`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ category: bulkPrompt.category }),
-            });
-          })
-        );
+        await bulkUpdateTransactionCategoryAction(idsToUpdate, bulkPrompt.category);
         const nextOverrides = { ...categoryOverrides };
         for (const id of idsToUpdate) {
           nextOverrides[id] = bulkPrompt.category;
         }
         setCategoryOverrides(nextOverrides);
-        router.refresh();
       }
       setBulkPrompt(null);
     } finally {
@@ -278,15 +243,7 @@ export function TransactionsTable({
     startDelete(async () => {
       setDeleteError(null);
       try {
-        const res = await fetch("/api/bookkeeping/transactions", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids }),
-        });
-        if (!res.ok) {
-          const payload = await res.json().catch(() => null) as { error?: string } | null;
-          throw new Error(payload?.error ?? "Could not delete transactions.");
-        }
+        await deleteTransactionsAction(ids);
         setLocalTransactions((prev) => prev.filter((tx) => !ids.includes(tx.id)));
         setSelected(new Set());
       } catch (err) {
@@ -339,14 +296,12 @@ export function TransactionsTable({
         return;
       }
 
-      // Parallel apply via existing row API endpoint
+      // Parallel apply via bulk server action
+      const validIds = validResults.map(r => r.id);
+      
       await Promise.allSettled(
         validResults.map(async (r) => {
-          await fetch(`/api/bookkeeping/transactions/${r.id}/category`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ category: r.category }),
-          });
+          await updateTransactionCategoryAction(r.id, r.category);
         })
       );
 
@@ -367,7 +322,7 @@ export function TransactionsTable({
     }
   }
 
-  async function handleToggleAllowable(category: string, currentVal: boolean) {
+  const handleToggleAllowable = useCallback(async (category: string, currentVal: boolean) => {
     if (!category) return;
     const newVal = !currentVal;
     
@@ -375,19 +330,12 @@ export function TransactionsTable({
     setAllowabilityOverrides((prev) => ({ ...prev, [category]: newVal }));
     
     try {
-      const res = await fetch(`/api/settings/category-rules/${encodeURIComponent(category)}/allowability`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ allowableForTax: newVal }),
-      });
-      if (!res.ok) {
-        throw new Error("Failed to update allowability");
-      }
+      await updateCategoryAllowabilityAction(category, newVal);
     } catch {
       // Revert if failed
       setAllowabilityOverrides((prev) => ({ ...prev, [category]: currentVal }));
     }
-  }
+  }, []);
 
   const allFilteredIds = useMemo(() => filtered.map((tx) => tx.id), [filtered]);
   const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selected.has(id));
@@ -404,14 +352,14 @@ export function TransactionsTable({
     }
   }
 
-  function toggleRow(id: string) {
+  const toggleRow = useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  }
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -628,145 +576,23 @@ export function TransactionsTable({
                       </tr>
 
                       {/* Transaction Rows */}
-                      {!isCollapsed && group.rows.map((tx, i) => {
-                        const isEditing = editingId === tx.id;
-                        const isSaving = saving === tx.id;
-                        const justSaved = savedId === tx.id;
-                        const isSelected = selected.has(tx.id);
-                        const categoryOptions = tx.resolvedCategory && !visibleCategories.includes(tx.resolvedCategory)
-                          ? [...visibleCategories, tx.resolvedCategory].sort((a, b) => a.localeCompare(b))
-                          : visibleCategories;
-
-                        return (
-                          <tr
-                            key={tx.id}
-                            className={`transition ${isSelected ? "bg-red-50" : "hover:bg-[var(--color-accent-soft)]"}`}
-                          >
-                            <td className="px-4 py-3 border-t border-[var(--color-border)]">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleRow(tx.id)}
-                                className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
-                              />
-                            </td>
-                            <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-[var(--color-muted-foreground)] border-t border-[var(--color-border)]">
-                              {fmtDate(tx.transactionDate || "")}
-                            </td>
-                            <td className="px-4 py-3 font-medium text-[var(--color-foreground)] border-t border-[var(--color-border)]">
-                              {tx.merchant}
-                            </td>
-                            <td className="hidden max-w-[220px] px-4 py-3 text-[var(--color-muted-foreground)] sm:table-cell border-t border-[var(--color-border)]">
-                              <span className="line-clamp-1">{tx.description}</span>
-                            </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-semibold text-[var(--color-foreground)] border-t border-[var(--color-border)]">
-                              {fmtAmount(tx.amount, tx.currency)}
-                              {tx.currency !== "GBP" && (
-                                <span className="ml-1 text-xs font-normal text-[var(--color-muted-foreground)]">
-                                  {tx.currency}
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 border-t border-[var(--color-border)]">
-                              {isEditing ? (
-                                <form
-                                  onSubmit={(event) => {
-                                    event.preventDefault();
-                                    handleSaveCategory(tx.id, editValue);
-                                  }}
-                                  className="flex items-center gap-1"
-                                >
-                                  <select
-                                    autoFocus
-                                    value={editValue}
-                                    onChange={(event) => setEditValue(event.target.value)}
-                                    className="h-7 w-36 rounded-lg border border-[var(--color-accent)] bg-white px-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                                  >
-                                    <option value="" disabled>Select category…</option>
-                                    {categoryOptions.map((category) => (
-                                      <option key={category} value={category}>
-                                        {category}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button
-                                    type="submit"
-                                    disabled={isSaving}
-                                    className="h-7 rounded-lg bg-[var(--color-accent)] px-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
-                                  >
-                                    {isSaving ? "…" : "Save"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingId(null)}
-                                    className="h-7 rounded-lg border border-[var(--color-border)] px-2 text-xs text-[var(--color-muted-foreground)] hover:bg-[var(--color-panel)]"
-                                  >
-                                    ✕
-                                  </button>
-                                </form>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingId(tx.id);
-                                    setEditValue(tx.resolvedCategory || "");
-                                  }}
-                                  className="group flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition hover:bg-[var(--color-panel)]"
-                                >
-                                  {justSaved ? (
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                                  ) : (
-                                    <Tag className="h-3.5 w-3.5 text-[var(--color-muted-foreground)] group-hover:text-[var(--color-accent)]" />
-                                  )}
-                                  {tx.resolvedCategory ? (
-                                    <span className="font-medium text-[var(--color-foreground)]">
-                                      {tx.resolvedCategory}
-                                    </span>
-                                  ) : (
-                                    <span className="italic text-[var(--color-muted-foreground)]">
-                                      Uncategorised
-                                    </span>
-                                  )}
-                                </button>
-                              )}
-                            </td>
-                            <td className="hidden px-4 py-3 lg:table-cell border-t border-[var(--color-border)]">
-                              <span
-                                className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                                  ACCOUNT_TYPE_COLORS[
-                                    tx.accountType as keyof typeof ACCOUNT_TYPE_COLORS
-                                  ]
-                                }`}
-                              >
-                                {ACCOUNT_TYPE_LABELS[
-                                  tx.accountType as keyof typeof ACCOUNT_TYPE_LABELS
-                                ] ?? tx.accountType}
-                              </span>
-                            </td>
-                            <td className="hidden px-4 py-3 text-center xl:table-cell border-t border-[var(--color-border)]">
-                              <input
-                                type="checkbox"
-                                checked={tx.allowableForTax}
-                                disabled={!tx.resolvedCategory}
-                                onChange={() => handleToggleAllowable(tx.resolvedCategory, !!tx.allowableForTax)}
-                                className="h-4 w-4 cursor-pointer rounded border-[var(--color-border)] accent-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-                                title={tx.resolvedCategory ? `Toggle allowability for all ${tx.resolvedCategory} items` : "Set a category first"}
-                              />
-                            </td>
-                            <td className="hidden px-4 py-3 text-xs text-[var(--color-muted-foreground)] xl:table-cell border-t border-[var(--color-border)]">
-                              {TAX_TREATMENT_LABELS[
-                                tx.taxTreatment as keyof typeof TAX_TREATMENT_LABELS
-                              ] ?? "Unknown"}
-                            </td>
-                            <td className="hidden px-4 py-3 text-xs text-[var(--color-muted-foreground)] md:table-cell border-t border-[var(--color-border)]">
-                              {tx.runName}
-                            </td>
-                            <td className="hidden px-4 py-3 text-xs text-[var(--color-muted-foreground)] lg:table-cell border-t border-[var(--color-border)]">
-                              {tx.employee || "—"}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {!isCollapsed && group.rows.map((tx, i) => (
+                        <TransactionRowComponent
+                          key={tx.id}
+                          tx={tx}
+                          isSelected={selected.has(tx.id)}
+                          toggleRow={toggleRow}
+                          isEditing={editingId === tx.id}
+                          isSaving={saving === tx.id}
+                          justSaved={savedId === tx.id}
+                          editValue={editValue}
+                          setEditingId={setEditingId}
+                          setEditValue={setEditValue}
+                          handleSaveCategory={handleSaveCategory}
+                          handleToggleAllowable={handleToggleAllowable}
+                          visibleCategories={visibleCategories}
+                        />
+                      ))}
                     </Fragment>
                   );
                 })

@@ -156,6 +156,7 @@ model BankTransaction {
   employee         String?
   reference        String?
   bankStatementId  String
+  bankStatement    BankStatement  @relation(fields: [bankStatementId], references: [id], onDelete: Cascade)
   vatCode            String?
   glCode             String?
   category           String?
