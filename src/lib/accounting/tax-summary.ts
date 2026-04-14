@@ -71,6 +71,12 @@ export interface TaxSummaryReport {
     totalClaimableExpenses: number;
     /** accountingProfit + disallowedExpenses — used for tax estimation */
     taxableProfit: number;
+    /** Total net amount of expenses still needing categorisation */
+    uncategorizedExpenses: number;
+    /** Total net amount of income still needing categorisation */
+    uncategorizedIncome: number;
+    /** Count of transactions currently in 'Uncategorised' state */
+    uncategorizedCount: number;
     /** @deprecated use taxableProfit */
     allowableExpenses: number;
     /** @deprecated use taxableProfit */
@@ -167,9 +173,32 @@ export function buildTaxSummaryReport({
 }): TaxSummaryReport {
   // ── Per-category tax claimability aggregation ─────────────────────────────
   // Only P&L expense transactions are relevant to tax allowability.
-  const expensePnLTxs = classifiedTransactions.filter(
-    (tx) => tx.accountType === "expense" && tx.statementType === "p_and_l",
+  // We EXCLUDE uncategorised items from the standard claimability flow so they can be alerted on.
+  const allPnLTxs = classifiedTransactions.filter(
+    (tx) => tx.statementType === "p_and_l",
   );
+  
+  const expensePnLTxs = allPnLTxs.filter(
+    (tx) => tx.accountType === "expense" && tx.category !== "Uncategorised",
+  );
+
+  const uncategorizedTxs = allPnLTxs.filter(
+    (tx) => tx.category === "Uncategorised",
+  );
+
+  const uncategorizedExpenses = round2(
+    uncategorizedTxs
+      .filter(tx => tx.accountType === "expense")
+      .reduce((s, tx) => s + tx.netAmount, 0)
+  );
+  
+  const uncategorizedIncome = round2(
+    uncategorizedTxs
+      .filter(tx => tx.accountType === "income")
+      .reduce((s, tx) => s + tx.netAmount, 0)
+  );
+
+  const uncategorizedCount = uncategorizedTxs.length;
 
   interface CategoryAgg {
     category: string;
@@ -252,10 +281,14 @@ export function buildTaxSummaryReport({
   );
 
   const accountingProfit = round2(pnl.netProfit);
-  const taxableProfit = round2(Math.max(accountingProfit + totalDisallowed, 0));
+  // Taxable profit starting point:
+  // Accounting profit + Disallowed expenses + Uncategorized expenses
+  // We add back uncategorized expenses so they do NOT reduce taxable profit until reviewed.
+  const taxableProfit = round2(Math.max(accountingProfit + totalDisallowed + uncategorizedExpenses, 0));
   const taxableProfitStartingPoint = taxableProfit;
   const assumptions = [
     "Built from categorised bookkeeping transactions rather than raw bank lines.",
+    "Uncategorized expenses are EXCLUDED from allowable deductions (added back to profit) until reviewed.",
     "Uses Profit & Loss net amounts, so recoverable VAT is excluded from allowable expense totals.",
     "Figures are estimates for manual tax preparation and are not filing outputs.",
   ];
@@ -312,6 +345,9 @@ export function buildTaxSummaryReport({
       partiallyClaimableAdjustments,
       totalClaimableExpenses,
       taxableProfit,
+      uncategorizedExpenses,
+      uncategorizedIncome,
+      uncategorizedCount,
       // deprecated aliases kept for backward compat
       allowableExpenses,
       netProfit: accountingProfit,

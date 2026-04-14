@@ -290,6 +290,9 @@ export function buildTaxSummarySheet(sheet: ExcelJS.Worksheet, tax: TaxSummaryRe
 
   sheet.addRow(["Accounting Profit", "", "", "", tax.profitSummary.accountingProfit]);
   sheet.addRow(["Add: Disallowed Expenses", "", "", "", tax.profitSummary.disallowedExpenses]);
+  if (tax.profitSummary.uncategorizedExpenses > 0) {
+    sheet.addRow(["Add: Uncategorized Expenses", "", "", "", tax.profitSummary.uncategorizedExpenses]);
+  }
   const tpRow = sheet.addRow(["Taxable Profit", "", "", "", tax.profitSummary.taxableProfit]);
   tpRow.eachCell((c) => { c.font = { bold: true }; c.fill = headerFill(GREEN_LIGHT); });
 

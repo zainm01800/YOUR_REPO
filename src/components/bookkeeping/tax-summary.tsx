@@ -55,18 +55,19 @@ function buildCsv({
   ];
 
   if (taxSummary.estimatedTax) {
-    rows.push(
-      [],
-      ["Estimated sole trader tax"],
-      ["Tax year", taxSummary.estimatedTax.taxYearLabel],
-      ["Taxable profit", taxSummary.estimatedTax.taxableProfitStartingPoint.toFixed(2)],
-      ["Personal allowance used", taxSummary.estimatedTax.personalAllowanceUsed.toFixed(2)],
-      ["Taxable income after allowance", taxSummary.estimatedTax.taxableIncomeAfterAllowance.toFixed(2)],
-      ["Estimated income tax", taxSummary.estimatedTax.estimatedIncomeTax.toFixed(2)],
-      ["Estimated National Insurance", taxSummary.estimatedTax.estimatedNationalInsurance.toFixed(2)],
-      ["Total estimated tax", taxSummary.estimatedTax.totalEstimatedTax.toFixed(2)],
-    );
-  }
+      rows.push(
+        [],
+        ["Estimated sole trader tax"],
+        ["Tax year", taxSummary.estimatedTax.taxYearLabel],
+        ["Taxable profit", taxSummary.estimatedTax.taxableProfitStartingPoint.toFixed(2)],
+        ["Uncategorized items", taxSummary.profitSummary.uncategorizedExpenses.toFixed(2)],
+        ["Personal allowance used", taxSummary.estimatedTax.personalAllowanceUsed.toFixed(2)],
+        ["Taxable income after allowance", taxSummary.estimatedTax.taxableIncomeAfterAllowance.toFixed(2)],
+        ["Estimated income tax", taxSummary.estimatedTax.estimatedIncomeTax.toFixed(2)],
+        ["Estimated National Insurance", taxSummary.estimatedTax.estimatedNationalInsurance.toFixed(2)],
+        ["Total estimated tax", taxSummary.estimatedTax.totalEstimatedTax.toFixed(2)],
+      );
+    }
 
   if (taxSummary.partiallyClaimableCategories.length > 0) {
     rows.push([], ["Partially claimable expenses"], ["Category", "Accounting Amount", "Claimable", "Non-claimable", "% Claimable"]);
@@ -399,6 +400,28 @@ export function TaxSummary({
 
   return (
     <div className="space-y-6">
+      {/* Search/Filter warnings */}
+      {taxSummary.profitSummary.uncategorizedCount > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm">
+          <div className="flex items-start gap-3">
+            <Info className="mt-1 h-5 w-5 shrink-0 text-amber-600" />
+            <div className="space-y-2">
+              <p className="text-sm font-bold">Uncategorised transactions detected</p>
+              <p className="text-sm leading-relaxed">
+                There are <strong>{taxSummary.profitSummary.uncategorizedCount}</strong> transactions that haven't been categorised yet. 
+                For tax safety, these expenses are <strong>not</strong> being used to reduce your taxable profit estimate.
+              </p>
+              <button 
+                onClick={() => router.push('/bookkeeping/transactions')}
+                className="text-sm font-bold underline decoration-amber-400 decoration-2 underline-offset-4 hover:decoration-amber-600"
+              >
+                Review and categorise now →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header controls */}
       <Card className="space-y-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -446,7 +469,7 @@ export function TaxSummary({
         </div>
 
         {/* Top KPI cards */}
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <SummaryCard
             label="Total income"
             value={formatAmount(taxSummary.profitSummary.totalIncome, taxSummary.currency)}
@@ -470,6 +493,13 @@ export function TaxSummary({
                 : "Not estimated"
             }
             tone={taxSummary.estimatedTax ? "warning" : "default"}
+          />
+          <SummaryCard
+            label="Uncategorized items"
+            value={taxSummary.profitSummary.uncategorizedCount > 0 
+              ? `${taxSummary.profitSummary.uncategorizedCount} txns`
+              : "All clear"}
+            tone={taxSummary.profitSummary.uncategorizedCount > 0 ? "warning" : "profit"}
           />
         </div>
       </Card>
@@ -508,6 +538,13 @@ export function TaxSummary({
                   {
                     label: "Add: non-claimable expenses",
                     value: taxSummary.profitSummary.disallowedExpenses,
+                    tone: "addition" as const,
+                  },
+                ] : []),
+                ...(taxSummary.profitSummary.uncategorizedExpenses > 0 ? [
+                  {
+                    label: "Add: uncategorized expenses",
+                    value: taxSummary.profitSummary.uncategorizedExpenses,
                     tone: "addition" as const,
                   },
                 ] : []),
