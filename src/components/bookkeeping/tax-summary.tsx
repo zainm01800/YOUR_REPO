@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo, useState, useTransition } from "react";
 import { CheckCircle2, Download, Info, MinusCircle, Wallet, XCircle, LayoutDashboard, Receipt, Calculator, ArrowRight, AlertTriangle } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
