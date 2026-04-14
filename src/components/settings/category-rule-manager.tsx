@@ -293,18 +293,18 @@ export function CategoryRuleManager({ initialRules }: { initialRules: CategoryRu
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${ACCOUNT_TYPE_COLORS[rule.accountType]}`}>
                     {ACCOUNT_TYPE_LABELS[rule.accountType]}
                   </span>
-                  {/* Allowable badge (only for P&L expenses) */}
-                  {rule.accountType === "expense" && rule.statementType === "p_and_l" && (
-                    <span className={`hidden shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold sm:inline-flex ${
-                      !rule.allowableForTax
-                        ? "bg-red-50 text-red-600"
-                        : rule.allowablePercentage < 100
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-emerald-50 text-emerald-700"
-                    }`}>
-                      {!rule.allowableForTax ? "Non-allowable" : rule.allowablePercentage < 100 ? `${rule.allowablePercentage}% allowable` : "Allowable"}
-                    </span>
-                  )}
+                    {/* Allowable badge (only for P&L expenses) */}
+                    {rule.accountType === "expense" && rule.statementType === "p_and_l" && (
+                      <span className={`hidden shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold sm:inline-flex ${
+                        !rule.allowableForTax
+                          ? "bg-red-50 text-red-600"
+                          : rule.allowablePercentage < 100
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-emerald-50 text-emerald-700"
+                      }`}>
+                        {!rule.allowableForTax ? "Non-allowable" : rule.allowablePercentage < 100 ? `${rule.allowablePercentage}% allowable` : "Allowable"}
+                      </span>
+                    )}
                   {/* Category name */}
                   <span className="flex-1 truncate font-medium text-[var(--color-foreground)]">
                     {rule.category || <span className="italic text-[var(--color-muted-foreground)]">Unnamed category</span>}
@@ -526,7 +526,7 @@ export function CategoryRuleManager({ initialRules }: { initialRules: CategoryRu
                     {/* Row 4: Allowable for tax (only shown for P&L expenses) */}
                     {rule.accountType === "expense" && rule.statementType === "p_and_l" && (
                       <div className="grid gap-3 sm:grid-cols-2">
-                        <label className="space-y-1">
+                        <div className="space-y-1">
                           <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">Allowable for tax</span>
                           <select
                             value={toAllowableMode(rule)}
@@ -546,9 +546,9 @@ export function CategoryRuleManager({ initialRules }: { initialRules: CategoryRu
                             <option value="partial">Partially allowable</option>
                             <option value="none">Not allowable (0%)</option>
                           </select>
-                        </label>
+                        </div>
                         {rule.allowableForTax && rule.allowablePercentage < 100 && (
-                          <label className="space-y-1">
+                          <div className="space-y-1">
                             <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">Allowable percentage (%)</span>
                             <input
                               type="number"
@@ -557,7 +557,7 @@ export function CategoryRuleManager({ initialRules }: { initialRules: CategoryRu
                               min={0} max={100} step={1}
                               className="h-9 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
                             />
-                          </label>
+                          </div>
                         )}
                       </div>
                     )}

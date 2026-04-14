@@ -71,26 +71,16 @@ export interface TaxSummaryReport {
     totalExpenses: number;
     /** Income minus all expenses — the accounting P&L figure */
     accountingProfit: number;
-    /** Sum of disallowed expense amounts to be added back */
-    disallowedExpenses: number;
-    /** Sum of partially claimable adjustment amounts */
-    partiallyClaimableAdjustments: number;
-    /** Total claimable expenses that reduce taxable profit */
+    /** Sum of all adjustments to be ADDED BACK to profit (disallowed + uncategorized expenses - uncategorized income) */
+    totalTaxAdjustments: number;
+    /** Portion of expenses successfully claimed */
     totalClaimableExpenses: number;
-    /** accountingProfit + disallowedExpenses — used for tax estimation */
+    /** accountingProfit + totalTaxAdjustments */
     taxableProfit: number;
-    /** Total net amount of expenses still needing categorisation */
-    uncategorizedExpenses: number;
-    /** Total net amount of income still needing categorisation */
-    uncategorizedIncome: number;
     /** Count of transactions currently in 'Uncategorised' state */
     uncategorizedCount: number;
-    /** @deprecated use taxableProfit */
-    allowableExpenses: number;
-    /** @deprecated use taxableProfit */
-    netProfit: number;
-    /** @deprecated use taxableProfit */
-    taxableProfitStartingPoint: number;
+    uncategorizedExpenses: number;
+    uncategorizedIncome: number;
   };
   vatSummary: {
     enabled: boolean;
@@ -293,45 +283,51 @@ export function buildTaxSummaryReport({
     (a, b) => b.disallowedAmount - a.disallowedAmount,
   );
   const totalDisallowed = round2(taxAdjustments.reduce((s, a) => s + a.disallowedAmount, 0));
-  const partiallyClaimableAdjustments = round2(
-    partiallyClaimableCategories.reduce((s, c) => s + c.nonClaimableAmount, 0),
-  );
   const totalClaimableExpenses = round2(
     allCategoryLines.reduce((s, c) => s + c.claimableAmount, 0),
   );
 
   const accountingProfit = round2(pnl.netProfit);
-  // Taxable profit starting point:
-  // Income - Categorized Claimable Expenses
-  // We exclude uncategorized expenses and disallowed items from the deduction.
-  const taxableProfit = round2(Math.max(pnl.incomeSection.netTotal - totalClaimableExpenses, 0));
-  const taxableProfitStartingPoint = taxableProfit;
+  
+  // Tax adjustments bridge:
+  // We starting from accounting profit.
+  // We ADD BACK:
+  // 1. Disallowed portions of categorised expenses
+  // 2. ALL uncategorised expenses (safe assumption for tax until reviewed)
+  // We SUBTRACT (if needed):
+  // 1. Any uncategorised income (actually it's already in the income total, but we need to ensure consistency)
+  //
+  // Logically: Taxable Profit = Accounting Profit + Disallowed Categorised + Uncategorised Expenses
+  // (Assuming uncategorised income is already in accounting profit).
+  const totalTaxAdjustments = round2(totalDisallowed + uncategorizedExpenses);
+  const taxableProfit = round2(Math.max(accountingProfit + totalTaxAdjustments, 0));
+
   const assumptions = [
-    "Built from categorised bookkeeping transactions rather than raw bank lines.",
-    "Uncategorized expenses are EXCLUDED from allowable deductions (added back to profit) until reviewed.",
-    "Uses Profit & Loss net amounts, so recoverable VAT is excluded from allowable expense totals.",
-    "Figures are estimates for manual tax preparation and are not filing outputs.",
+    "Accounting profit is adjusted by adding back non-claimable items and uncategorised expenses.",
+    "Uncategorised expenses are temporarily excluded from relief until categorised.",
+    "Uncategorised income (if any) is included in total income and taxable profit.",
+    "Recoverable VAT is excluded from both accounting and taxable profit figures.",
   ];
 
   let estimatedTax: EstimatedTaxSummary | null = null;
 
   if (businessType === "sole_trader") {
     const personalAllowanceUsed = Math.min(
-      taxableProfitStartingPoint,
+      taxableProfit,
       UK_SOLE_TRADER_ESTIMATE_2026_27.personalAllowance,
     );
     const taxableIncomeAfterAllowance = round2(
       Math.max(
-        taxableProfitStartingPoint - UK_SOLE_TRADER_ESTIMATE_2026_27.personalAllowance,
+        taxableProfit - UK_SOLE_TRADER_ESTIMATE_2026_27.personalAllowance,
         0,
       ),
     );
     const { total: estimatedIncomeTax, breakdown: incomeTaxBreakdown } = estimateSoleTraderIncomeTax(taxableIncomeAfterAllowance);
-    const { total: estimatedNationalInsurance, breakdown: niBreakdown } = estimateSoleTraderNationalInsurance(taxableProfitStartingPoint);
+    const { total: estimatedNationalInsurance, breakdown: niBreakdown } = estimateSoleTraderNationalInsurance(taxableProfit);
 
     estimatedTax = {
       taxYearLabel: UK_SOLE_TRADER_ESTIMATE_2026_27.taxYearLabel,
-      taxableProfitStartingPoint,
+      taxableProfitStartingPoint: taxableProfit,
       personalAllowanceUsed: round2(personalAllowanceUsed),
       taxableIncomeAfterAllowance,
       estimatedIncomeTax,
@@ -340,20 +336,13 @@ export function buildTaxSummaryReport({
       niBreakdown,
       totalEstimatedTax: round2(estimatedIncomeTax + estimatedNationalInsurance),
       assumptions: [
-        "UK sole trader estimate using the 2026/27 personal allowance and headline UK basic / higher / additional income tax bands.",
-        "National Insurance estimate uses Class 4 self-employed style thresholds and rates only.",
-        "No adjustments are made for student loans, pensions, marriage allowance, dividends, employment income, or other personal tax factors.",
-        "This specific estimate is UK-oriented; other markets should treat it as an optional planning aid rather than a local tax calculation.",
+        "Sole trader estimate using 2026/27 UK bands.",
+        "National Insurance Class 4 rates applied.",
       ],
     };
-  } else {
-    assumptions.push(
-      "General small business mode does not estimate owner-level income tax or Corporation Tax.",
-    );
   }
 
   const totalExpenses = round2(pnl.expenseSection.netTotal);
-  const allowableExpenses = round2(totalExpenses - totalDisallowed);
 
   return {
     businessType,
@@ -362,17 +351,12 @@ export function buildTaxSummaryReport({
       totalIncome: round2(pnl.incomeSection.netTotal),
       totalExpenses,
       accountingProfit,
-      disallowedExpenses: totalDisallowed,
-      partiallyClaimableAdjustments,
+      totalTaxAdjustments,
       totalClaimableExpenses,
       taxableProfit,
+      uncategorizedCount,
       uncategorizedExpenses,
       uncategorizedIncome,
-      uncategorizedCount,
-      // deprecated aliases kept for backward compat
-      allowableExpenses,
-      netProfit: accountingProfit,
-      taxableProfitStartingPoint,
     },
     vatSummary: {
       enabled: vatReport.isVatRegistered,

@@ -85,8 +85,6 @@ export default async function BookkeepingTaxSummaryPage({
 
       <TaxSummary
         taxSummary={taxSummary}
-        pnl={pnl}
-        vatReport={vatReport}
         periodOptions={periodOptions}
         selectedPeriod={selectedPeriod}
       />

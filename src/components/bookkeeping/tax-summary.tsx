@@ -1,18 +1,17 @@
-"use client";
-
-import { useMemo, useTransition } from "react";
-import { CheckCircle2, Download, Info, MinusCircle, Wallet, XCircle } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { CheckCircle2, Download, Info, MinusCircle, Wallet, XCircle, LayoutDashboard, Receipt, Calculator, ArrowRight, AlertTriangle } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { PnLReport, VatReport } from "@/lib/accounting/reports";
-import type { TaxSummaryReport, TaxAdjustment, TaxCategoryLine } from "@/lib/accounting/tax-summary";
+import type { TaxSummaryReport, TaxCategoryLine } from "@/lib/accounting/tax-summary";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
-  GBP: "GBP ",
-  USD: "USD ",
-  EUR: "EUR ",
-  AUD: "AUD ",
-  CAD: "CAD ",
+  GBP: "£",
+  USD: "$",
+  EUR: "€",
+  AUD: "A$",
+  CAD: "C$",
 };
 
 function formatAmount(amount: number, currency: string) {
@@ -43,14 +42,13 @@ function buildCsv({
     [],
     ["=== TAX VIEW ==="],
     ["Total claimable expenses", taxSummary.profitSummary.totalClaimableExpenses.toFixed(2)],
-    ["Disallowed expenses (add-back)", taxSummary.profitSummary.disallowedExpenses.toFixed(2)],
+    ["Tax add-backs (Adjustments)", taxSummary.profitSummary.totalTaxAdjustments.toFixed(2)],
     ["Taxable profit", taxSummary.profitSummary.taxableProfit.toFixed(2)],
     [],
     ["VAT Summary"],
     ["VAT enabled", taxSummary.vatSummary.enabled ? "Yes" : "No"],
     ["Output VAT", taxSummary.vatSummary.outputVat.toFixed(2)],
     ["Input VAT", taxSummary.vatSummary.inputVat.toFixed(2)],
-    ["Non-recoverable VAT", taxSummary.vatSummary.nonRecoverableVat.toFixed(2)],
     ["Net VAT position", taxSummary.vatSummary.netVatPosition.toFixed(2)],
   ];
 
@@ -60,38 +58,13 @@ function buildCsv({
         ["Estimated sole trader tax"],
         ["Tax year", taxSummary.estimatedTax.taxYearLabel],
         ["Taxable profit", taxSummary.estimatedTax.taxableProfitStartingPoint.toFixed(2)],
-        ["Uncategorized items", taxSummary.profitSummary.uncategorizedExpenses.toFixed(2)],
         ["Personal allowance used", taxSummary.estimatedTax.personalAllowanceUsed.toFixed(2)],
         ["Taxable income after allowance", taxSummary.estimatedTax.taxableIncomeAfterAllowance.toFixed(2)],
         ["Total Income tax", taxSummary.estimatedTax.estimatedIncomeTax.toFixed(2)],
-        ...taxSummary.estimatedTax.incomeTaxBreakdown.map(b => [`  ${b.band} (${Math.round(b.rate * 100)}%)`, b.amount.toFixed(2)]),
         ["Total National Insurance", taxSummary.estimatedTax.estimatedNationalInsurance.toFixed(2)],
-        ...taxSummary.estimatedTax.niBreakdown.map(b => [`  ${b.band} (${Math.round(b.rate * 100)}%)`, b.amount.toFixed(2)]),
         ["Total estimated tax", taxSummary.estimatedTax.totalEstimatedTax.toFixed(2)],
       );
     }
-
-  if (taxSummary.partiallyClaimableCategories.length > 0) {
-    rows.push([], ["Partially claimable expenses"], ["Category", "Accounting Amount", "Claimable", "Non-claimable", "% Claimable"]);
-    for (const c of taxSummary.partiallyClaimableCategories) {
-      rows.push([c.category, c.accountingAmount.toFixed(2), c.claimableAmount.toFixed(2), c.nonClaimableAmount.toFixed(2), `${c.allowablePercentage}%`]);
-    }
-  }
-
-  if (taxSummary.nonClaimableCategories.length > 0) {
-    rows.push([], ["Non-claimable expenses (add-backs)"], ["Category", "Amount"]);
-    for (const c of taxSummary.nonClaimableCategories) {
-      rows.push([c.category, c.nonClaimableAmount.toFixed(2)]);
-    }
-  }
-
-  rows.push([], ["Assumptions"]);
-  for (const assumption of taxSummary.assumptions) {
-    rows.push([assumption]);
-  }
-  for (const assumption of taxSummary.estimatedTax?.assumptions ?? []) {
-    rows.push([assumption]);
-  }
 
   return rows
     .map((row) =>
@@ -105,101 +78,36 @@ function buildCsv({
     .join("\n");
 }
 
-function downloadCsv(fileName: string, content: string) {
-  const blob = new Blob(["\uFEFF", content], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
 function SummaryCard({
   label,
   value,
   tone = "default",
   description,
+  icon: Icon,
 }: {
   label: string;
   value: string;
   tone?: "default" | "profit" | "expense" | "warning";
   description?: string;
+  icon?: any;
 }) {
   const toneClass =
     tone === "profit"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      ? "bg-emerald-50/50 border-emerald-100 text-emerald-900"
       : tone === "expense"
-        ? "border-orange-200 bg-orange-50 text-orange-800"
+        ? "bg-orange-50/50 border-orange-100 text-orange-900"
         : tone === "warning"
-          ? "border-amber-200 bg-amber-50 text-amber-800"
-          : "border-[var(--color-border)] bg-white text-[var(--color-foreground)]";
+          ? "bg-amber-50/50 border-amber-100 text-amber-900"
+          : "bg-white border-slate-200 text-slate-900";
 
   return (
-    <div className={`rounded-3xl border p-5 transition-shadow hover:shadow-sm ${toneClass}`}>
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] opacity-80">{label}</p>
-      <p className="mt-2 font-mono text-2xl font-bold tracking-tight">{value}</p>
-      {description && <p className="mt-1 text-[10px] font-medium opacity-70 uppercase tracking-wider">{description}</p>}
-    </div>
-  );
-}
-
-function TaxSection({
-  title,
-  rows,
-  currency,
-  footer,
-  eyebrow,
-}: {
-  title: string;
-  rows: Array<{ label: string; value: number; tone?: "default" | "strong" | "addition" | "deduction"; hint?: string }>;
-  currency: string;
-  footer?: { label: string; value: number };
-  eyebrow?: string;
-}) {
-  return (
-    <Card className="flex flex-col space-y-0 overflow-hidden p-0 border-[var(--color-border)] shadow-sm">
-      <div className="bg-[var(--color-panel)] px-6 py-4 border-b border-[var(--color-border)]">
-        {eyebrow && <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-muted-foreground)] mb-1">{eyebrow}</p>}
-        <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--color-foreground)]">
-          {title}
-        </h2>
+    <Card className={`rounded-3xl border p-6 transition-all hover:shadow-md ${toneClass}`}>
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">{label}</p>
+        {Icon && <Icon className="h-4 w-4 opacity-40" />}
       </div>
-      <table className="w-full text-sm">
-        <tbody>
-          {rows.map((row, index) => (
-            <tr
-              key={row.label}
-              className={index > 0 ? "border-t border-[var(--color-border)]" : ""}
-            >
-              <td className="px-6 py-4">
-                <span className="text-[var(--color-foreground)] font-medium">{row.label}</span>
-                {row.hint && <p className="text-[10px] text-[var(--color-muted-foreground)] mt-0.5">{row.hint}</p>}
-              </td>
-              <td
-                className={`px-6 py-4 text-right font-mono ${
-                  row.tone === "strong" ? "font-bold text-[var(--color-foreground)]"
-                  : row.tone === "addition" ? "font-semibold text-amber-700"
-                  : row.tone === "deduction" ? "font-semibold text-emerald-700"
-                  : "text-[var(--color-foreground)]"
-                }`}
-              >
-                {formatAmount(row.value, currency)}
-              </td>
-            </tr>
-          ))}
-          {footer ? (
-            <tr className="border-t-2 border-[var(--color-foreground)] bg-[var(--color-panel)]">
-              <td className="px-6 py-4 text-sm font-bold text-[var(--color-foreground)]">
-                {footer.label}
-              </td>
-              <td className="px-6 py-4 text-right font-mono text-sm font-bold text-[var(--color-foreground)]">
-                {formatAmount(footer.value, currency)}
-              </td>
-            </tr>
-          ) : null}
-        </tbody>
-      </table>
+      <p className="mt-3 font-mono text-3xl font-bold tracking-tighter">{value}</p>
+      {description && <p className="mt-2 text-[10px] font-semibold opacity-60 uppercase tracking-widest">{description}</p>}
     </Card>
   );
 }
@@ -229,129 +137,61 @@ function TaxCategoryTable({
     : tone === "amber" ? "bg-amber-50 text-amber-800"
     : "bg-red-50 text-red-800";
 
-  const accentClass =
-    tone === "green" ? "text-emerald-700"
-    : tone === "amber" ? "text-amber-700"
-    : "text-red-600";
-
   if (rows.length === 0) {
     return (
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-5 py-4">
-        <div className="flex items-center gap-2">
-          {icon}
-          <span className="text-sm font-semibold text-[var(--color-muted-foreground)]">{title}: None</span>
-        </div>
+      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-8 text-center text-slate-400">
+         <p className="text-sm font-medium">{title}: None detected</p>
       </div>
     );
   }
 
   return (
-    <Card className="space-y-0 overflow-hidden p-0">
-      <div className={`border-b border-[var(--color-border)] px-5 py-3 ${headerClass}`}>
+    <Card className="overflow-hidden border-slate-200 shadow-sm">
+      <div className={`px-6 py-4 border-b border-slate-200 ${headerClass}`}>
         <div className="flex items-center gap-2">
           {icon}
           <div>
             <h3 className="text-sm font-bold">{title}</h3>
-            <p className="text-xs opacity-75">{description}</p>
+            <p className="text-[10px] opacity-75">{description}</p>
           </div>
         </div>
       </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-[var(--color-border)] bg-[var(--color-panel)]">
-            <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">Category</th>
-            <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">Accounting</th>
-            {showPercentage && (
-              <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">% Claim</th>
-            )}
-            <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">Claimable</th>
-            {showPercentage && (
-              <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">Add-back</th>
-            )}
-            <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">Txns</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={`${row.reportingBucket}-${row.category}`} className={index > 0 ? "border-t border-[var(--color-border)]" : ""}>
-              <td className="px-4 py-3 text-[var(--color-foreground)]">{row.category}</td>
-              <td className="px-4 py-3 text-right font-mono text-[var(--color-muted-foreground)]">{formatAmount(row.accountingAmount, currency)}</td>
-              {showPercentage && (
-                <td className="px-4 py-3 text-right font-mono text-[var(--color-muted-foreground)]">{row.allowablePercentage}%</td>
-              )}
-              <td className={`px-4 py-3 text-right font-mono font-semibold ${accentClass}`}>{formatAmount(row.claimableAmount, currency)}</td>
-              {showPercentage && (
-                <td className="px-4 py-3 text-right font-mono text-amber-600">+{formatAmount(row.nonClaimableAmount, currency)}</td>
-              )}
-              <td className="px-4 py-3 text-right font-mono text-[var(--color-muted-foreground)]">{row.transactionCount}</td>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              <th className="px-6 py-3 text-left">Category</th>
+              <th className="px-6 py-3 text-right">Accounting</th>
+              {showPercentage && <th className="px-6 py-3 text-right">% Claim</th>}
+              <th className="px-6 py-3 text-right">Claimable</th>
+              <th className="px-6 py-3 text-right">Add-back</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
-  );
-}
-
-function CategoryBreakdown({
-  title,
-  rows,
-  currency,
-}: {
-  title: string;
-  rows: Array<{ bucket: string; category: string; amount: number; count: number }>;
-  currency: string;
-}) {
-  return (
-    <Card className="space-y-4">
-      <div>
-        <h3 className="text-lg font-semibold text-[var(--color-foreground)]">{title}</h3>
-        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-          P&L view — all items regardless of tax claimability.
-        </p>
-      </div>
-
-      {rows.length === 0 ? (
-        <div className="rounded-2xl bg-[var(--color-panel)] px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
-          No categories available for this period.
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--color-border)] bg-[var(--color-panel)]">
-                <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">Bucket</th>
-                <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">Category</th>
-                <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">Txns</th>
-                <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">Amount</th>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {rows.map((row) => (
+              <tr key={row.category} className="hover:bg-slate-50/30 transition-colors">
+                <td className="px-6 py-4 font-medium text-slate-900">{row.category}</td>
+                <td className="px-6 py-4 text-right font-mono text-slate-500">{formatAmount(row.accountingAmount, currency)}</td>
+                {showPercentage && <td className="px-6 py-4 text-right font-mono text-slate-500">{row.allowablePercentage}%</td>}
+                <td className="px-6 py-4 text-right font-mono font-bold text-slate-900">{formatAmount(row.claimableAmount, currency)}</td>
+                <td className="px-6 py-4 text-right font-mono font-bold text-amber-600">
+                  {row.nonClaimableAmount > 0 ? `+${formatAmount(row.nonClaimableAmount, currency)}` : "—"}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, index) => (
-                <tr key={`${row.bucket}-${row.category}`} className={index > 0 ? "border-t border-[var(--color-border)]" : ""}>
-                  <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{row.bucket}</td>
-                  <td className="px-4 py-3 text-[var(--color-foreground)]">{row.category}</td>
-                  <td className="px-4 py-3 text-right font-mono text-[var(--color-muted-foreground)]">{row.count}</td>
-                  <td className="px-4 py-3 text-right font-mono text-[var(--color-foreground)]">{formatAmount(row.amount, currency)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Card>
   );
 }
 
 export function TaxSummary({
   taxSummary,
-  pnl,
-  vatReport,
   periodOptions,
   selectedPeriod,
 }: {
   taxSummary: TaxSummaryReport;
-  pnl: PnLReport;
-  vatReport: VatReport;
   periodOptions: string[];
   selectedPeriod?: string;
 }) {
@@ -359,32 +199,7 @@ export function TaxSummary({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-
-  const incomeRows = useMemo(
-    () =>
-      pnl.incomeSection.buckets.flatMap((bucket) =>
-        bucket.lines.map((line) => ({
-          bucket: bucket.bucket,
-          category: line.category,
-          amount: line.netAmount,
-          count: line.transactionCount,
-        })),
-      ),
-    [pnl],
-  );
-
-  const expenseRows = useMemo(
-    () =>
-      pnl.expenseSection.buckets.flatMap((bucket) =>
-        bucket.lines.map((line) => ({
-          bucket: bucket.bucket,
-          category: line.category,
-          amount: line.netAmount,
-          count: line.transactionCount,
-        })),
-      ),
-    [pnl],
-  );
+  const [activeTab, setActiveTab] = useState("overview");
 
   function updatePeriod(period: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -393,7 +208,6 @@ export function TaxSummary({
     } else {
       params.set("period", period);
     }
-
     startTransition(() => {
       router.replace(params.size ? `${pathname}?${params.toString()}` : pathname);
     });
@@ -402,383 +216,333 @@ export function TaxSummary({
   function exportSummary() {
     const content = buildCsv({ taxSummary, selectedPeriod });
     const suffix = selectedPeriod ? selectedPeriod.replace(/[^a-z0-9_-]+/gi, "-") : "all-periods";
-    downloadCsv(`tax-summary-${suffix}.csv`, content);
+    const blob = new Blob(["\uFEFF", content], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `tax-summary-${suffix}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
-  const hasAdjustments =
-    taxSummary.partiallyClaimableCategories.length > 0 ||
-    taxSummary.nonClaimableCategories.length > 0;
-
   return (
-    <div className="space-y-6">
-      {/* Search/Filter warnings */}
-      {taxSummary.profitSummary.uncategorizedCount > 0 && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm">
-          <div className="flex items-start gap-3">
-            <Info className="mt-1 h-5 w-5 shrink-0 text-amber-600" />
-            <div className="space-y-2">
-              <p className="text-sm font-bold">Uncategorised transactions detected</p>
-              <p className="text-sm leading-relaxed">
-                There are <strong>{taxSummary.profitSummary.uncategorizedCount}</strong> transactions that haven't been categorised yet. 
-                For tax safety, these expenses are <strong>not</strong> being used to reduce your taxable profit estimate.
-              </p>
-              <button 
-                onClick={() => router.push('/bookkeeping/transactions')}
-                className="text-sm font-bold underline decoration-amber-400 decoration-2 underline-offset-4 hover:decoration-amber-600"
-              >
-                Review and categorise now →
-              </button>
-            </div>
+    <div className="space-y-8 pb-20">
+      {/* Header & Controls */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-700">
+             <Calculator className="h-3 w-3" />
+             Fiscal Engine 2026/27
           </div>
+          <h1 className="text-4xl font-bold tracking-tighter text-slate-900 sm:text-5xl">
+            Tax Summary
+          </h1>
+          <p className="max-w-xl text-lg text-slate-500 leading-relaxed">
+            A precise reconciliation of your accounting books for HMRC self-assessment, adjusting for claimability and thresholds.
+          </p>
         </div>
-      )}
 
-      {/* Hero Section */}
-      <section className="space-y-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-700 border border-blue-100 mb-4">
-              <Wallet className="h-3 w-3" />
-              Working Estimate
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight text-[var(--color-foreground)] sm:text-5xl">
-              Tax Summary
-            </h1>
-            <p className="mt-4 text-lg leading-relaxed text-[var(--color-muted-foreground)]">
-              Transforming your accounting profit into an estimated tax bill. Our engine adjusts for claimability rules and calculates thresholds line-by-line.
-            </p>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-4">
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-muted-foreground)] ml-1">Reporting Period</span>
-              <select
-                value={selectedPeriod ?? "all"}
-                onChange={(event) => updatePeriod(event.target.value)}
-                disabled={isPending}
-                className="h-12 min-w-[220px] cursor-pointer rounded-2xl border border-[var(--color-border)] bg-white px-5 text-sm font-semibold text-[var(--color-foreground)] transition-colors hover:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)]"
-              >
-                <option value="all">All-time performance</option>
-                {periodOptions.map((period) => (
-                  <option key={period} value={period}>
-                    {period}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              type="button"
-              onClick={exportSummary}
-              className="mt-5 inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white px-6 text-sm font-bold text-[var(--color-foreground)] transition-all hover:bg-[var(--color-panel)] hover:shadow-sm"
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Reporting Window</span>
+            <select
+              value={selectedPeriod ?? "all"}
+              onChange={(e) => updatePeriod(e.target.value)}
+              disabled={isPending}
+              className="h-11 min-w-[200px] cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 shadow-sm transition-all hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
             >
-              <Download className="h-4 w-4" />
-              Download Report
-            </button>
+              <option value="all">Cumulative All-time</option>
+              {periodOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
           </div>
+          <button
+            onClick={exportSummary}
+            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-sm font-bold text-slate-900 transition-all hover:bg-slate-50 active:scale-95 shadow-sm"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
         </div>
+      </div>
 
-        {/* Hero KPIs */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-          <SummaryCard
-            label="Gross Income"
-            value={formatAmount(taxSummary.profitSummary.totalIncome, taxSummary.currency)}
-            tone="profit"
-            description="Total revenue"
-          />
-          <SummaryCard
-            label="Accounting Profit"
-            value={formatAmount(taxSummary.profitSummary.accountingProfit, taxSummary.currency)}
-            tone={taxSummary.profitSummary.accountingProfit >= 0 ? "default" : "warning"}
-            description="Before tax adjustments"
-          />
-          <SummaryCard
-            label="Taxable Profit"
-            value={formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)}
-            tone="profit"
-            description="Adjusted for HMRC"
-          />
-          <SummaryCard
-            label="Total Est. Tax"
-            value={
-              taxSummary.estimatedTax
-                ? formatAmount(taxSummary.estimatedTax.totalEstimatedTax, taxSummary.currency)
-                : "—"
-            }
-            tone={taxSummary.estimatedTax ? "warning" : "default"}
-            description="Income Tax + Class 4 NI"
-          />
-          <SummaryCard
-            label="Pending Review"
-            value={taxSummary.profitSummary.uncategorizedCount > 0 
-              ? `${taxSummary.profitSummary.uncategorizedCount}`
-              : "0"}
-            tone={taxSummary.profitSummary.uncategorizedCount > 0 ? "warning" : "default"}
-            description="Untracked txns"
-          />
-        </div>
-      </section>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <TabsList className="bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200 gap-1 h-auto flex-wrap">
+          <TabsTrigger value="overview" className="rounded-xl px-6 py-2.5 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all">
+            <LayoutDashboard className="h-4 w-4 mr-2" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="adjustments" className="rounded-xl px-6 py-2.5 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all">
+            <Receipt className="h-4 w-4 mr-2" />
+            Adjustments & Add-backs
+          </TabsTrigger>
+          {taxSummary.estimatedTax && (
+            <TabsTrigger value="taxbill" className="rounded-xl px-6 py-2.5 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all">
+              <Calculator className="h-4 w-4 mr-2" />
+              Tax Bill Detail
+            </TabsTrigger>
+          )}
+        </TabsList>
 
-      {/* The Step-by-Step Guided Assessment */}
-      <div className="grid gap-12 lg:grid-cols-[1fr_400px]">
-        {/* Step 1 & 2: Main Logic Flow */}
-        <div className="space-y-16">
-          
-          {/* STEP 1: PROFIT PERFORMANCE */}
-          <section className="space-y-6">
+        <TabsContent value="overview" className="space-y-12">
+          {/* Top Level KPIs */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+             <SummaryCard label="Accounting Profit" value={formatAmount(taxSummary.profitSummary.accountingProfit, taxSummary.currency)} icon={LayoutDashboard} description="Your net P&L position" />
+             <SummaryCard label="Tax Add-backs" value={formatAmount(taxSummary.profitSummary.totalTaxAdjustments, taxSummary.currency)} tone="warning" icon={Receipt} description="Non-claimable items" />
+             <SummaryCard label="Taxable Profit" value={formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)} tone="profit" icon={Calculator} description="Final HMRC-ready figure" />
+             <SummaryCard 
+               label="Est. Liability" 
+               value={taxSummary.estimatedTax ? formatAmount(taxSummary.estimatedTax.totalEstimatedTax, taxSummary.currency) : "—"} 
+               tone={taxSummary.estimatedTax ? "warning" : "default"}
+               icon={Wallet} 
+               description="Projected tax due"
+             />
+          </div>
+
+          {/* Reconciliation Bridge */}
+          <div className="space-y-6">
             <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-foreground)] text-xs font-bold text-white">1</span>
-              <h2 className="text-xl font-bold tracking-tight">Accounting Performance</h2>
+              <div className="h-8 w-1 bg-blue-600 rounded-full" />
+              <h2 className="text-xl font-bold tracking-tight text-slate-900">Profit Reconciliation</h2>
             </div>
             
-            <div className="grid gap-6 sm:grid-cols-2">
-              <TaxSection
-                title="Profit & Loss"
-                eyebrow="Accounting View"
-                currency={taxSummary.currency}
-                rows={[
-                  { label: "Gross Income", value: taxSummary.profitSummary.totalIncome, hint: "Total sales/revenue" },
-                  { label: "Total Expenses", value: taxSummary.profitSummary.totalExpenses, hint: "All categorised expenses" },
-                ]}
-                footer={{ label: "Net Accounting Profit", value: taxSummary.profitSummary.accountingProfit }}
-              />
+            <div className="relative grid gap-8 lg:grid-cols-3">
+               <Card className="p-8 border-slate-200 bg-white shadow-sm flex flex-col items-center justify-center text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2">P&L Net Profit</p>
+                  <p className="text-4xl font-mono font-bold tracking-tighter text-slate-900">{formatAmount(taxSummary.profitSummary.accountingProfit, taxSummary.currency)}</p>
+               </Card>
 
-              <TaxSection
-                title="VAT Overview"
-                eyebrow="Consumption Tax"
-                currency={taxSummary.currency}
-                rows={
-                  taxSummary.vatSummary.enabled
-                    ? [
-                        { label: "VAT on Income", value: taxSummary.vatSummary.outputVat },
-                        { label: "Recoverable VAT", value: taxSummary.vatSummary.inputVat },
-                      ]
-                    : [{ label: "Registration Disabled", value: 0 }]
-                }
-                footer={
-                  taxSummary.vatSummary.enabled
-                    ? {
-                        label: taxSummary.vatSummary.netVatPosition >= 0 ? "Net Due (estimate)" : "Net Reclaim (estimate)",
-                        value: Math.abs(taxSummary.vatSummary.netVatPosition),
-                      }
-                    : undefined
-                }
-              />
-            </div>
-          </section>
+               <div className="flex items-center justify-center -my-4 lg:my-0">
+                  <div className="flex flex-col items-center gap-2">
+                     <span className="h-10 w-10 flex items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-slate-400">
+                        <ArrowRight className="h-5 w-5 transform rotate-90 lg:rotate-0" />
+                     </span>
+                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Adjustments</p>
+                  </div>
+               </div>
 
-          {/* STEP 2: TAXABLE PROFIT DERIVATION */}
-          <section className="space-y-6">
-            <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-foreground)] text-xs font-bold text-white">2</span>
-              <h2 className="text-xl font-bold tracking-tight">Taxable Profit Derivation</h2>
+               <Card className="p-8 border-slate-200 bg-slate-900 text-white shadow-xl flex flex-col items-center justify-center text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2 underline decoration-orange-500 decoration-2 underline-offset-4">HMRC Taxable Profit</p>
+                  <p className="text-4xl font-mono font-bold tracking-tighter text-white">{formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)}</p>
+               </Card>
             </div>
 
-            <Card className="p-0 overflow-hidden border-[var(--color-border)] shadow-md text-[var(--color-foreground)]">
-              <div className="bg-slate-50/50 px-6 py-8 border-b border-[var(--color-border)] text-center">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-muted-foreground)] mb-2">Calculation Flow</p>
-                <div className="flex flex-col items-center justify-center gap-3">
-                  <div className="flex items-center gap-8">
-                    <div className="text-center">
-                      <p className="text-xs text-[var(--color-muted-foreground)] mb-1">Gross Income</p>
-                      <p className="text-xl font-mono font-bold tracking-tight">{formatAmount(taxSummary.profitSummary.totalIncome, taxSummary.currency)}</p>
-                    </div>
-                    <div className="text-2xl text-[var(--color-muted-foreground)] font-light">-</div>
-                    <div className="text-center">
-                      <p className="text-xs text-amber-700 mb-1">Claimable Expenses</p>
-                      <p className="text-xl font-mono font-bold text-amber-700 tracking-tight">{formatAmount(taxSummary.profitSummary.totalClaimableExpenses, taxSummary.currency)}</p>
-                    </div>
-                    <div className="text-2xl text-[var(--color-muted-foreground)] font-light">=</div>
-                    <div className="text-center">
-                      <p className="text-xs text-emerald-700 mb-1">Taxable Profit</p>
-                      <p className="text-2xl font-mono font-bold text-emerald-800 tracking-tighter">{formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-6">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-4">Excluded from Relief</h3>
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between py-3">
-                    <span className="text-sm font-medium">Non-claimable (Categorised)</span>
-                    <span className="text-sm font-mono font-bold text-slate-500">{formatAmount(taxSummary.profitSummary.disallowedExpenses, taxSummary.currency)}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-t border-[var(--color-border)] border-dashed">
-                    <span className="text-sm font-medium">Uncategorised Expenses (Excluded by default)</span>
-                    <span className="text-sm font-mono font-bold text-slate-500">{formatAmount(taxSummary.profitSummary.uncategorizedExpenses, taxSummary.currency)}</span>
-                  </div>
-                  <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-[10px] text-amber-800 font-medium font-[var(--font-inter)]">
-                    ⓘ Only categorised expenses marked as "Allowable" are subtracted from your income to reach this taxable figure. Uncategorised items are excluded for safety.
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </section>
-
-          {/* STEP 3: TAX CALCULATION (DETAILED) */}
-          {taxSummary.estimatedTax && (
-            <section className="space-y-6">
-              <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-foreground)] text-xs font-bold text-white">3</span>
-                <h2 className="text-xl font-bold tracking-tight">Final Estimated Tax Bill</h2>
-              </div>
-
-              <div className="grid gap-6">
-                {/* Income Tax Breakdown */}
-                <Card className="p-0 overflow-hidden border-[var(--color-border)] shadow-sm text-[var(--color-foreground)]">
-                  <div className="border-b border-[var(--color-border)] bg-[var(--color-panel)] px-6 py-4 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-bold uppercase tracking-widest">Income Tax</h3>
-                      <p className="text-[10px] text-[var(--color-muted-foreground)]">Calculated on taxable income after allowances</p>
-                    </div>
-                    <div className="font-mono font-bold text-lg">
-                      {formatAmount(taxSummary.estimatedTax.estimatedIncomeTax, taxSummary.currency)}
-                    </div>
-                  </div>
-                  <div className="p-6 space-y-4 text-[var(--color-foreground)]">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[var(--color-muted-foreground)]">Taxable Profit Starting Point</span>
-                      <span className="font-mono font-medium">{formatAmount(taxSummary.estimatedTax.taxableProfitStartingPoint, taxSummary.currency)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm py-4 border-y border-[var(--color-border)] border-dashed">
-                      <span className="text-[var(--color-muted-foreground)]">Personal Allowance (2026/27)</span>
-                      <span className="font-mono font-medium text-emerald-700">-{formatAmount(taxSummary.estimatedTax.personalAllowanceUsed, taxSummary.currency)}</span>
-                    </div>
-                    <div className="space-y-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-muted-foreground)]">Tax Bands</p>
-                      {taxSummary.estimatedTax.incomeTaxBreakdown.map((band) => (
-                        <div key={band.band} className="flex items-center justify-between text-xs py-1">
-                          <span className="flex items-center gap-2">
-                             <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                             {band.band} ({Math.round(band.rate * 100)}%)
-                          </span>
-                          <span className="font-mono font-bold">{formatAmount(band.amount, taxSummary.currency)}</span>
+            <Card className="bg-slate-50/50 border-slate-200 p-8">
+               <div className="grid gap-8 lg:grid-cols-2">
+                  <div className="space-y-4">
+                     <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">How we reached this</h3>
+                     <div className="space-y-3">
+                        <div className="flex justify-between items-center text-sm py-2 border-b border-slate-200/50">
+                           <span className="text-slate-600">Categorised Income</span>
+                           <span className="font-mono text-slate-900">{formatAmount(taxSummary.profitSummary.totalIncome, taxSummary.currency)}</span>
                         </div>
-                      ))}
-                      {taxSummary.estimatedTax.incomeTaxBreakdown.length === 0 && (
-                        <p className="text-xs text-[var(--color-muted-foreground)] italic">Income falls within Personal Allowance threshold.</p>
-                      )}
-                    </div>
+                        <div className="flex justify-between items-center text-sm py-2 border-b border-slate-200/50">
+                           <span className="text-slate-600">Claimable Expenses</span>
+                           <span className="font-mono text-orange-700">-{formatAmount(taxSummary.profitSummary.totalClaimableExpenses, taxSummary.currency)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm font-bold pt-2">
+                           <span>Taxable Total</span>
+                           <span className="font-mono text-emerald-800">{formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)}</span>
+                        </div>
+                     </div>
                   </div>
-                </Card>
 
-                {/* National Insurance Breakdown */}
-                <Card className="p-0 overflow-hidden border-[var(--color-border)] shadow-sm text-[var(--color-foreground)]">
-                  <div className="border-b border-[var(--color-border)] bg-[var(--color-panel)] px-6 py-4 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-bold uppercase tracking-widest">National Insurance (Class 4)</h3>
-                      <p className="text-[10px] text-[var(--color-muted-foreground)]">Calculated on full taxable profit</p>
-                    </div>
-                    <div className="font-mono font-bold text-lg">
-                      {formatAmount(taxSummary.estimatedTax.estimatedNationalInsurance, taxSummary.currency)}
-                    </div>
+                  <div className="space-y-4">
+                     <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">Excluded (Added Back)</h3>
+                     <div className="space-y-3">
+                        <div className="flex justify-between items-center text-sm py-2 border-b border-slate-200/50">
+                           <span className="text-slate-600">Disallowed Expenses</span>
+                           <span className="font-mono text-slate-900">+{formatAmount(taxSummary.profitSummary.totalTaxAdjustments - taxSummary.profitSummary.uncategorizedExpenses, taxSummary.currency)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm py-2 border-b border-slate-200/50">
+                           <span className="text-slate-600">Uncategorised Expenses</span>
+                           <span className="font-mono text-slate-900">+{formatAmount(taxSummary.profitSummary.uncategorizedExpenses, taxSummary.currency)}</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 italic">These items increase taxable profit as they aren't eligible for relief.</p>
+                     </div>
                   </div>
-                  <div className="p-6 space-y-4 text-[var(--color-foreground)]">
-                    <div className="space-y-3">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-muted-foreground)]">NI Bands</p>
-                        {taxSummary.estimatedTax.niBreakdown.map((band) => (
-                          <div key={band.band} className="flex items-center justify-between text-xs py-1">
-                            <span className="flex items-center gap-2">
-                               <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                               {band.band} ({Math.round(band.rate * 100)}%)
-                            </span>
-                            <span className="font-mono font-bold">{formatAmount(band.amount, taxSummary.currency)}</span>
-                          </div>
-                      ))}
-                      {taxSummary.estimatedTax.niBreakdown.length === 0 && (
-                        <p className="text-xs text-[var(--color-muted-foreground)] italic">Profit falls below National Insurance Lower Profit Limit.</p>
-                      )}
-                    </div>
+               </div>
+            </Card>
+          </div>
+          
+          {taxSummary.profitSummary.uncategorizedCount > 0 && (
+            <Card className="border-amber-200 bg-amber-50/30 p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+               <div className="flex items-start gap-4">
+                  <div className="h-10 w-10 shrink-0 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
+                     <AlertTriangle className="h-5 w-5" />
                   </div>
-                </Card>
-              </div>
-
-              {/* Final Footer Result */}
-              <div className="rounded-3xl bg-[var(--color-foreground)] p-10 text-white shadow-xl shadow-[var(--color-accent-soft)]">
-                <div className="flex flex-col items-center justify-center text-center">
-                   <p className="text-xs font-bold uppercase tracking-[0.3em] opacity-60 mb-2">Grand Total Estimate</p>
-                   <h2 className="text-5xl font-bold tracking-tighter mb-4">{formatAmount(taxSummary.estimatedTax.totalEstimatedTax, taxSummary.currency)}</h2>
-                   <div className="flex items-center gap-4 text-white opacity-80 mt-2">
-                       <span className="text-xs sm:text-sm">{taxSummary.estimatedTax.estimatedIncomeTax > 0 ? formatAmount(taxSummary.estimatedTax.estimatedIncomeTax, taxSummary.currency) + " Income Tax" : ""}</span>
-                       <span className="h-1 w-1 rounded-full bg-white opacity-40 shrink-0" />
-                       <span className="text-xs sm:text-sm">{taxSummary.estimatedTax.estimatedNationalInsurance > 0 ? formatAmount(taxSummary.estimatedTax.estimatedNationalInsurance, taxSummary.currency) + " National Insurance" : ""}</span>
-                   </div>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {!taxSummary.estimatedTax && (
-            <Card className="p-10 text-center border-dashed bg-[var(--color-panel)]">
-               <Wallet className="mx-auto h-8 w-8 text-[var(--color-muted-foreground)] opacity-50 mb-4" />
-               <p className="text-sm font-medium text-[var(--color-muted-foreground)]">
-                 Estmate only available for Sole Traders. Small business mode displays accounting profit adjustments only.
-               </p>
+                  <div>
+                    <h3 className="text-amber-900 font-bold">Incomplete Data Detected</h3>
+                    <p className="text-sm text-amber-800/70 mt-1 max-w-lg">
+                      There are <strong>{taxSummary.profitSummary.uncategorizedCount} transactions</strong> needing review.
+                      To be safe, these are currently <strong>not</strong> being used to reduce your tax bill.
+                    </p>
+                  </div>
+               </div>
+               <button 
+                onClick={() => router.push('/bookkeeping/transactions')}
+                className="h-11 px-6 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl whitespace-nowrap transition-colors"
+               >
+                 Review Transactions
+               </button>
             </Card>
           )}
+        </TabsContent>
 
-        </div>
-
-        {/* RIGHT SIDEBAR: Supplementary Lists */}
-        <div className="space-y-10">
-          
-          {/* Detailed Lists Summary */}
-          <div className="space-y-6 sticky top-8">
-             <div className="space-y-1">
-               <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--color-muted-foreground)]">Tax Adjustments</h3>
-               <p className="text-[10px] text-[var(--color-muted-foreground)]">Category-level claimability summary</p>
-             </div>
-
-             <div className="space-y-4">
-                <TaxCategoryTable
-                  title="Non-claimable"
-                  description="Standard add-backs (HMRC rules)"
-                  rows={taxSummary.nonClaimableCategories}
-                  currency={taxSummary.currency}
-                  tone="red"
-                />
-
-                <TaxCategoryTable
-                  title="Partially claimable"
-                  description="Items with limited relief"
+        <TabsContent value="adjustments" className="space-y-12">
+          <div className="grid gap-8 lg:grid-cols-2">
+             <div className="space-y-6">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900">Expense Adjustments</h2>
+                  <p className="text-sm text-slate-500">Breakdown of items flagged for limited or zero tax relief.</p>
+                </div>
+                <TaxCategoryTable 
+                  title="Partially Claimable" 
+                  description="Relief limited to a percentage (e.g. usage split)"
                   rows={taxSummary.partiallyClaimableCategories}
                   currency={taxSummary.currency}
                   tone="amber"
                   showPercentage
                 />
+                <TaxCategoryTable 
+                  title="Fully Non-claimable" 
+                  description="Standard HMRC add-backs (e.g. entertaining)"
+                  rows={taxSummary.nonClaimableCategories}
+                  currency={taxSummary.currency}
+                  tone="red"
+                />
              </div>
 
-             <div className="space-y-4 pt-6">
+             <div className="space-y-6">
                 <div className="space-y-1">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--color-muted-foreground)]">Accounting Context</h3>
-                  <p className="text-[10px] text-[var(--color-muted-foreground)]">Reference figures for self-assessment</p>
+                   <h2 className="text-xl font-bold tracking-tight text-slate-900">Uncategorised Items</h2>
+                   <p className="text-sm text-slate-500">Transactions still pending review that impact the estimate.</p>
                 </div>
-                <CategoryBreakdown
-                  title="Income Mix"
-                  rows={incomeRows}
-                  currency={taxSummary.currency}
-                />
-                <CategoryBreakdown
-                  title="Expense Mix"
-                  rows={expenseRows}
-                  currency={taxSummary.currency}
-                />
+                <Card className="p-8 border-slate-200 space-y-6">
+                   <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Pending Expenses</p>
+                        <p className="text-3xl font-mono font-bold text-slate-900">{formatAmount(taxSummary.profitSummary.uncategorizedExpenses, taxSummary.currency)}</p>
+                      </div>
+                      <div className="h-12 w-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300">
+                        <Info className="h-6 w-6" />
+                      </div>
+                   </div>
+                   <div className="p-4 rounded-2xl bg-slate-100/50 text-xs text-slate-500 leading-relaxed border border-slate-200/50">
+                      Uncategorised expenses are "safety excluded" from claimable totals. Once categorised as a valid business expense, they will reduce your taxable profit and lower your estimated tax.
+                   </div>
+                   <button 
+                     onClick={() => router.push('/bookkeeping/transactions')}
+                     className="w-full h-12 border border-slate-200 hover:bg-slate-50 font-bold rounded-xl transition-all"
+                   >
+                     Go to Bookkeeping
+                   </button>
+                </Card>
              </div>
-
-             {/* Disclaimer */}
-             <Card className="bg-[var(--color-panel)] border-none shadow-none">
-                <div className="flex gap-3">
-                  <Info className="h-4 w-4 text-[var(--color-muted-foreground)] shrink-0 mt-0.5" />
-                  <p className="text-[10px] leading-relaxed text-[var(--color-muted-foreground)]">
-                    This summary is a working estimate for UK self-assessment planning. It does not constitute formal tax advice and should not be used for filing without professional review. 2026/27 rates used for current calculations.
-                  </p>
-                </div>
-             </Card>
           </div>
+        </TabsContent>
 
-        </div>
+        <TabsContent value="taxbill" className="space-y-12">
+          {taxSummary.estimatedTax && (
+            <>
+              {/* Grand Total Hero */}
+              <div className="relative overflow-hidden rounded-[40px] bg-slate-900 p-12 text-white shadow-2xl">
+                 <div className="relative z-10 flex flex-col items-center text-center">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40 mb-4">Total Estimated Liability</p>
+                    <h2 className="text-6xl font-bold tracking-tighter mb-6">{formatAmount(taxSummary.estimatedTax.totalEstimatedTax, taxSummary.currency)}</h2>
+                    <div className="flex flex-wrap justify-center gap-4">
+                       <div className="px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-xs font-bold">
+                          {formatAmount(taxSummary.estimatedTax.estimatedIncomeTax, taxSummary.currency)} Income Tax
+                       </div>
+                       <div className="px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-xs font-bold">
+                          {formatAmount(taxSummary.estimatedTax.estimatedNationalInsurance, taxSummary.currency)} Class 4 NI
+                       </div>
+                    </div>
+                 </div>
+                 {/* Subtle decorative elements */}
+                 <div className="absolute top-0 right-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
+                 <div className="absolute bottom-0 left-0 -ml-20 -mb-20 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
+              </div>
+
+              <div className="grid gap-8 lg:grid-cols-2">
+                 <div className="space-y-6">
+                    <h3 className="text-xl font-bold text-slate-900 px-1">Income Tax Breakdown</h3>
+                    <Card className="divide-y divide-slate-100 border-slate-200 overflow-hidden shadow-sm">
+                       <div className="p-6 bg-slate-50/50 flex justify-between items-center">
+                          <span className="text-sm font-bold text-slate-500 uppercase tracking-widest">Taxable Income Base</span>
+                          <span className="font-mono font-bold text-slate-900">{formatAmount(taxSummary.estimatedTax.taxableProfitStartingPoint, taxSummary.currency)}</span>
+                       </div>
+                       <div className="p-6 flex justify-between items-center">
+                          <div className="space-y-1">
+                             <p className="text-sm font-medium text-slate-900">Personal Allowance</p>
+                             <p className="text-[10px] text-slate-400">Standard 2026/27 threshold</p>
+                          </div>
+                          <span className="font-mono font-bold text-emerald-700">-{formatAmount(taxSummary.estimatedTax.personalAllowanceUsed, taxSummary.currency)}</span>
+                       </div>
+                       <div className="p-6 space-y-4">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Applicable Bands</p>
+                          {taxSummary.estimatedTax.incomeTaxBreakdown.map(band => (
+                            <div key={band.band} className="flex justify-between items-center text-sm py-1">
+                                <span className="text-slate-600">{band.band} ({Math.round(band.rate * 100)}%)</span>
+                                <span className="font-mono font-bold text-slate-900">{formatAmount(band.amount, taxSummary.currency)}</span>
+                            </div>
+                          ))}
+                          {taxSummary.estimatedTax.incomeTaxBreakdown.length === 0 && (
+                             <p className="text-xs text-slate-400 italic">Income falls within allowance.</p>
+                          )}
+                       </div>
+                    </Card>
+                 </div>
+
+                 <div className="space-y-6">
+                    <h3 className="text-xl font-bold text-slate-900 px-1">National Insurance Detail</h3>
+                    <Card className="divide-y divide-slate-100 border-slate-200 overflow-hidden shadow-sm">
+                       <div className="p-6 bg-slate-50/50 flex justify-between items-center">
+                          <span className="text-sm font-bold text-slate-500 uppercase tracking-widest">NI Assessment Base</span>
+                          <span className="font-mono font-bold text-slate-900">{formatAmount(taxSummary.estimatedTax.taxableProfitStartingPoint, taxSummary.currency)}</span>
+                       </div>
+                       <div className="p-6 space-y-4">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Class 4 NI Bands</p>
+                          {taxSummary.estimatedTax.niBreakdown.map(band => (
+                            <div key={band.band} className="flex justify-between items-center text-sm py-1">
+                                <span className="text-slate-600">{band.band} ({Math.round(band.rate * 100)}%)</span>
+                                <span className="font-mono font-bold text-slate-900">{formatAmount(band.amount, taxSummary.currency)}</span>
+                            </div>
+                          ))}
+                          {taxSummary.estimatedTax.niBreakdown.length === 0 && (
+                             <p className="text-xs text-slate-400 italic">Profit below lower limit.</p>
+                          )}
+                       </div>
+                    </Card>
+                 </div>
+              </div>
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Footer Info */}
+      <div className="pt-10 border-t border-slate-200">
+         <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl space-y-4">
+               <div className="flex items-center gap-2 text-slate-400">
+                  <Info className="h-4 w-4" />
+                  <span className="text-xs font-bold uppercase tracking-[0.1em]">Assumptions & Methodology</span>
+               </div>
+               <div className="grid gap-3 sm:grid-cols-2">
+                  {taxSummary.assumptions.map((a, i) => (
+                    <div key={i} className="flex gap-3 text-[11px] text-slate-500 leading-relaxed italic">
+                       <span className="opacity-30">•</span>
+                       {a}
+                    </div>
+                  ))}
+               </div>
+            </div>
+            <Card className="p-6 bg-slate-50 border-slate-100 max-w-sm text-[10px] text-slate-400 italic leading-relaxed">
+               Disclaimer: This tool provides a working estimate for planning purposes. It does not constitute formal tax advice. Always verify your final self-assessment filing with HMRC or a qualified professional accountant.
+            </Card>
+         </div>
       </div>
     </div>
   );
 }
+

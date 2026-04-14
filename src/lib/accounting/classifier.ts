@@ -47,6 +47,8 @@ export interface ClassifiedTransaction {
   taxAmount: number;      // VAT / tax portion
 
   // Tax allowability (HMRC add-back logic)
+  /** Whether this transaction type supports the concept of tax allowability (only true for P&L expenses) */
+  supportsAllowability: boolean;
   allowableForTax: boolean;
   allowablePercentage: number;
   /** Portion of netAmount that reduces taxable profit (0 if non-allowable) */
@@ -135,9 +137,17 @@ export function classifyTransaction(
   const glCode = tx.glCode || resolvedCategory?.glCode;
 
   // Tax allowability — only meaningful for P&L expenses.
+  const isExpenseOnPnL = accountType === "expense" && statementType === "p_and_l";
+  
   // Defaults to true (allowable) so uncategorised transactions are not incorrectly penalised.
-  const allowableForTax = resolvedCategory?.allowableForTax ?? true;
-  const allowablePercentage = resolvedCategory?.allowablePercentage ?? 100;
+  let allowableForTax = resolvedCategory?.allowableForTax ?? true;
+  let allowablePercentage = resolvedCategory?.allowablePercentage ?? 100;
+
+  // For non-expenses, we ignore any non-allowable status and treat as fully allowable (in its own bucket)
+  if (!isExpenseOnPnL) {
+    allowableForTax = true;
+    allowablePercentage = 100;
+  }
 
   // Tax treatment: transaction-level override takes priority, then category default
   const taxTreatment: TaxTreatment =
@@ -158,8 +168,6 @@ export function classifyTransaction(
   );
 
   // Allowable/disallowed amounts — only relevant for P&L expenses.
-  // For income, assets, liabilities, equity: allowable/disallowed are not applicable.
-  const isExpenseOnPnL = accountType === "expense" && statementType === "p_and_l";
   const allowableAmount = isExpenseOnPnL
     ? (allowableForTax ? round2(netAmount * allowablePercentage / 100) : 0)
     : 0;
@@ -184,6 +192,7 @@ export function classifyTransaction(
     grossAmount: round2(Math.abs(tx.amount)),
     netAmount,
     taxAmount,
+    supportsAllowability: isExpenseOnPnL,
     allowableForTax,
     allowablePercentage,
     allowableAmount,

@@ -93,6 +93,7 @@ export function TransactionsTable({
           allowableForTax: isAllowable,
           accountType: classification.accountType,
           statementType: classification.statementType,
+          supportsAllowability: classification.supportsAllowability,
           taxTreatment: classification.effectiveTaxTreatment,
         };
       }),

@@ -150,14 +150,18 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
         </span>
       </td>
       <td className="hidden px-4 py-3 text-center xl:table-cell border-t border-[var(--color-border)]">
-        <input
-          type="checkbox"
-          checked={tx.allowableForTax}
-          disabled={!tx.resolvedCategory}
-          onChange={() => handleToggleAllowable(tx.resolvedCategory, !!tx.allowableForTax)}
-          className="h-4 w-4 cursor-pointer rounded border-[var(--color-border)] accent-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-          title={tx.resolvedCategory ? `Toggle allowability for all ${tx.resolvedCategory} items` : "Set a category first"}
-        />
+        {tx.supportsAllowability ? (
+          <input
+            type="checkbox"
+            checked={tx.allowableForTax}
+            disabled={!tx.resolvedCategory}
+            onChange={() => handleToggleAllowable(tx.resolvedCategory, !!tx.allowableForTax)}
+            className="h-4 w-4 cursor-pointer rounded border-[var(--color-border)] accent-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+            title={tx.resolvedCategory ? `Toggle allowability for all ${tx.resolvedCategory} items` : "Set a category first"}
+          />
+        ) : (
+          <span className="text-[var(--color-muted-foreground)] text-xs">—</span>
+        )}
       </td>
       <td className="hidden px-4 py-3 text-xs text-[var(--color-muted-foreground)] xl:table-cell border-t border-[var(--color-border)]">
         {TAX_TREATMENT_LABELS[tx.taxTreatment as keyof typeof TAX_TREATMENT_LABELS] ?? "Unknown"}
