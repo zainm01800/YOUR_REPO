@@ -60,7 +60,6 @@ model User {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   memberships     Membership[]
-  ownedWorkspaces Workspace[]     @relation("WorkspaceOwner")
   reviewActions   ReviewAction[]
   exportHistories ExportHistory[]
   invitations     Invitation[]    @relation("InvitedBy")
@@ -85,8 +84,6 @@ model Workspace {
   categoryRules     CategoryRule[]
   mappingTemplates  MappingTemplate[]
   bankStatements    BankStatement[]
-  ownerId           String?
-  owner             User?              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
   invitations       Invitation[]
 }
 

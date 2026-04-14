@@ -91,7 +91,6 @@ export const resolveUserWorkspace = async (prisma: PrismaClient) => {
           dateToleranceDays: 5,
           vatRegistered: false,
           businessType: "sole_trader",
-          ownerId: user.id, // Explicit owner
         },
       });
 
