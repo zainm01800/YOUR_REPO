@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { CheckCircle2, Search, Tag, Trash2, Sparkles, Loader2, X } from "lucide-react";
+import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
+import { CheckCircle2, Search, Tag, Trash2, Sparkles, Loader2, X, ChevronDown, ChevronRight, ListCollapse, ListFilter } from "lucide-react";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
 import { resolveCategory } from "@/lib/categories/suggester";
 import {
@@ -83,6 +83,7 @@ export function TransactionsTable({
   } | null>(null);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [bulkApplying, setBulkApplying] = useState(false);
+  const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLocalTransactions(transactions);
@@ -139,6 +140,39 @@ export function TransactionsTable({
       );
     });
   }, [rowsWithCategory, search, filterCategory]);
+
+  const monthGroups = useMemo(() => {
+    const map = new Map<string, { label: string; rows: (typeof rowsWithCategory)[0][] }>();
+    
+    // Assumes filtered is already sorted by date descending from the page loader
+    for (const tx of filtered) {
+      const date = tx.transactionDate ? new Date(tx.transactionDate) : null;
+      const key = date && !isNaN(date.getTime()) 
+        ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+        : "no-date";
+      
+      const label = date && !isNaN(date.getTime())
+        ? date.toLocaleString("en-GB", { month: "long", year: "numeric" })
+        : "No Date";
+
+      if (!map.has(key)) {
+        map.set(key, { label, rows: [] });
+      }
+      map.get(key)!.rows.push(tx);
+    }
+    
+    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [filtered]);
+
+  // Expand latest month by default if not manually toggled yet
+  useEffect(() => {
+    if (monthGroups.length > 0 && collapsedMonths.size === 0) {
+      // If we have groups, collapse all EXCEPT the first one (latest)
+      const toCollapse = new Set<string>();
+      monthGroups.slice(1).forEach(([key]) => toCollapse.add(key));
+      setCollapsedMonths(toCollapse);
+    }
+  }, [monthGroups.length > 0]); // only run once when data loads
 
   const uniqueCategories = useMemo(() => {
     const set = new Set<string>();
@@ -410,6 +444,24 @@ export function TransactionsTable({
           {filtered.length} transaction{filtered.length !== 1 ? "s" : ""}
         </span>
 
+        {/* Group Controls */}
+        <div className="flex items-center gap-1 border-l border-[var(--color-border)] pl-3">
+          <button
+            onClick={() => setCollapsedMonths(new Set())}
+            title="Expand all months"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-muted-foreground)] hover:bg-[var(--color-panel)] hover:text-black"
+          >
+            <ListFilter className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setCollapsedMonths(new Set(monthGroups.map(([key]) => key)))}
+            title="Collapse all months"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-muted-foreground)] hover:bg-[var(--color-panel)] hover:text-black"
+          >
+            <ListCollapse className="h-4 w-4" />
+          </button>
+        </div>
+
         {/* AI Categorise Button */}
         <div className="ml-auto">
           {filtered.some((tx) => !tx.resolvedCategory || tx.resolvedCategory === "Uncategorised") && (
@@ -523,153 +575,196 @@ export function TransactionsTable({
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {monthGroups.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={11}
                     className="px-4 py-10 text-center text-sm text-[var(--color-muted-foreground)]"
                   >
                     No transactions match your filters.
                   </td>
                 </tr>
               ) : (
-                filtered.map((tx, i) => {
-                  const isEditing = editingId === tx.id;
-                  const isSaving = saving === tx.id;
-                  const justSaved = savedId === tx.id;
-                  const isSelected = selected.has(tx.id);
-                  const categoryOptions = tx.resolvedCategory && !visibleCategories.includes(tx.resolvedCategory)
-                    ? [...visibleCategories, tx.resolvedCategory].sort((a, b) => a.localeCompare(b))
-                    : visibleCategories;
+                monthGroups.map(([monthKey, group]) => {
+                  const isCollapsed = collapsedMonths.has(monthKey);
+                  const toggleMonth = () => {
+                    setCollapsedMonths(prev => {
+                      const next = new Set(prev);
+                      if (next.has(monthKey)) next.delete(monthKey);
+                      else next.add(monthKey);
+                      return next;
+                    });
+                  };
 
                   return (
-                    <tr
-                      key={tx.id}
-                      className={`${i > 0 ? "border-t border-[var(--color-border)]" : ""} transition ${isSelected ? "bg-red-50" : "hover:bg-[var(--color-accent-soft)]"}`}
-                    >
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleRow(tx.id)}
-                          className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
-                        />
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-[var(--color-muted-foreground)]">
-                        {fmtDate(tx.transactionDate)}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-[var(--color-foreground)]">
-                        {tx.merchant}
-                      </td>
-                      <td className="hidden max-w-[220px] px-4 py-3 text-[var(--color-muted-foreground)] sm:table-cell">
-                        <span className="line-clamp-1">{tx.description}</span>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-semibold text-[var(--color-foreground)]">
-                        {fmtAmount(tx.amount, tx.currency)}
-                        {tx.currency !== "GBP" && (
-                          <span className="ml-1 text-xs font-normal text-[var(--color-muted-foreground)]">
-                            {tx.currency}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {isEditing ? (
-                          <form
-                            onSubmit={(event) => {
-                              event.preventDefault();
-                              handleSaveCategory(tx.id, editValue);
-                            }}
-                            className="flex items-center gap-1"
-                          >
-                            <select
-                              autoFocus
-                              value={editValue}
-                              onChange={(event) => setEditValue(event.target.value)}
-                              className="h-7 w-36 rounded-lg border border-[var(--color-accent)] bg-white px-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                            >
-                              <option value="" disabled>Select category…</option>
-                              {categoryOptions.map((category) => (
-                                <option key={category} value={category}>
-                                  {category}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="submit"
-                              disabled={isSaving}
-                              className="h-7 rounded-lg bg-[var(--color-accent)] px-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
-                            >
-                              {isSaving ? "…" : "Save"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingId(null)}
-                              className="h-7 rounded-lg border border-[var(--color-border)] px-2 text-xs text-[var(--color-muted-foreground)] hover:bg-[var(--color-panel)]"
-                            >
-                              ✕
-                            </button>
-                          </form>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingId(tx.id);
-                              setEditValue(tx.resolvedCategory || "");
-                            }}
-                            className="group flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition hover:bg-[var(--color-panel)]"
-                          >
-                            {justSaved ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    <Fragment key={monthKey}>
+                      {/* Month Header Row */}
+                      <tr 
+                        className="group/header sticky top-0 z-10 cursor-pointer border-b border-[var(--color-border)] bg-gray-50/80 backdrop-blur-sm transition hover:bg-gray-100"
+                        onClick={toggleMonth}
+                      >
+                        <td className="px-4 py-2">
+                          <button className="flex h-5 w-5 items-center justify-center rounded transition group-hover/header:bg-white">
+                            {isCollapsed ? (
+                              <ChevronRight className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
                             ) : (
-                              <Tag className="h-3.5 w-3.5 text-[var(--color-muted-foreground)] group-hover:text-[var(--color-accent)]" />
-                            )}
-                            {tx.resolvedCategory ? (
-                              <span className="font-medium text-[var(--color-foreground)]">
-                                {tx.resolvedCategory}
-                              </span>
-                            ) : (
-                              <span className="italic text-[var(--color-muted-foreground)]">
-                                Uncategorised
-                              </span>
+                              <ChevronDown className="h-3.5 w-3.5 text-indigo-600" />
                             )}
                           </button>
-                        )}
-                      </td>
-                      <td className="hidden px-4 py-3 lg:table-cell">
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                            ACCOUNT_TYPE_COLORS[
-                              tx.accountType as keyof typeof ACCOUNT_TYPE_COLORS
-                            ]
-                          }`}
-                        >
-                          {ACCOUNT_TYPE_LABELS[
-                            tx.accountType as keyof typeof ACCOUNT_TYPE_LABELS
-                          ] ?? tx.accountType}
-                        </span>
-                      </td>
-                      <td className="hidden px-4 py-3 text-center xl:table-cell">
-                        <input
-                          type="checkbox"
-                          checked={tx.allowableForTax}
-                          disabled={!tx.resolvedCategory}
-                          onChange={() => handleToggleAllowable(tx.resolvedCategory, !!tx.allowableForTax)}
-                          className="h-4 w-4 cursor-pointer rounded border-[var(--color-border)] accent-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-                          title={tx.resolvedCategory ? `Toggle allowability for all ${tx.resolvedCategory} items` : "Set a category first"}
-                        />
-                      </td>
-                      <td className="hidden px-4 py-3 text-xs text-[var(--color-muted-foreground)] xl:table-cell">
-                        {TAX_TREATMENT_LABELS[
-                          tx.taxTreatment as keyof typeof TAX_TREATMENT_LABELS
-                        ] ?? "Unknown"}
-                      </td>
-                      <td className="hidden px-4 py-3 text-xs text-[var(--color-muted-foreground)] md:table-cell">
-                        {tx.runName}
-                      </td>
-                      <td className="hidden px-4 py-3 text-xs text-[var(--color-muted-foreground)] lg:table-cell">
-                        {tx.employee || "—"}
-                      </td>
-                    </tr>
+                        </td>
+                        <td colSpan={10} className="px-2 py-2.5">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold uppercase tracking-widest text-[var(--color-foreground)]">
+                              {group.label}
+                            </span>
+                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-[var(--color-muted-foreground)] shadow-sm border border-[var(--color-border)]">
+                              {group.rows.length} items
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Transaction Rows */}
+                      {!isCollapsed && group.rows.map((tx, i) => {
+                        const isEditing = editingId === tx.id;
+                        const isSaving = saving === tx.id;
+                        const justSaved = savedId === tx.id;
+                        const isSelected = selected.has(tx.id);
+                        const categoryOptions = tx.resolvedCategory && !visibleCategories.includes(tx.resolvedCategory)
+                          ? [...visibleCategories, tx.resolvedCategory].sort((a, b) => a.localeCompare(b))
+                          : visibleCategories;
+
+                        return (
+                          <tr
+                            key={tx.id}
+                            className={`transition ${isSelected ? "bg-red-50" : "hover:bg-[var(--color-accent-soft)]"}`}
+                          >
+                            <td className="px-4 py-3 border-t border-[var(--color-border)]">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleRow(tx.id)}
+                                className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
+                              />
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-[var(--color-muted-foreground)] border-t border-[var(--color-border)]">
+                              {fmtDate(tx.transactionDate || "")}
+                            </td>
+                            <td className="px-4 py-3 font-medium text-[var(--color-foreground)] border-t border-[var(--color-border)]">
+                              {tx.merchant}
+                            </td>
+                            <td className="hidden max-w-[220px] px-4 py-3 text-[var(--color-muted-foreground)] sm:table-cell border-t border-[var(--color-border)]">
+                              <span className="line-clamp-1">{tx.description}</span>
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-semibold text-[var(--color-foreground)] border-t border-[var(--color-border)]">
+                              {fmtAmount(tx.amount, tx.currency)}
+                              {tx.currency !== "GBP" && (
+                                <span className="ml-1 text-xs font-normal text-[var(--color-muted-foreground)]">
+                                  {tx.currency}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 border-t border-[var(--color-border)]">
+                              {isEditing ? (
+                                <form
+                                  onSubmit={(event) => {
+                                    event.preventDefault();
+                                    handleSaveCategory(tx.id, editValue);
+                                  }}
+                                  className="flex items-center gap-1"
+                                >
+                                  <select
+                                    autoFocus
+                                    value={editValue}
+                                    onChange={(event) => setEditValue(event.target.value)}
+                                    className="h-7 w-36 rounded-lg border border-[var(--color-accent)] bg-white px-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                                  >
+                                    <option value="" disabled>Select category…</option>
+                                    {categoryOptions.map((category) => (
+                                      <option key={category} value={category}>
+                                        {category}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="submit"
+                                    disabled={isSaving}
+                                    className="h-7 rounded-lg bg-[var(--color-accent)] px-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+                                  >
+                                    {isSaving ? "…" : "Save"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingId(null)}
+                                    className="h-7 rounded-lg border border-[var(--color-border)] px-2 text-xs text-[var(--color-muted-foreground)] hover:bg-[var(--color-panel)]"
+                                  >
+                                    ✕
+                                  </button>
+                                </form>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingId(tx.id);
+                                    setEditValue(tx.resolvedCategory || "");
+                                  }}
+                                  className="group flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition hover:bg-[var(--color-panel)]"
+                                >
+                                  {justSaved ? (
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                  ) : (
+                                    <Tag className="h-3.5 w-3.5 text-[var(--color-muted-foreground)] group-hover:text-[var(--color-accent)]" />
+                                  )}
+                                  {tx.resolvedCategory ? (
+                                    <span className="font-medium text-[var(--color-foreground)]">
+                                      {tx.resolvedCategory}
+                                    </span>
+                                  ) : (
+                                    <span className="italic text-[var(--color-muted-foreground)]">
+                                      Uncategorised
+                                    </span>
+                                  )}
+                                </button>
+                              )}
+                            </td>
+                            <td className="hidden px-4 py-3 lg:table-cell border-t border-[var(--color-border)]">
+                              <span
+                                className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                                  ACCOUNT_TYPE_COLORS[
+                                    tx.accountType as keyof typeof ACCOUNT_TYPE_COLORS
+                                  ]
+                                }`}
+                              >
+                                {ACCOUNT_TYPE_LABELS[
+                                  tx.accountType as keyof typeof ACCOUNT_TYPE_LABELS
+                                ] ?? tx.accountType}
+                              </span>
+                            </td>
+                            <td className="hidden px-4 py-3 text-center xl:table-cell border-t border-[var(--color-border)]">
+                              <input
+                                type="checkbox"
+                                checked={tx.allowableForTax}
+                                disabled={!tx.resolvedCategory}
+                                onChange={() => handleToggleAllowable(tx.resolvedCategory, !!tx.allowableForTax)}
+                                className="h-4 w-4 cursor-pointer rounded border-[var(--color-border)] accent-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                                title={tx.resolvedCategory ? `Toggle allowability for all ${tx.resolvedCategory} items` : "Set a category first"}
+                              />
+                            </td>
+                            <td className="hidden px-4 py-3 text-xs text-[var(--color-muted-foreground)] xl:table-cell border-t border-[var(--color-border)]">
+                              {TAX_TREATMENT_LABELS[
+                                tx.taxTreatment as keyof typeof TAX_TREATMENT_LABELS
+                              ] ?? "Unknown"}
+                            </td>
+                            <td className="hidden px-4 py-3 text-xs text-[var(--color-muted-foreground)] md:table-cell border-t border-[var(--color-border)]">
+                              {tx.runName}
+                            </td>
+                            <td className="hidden px-4 py-3 text-xs text-[var(--color-muted-foreground)] lg:table-cell border-t border-[var(--color-border)]">
+                              {tx.employee || "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </Fragment>
                   );
                 })
               )}
