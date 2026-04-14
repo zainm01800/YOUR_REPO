@@ -255,10 +255,10 @@ export const mockRepository: Repository = {
   async attachBankSourceToRun(input: AttachBankSourceInput) {
     const run = getRunOrThrow(input.runId);
 
-    if (input.bankSourceMode === "skip" || input.bankSourceMode === "later") {
+    if (input.bankSourceMode === "skip" || input.bankSourceMode === "later" || input.bankSourceMode === "ocr_only") {
       run.bankSourceMode = input.bankSourceMode;
       run.bankStatementId = undefined;
-      run.bankSourceLabel = undefined;
+      run.bankSourceLabel = input.bankSourceMode === "ocr_only" ? "Standalone OCR Extraction" : undefined;
       return deepClone(run);
     }
 

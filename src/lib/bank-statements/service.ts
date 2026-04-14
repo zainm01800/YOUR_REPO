@@ -197,10 +197,18 @@ export function decorateBankStatementsWithStatuses(
 export function pickTransactionsForBankSource(
   statements: BankStatement[],
   runs: ReconciliationRun[],
-  mode: "statement" | "all_unreconciled",
+  mode: "statement" | "all_unreconciled" | "ocr_only",
   statementId?: string,
 ) {
   const decoratedStatements = decorateBankStatementsWithStatuses(statements, runs);
+
+  if (mode === "ocr_only") {
+    return {
+      statement: undefined,
+      transactions: [] as BankTransaction[],
+      label: "Standalone OCR Extraction",
+    };
+  }
 
   if (mode === "statement") {
     const statement = decoratedStatements.find((candidate) => candidate.id === statementId);

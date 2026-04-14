@@ -10,7 +10,7 @@ export async function POST(
   const { runId } = await params;
   const repository = await getRepository();
   const body = (await request.json()) as {
-    bankSourceMode: "statement" | "all_unreconciled" | "skip" | "later";
+    bankSourceMode: "statement" | "all_unreconciled" | "skip" | "later" | "ocr_only";
     bankStatementId?: string;
   };
 
