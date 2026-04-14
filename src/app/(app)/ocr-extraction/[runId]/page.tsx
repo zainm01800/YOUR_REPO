@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { getRepository } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 
 export const metadata = {
@@ -26,60 +25,65 @@ export default async function OcrExtractionPage({ params }: { params: Promise<{ 
       />
       
       <div className="mt-8 space-y-6 max-w-5xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>Extracted Documents</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Card className="p-0 overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--color-border)]">
+            <h3 className="text-lg font-semibold text-[var(--color-foreground)]">Extracted Documents</h3>
+          </div>
+          <div>
             {run.documents.length === 0 ? (
-              <p className="text-sm text-[var(--color-muted-foreground)] py-8 text-center">
+              <p className="text-sm text-[var(--color-muted-foreground)] py-8 text-center px-6">
                 No documents found or extraction is still processing.
               </p>
             ) : (
-              <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
-                <Table>
-                  <TableHeader className="bg-[var(--color-panel)]">
-                    <TableRow>
-                      <TableHead>File</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead>Issue Date</TableHead>
-                      <TableHead className="text-right">Net</TableHead>
-                      <TableHead className="text-right">VAT</TableHead>
-                      <TableHead className="text-right">Gross</TableHead>
-                      <TableHead className="text-right">Confidence</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {run.documents.map((doc) => (
-                      <TableRow key={doc.id}>
-                        <TableCell className="font-medium text-[var(--color-foreground)] max-w-[200px] truncate" title={doc.fileName}>
-                          {doc.fileName}
-                        </TableCell>
-                        <TableCell>{doc.supplier || "-"}</TableCell>
-                        <TableCell>
-                          {doc.issueDate ? new Date(doc.issueDate).toLocaleDateString() : "-"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {doc.net ? formatCurrency(doc.net, doc.currency || run.defaultCurrency) : "-"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {doc.vat ? formatCurrency(doc.vat, doc.currency || run.defaultCurrency) : "-"}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {doc.gross ? formatCurrency(doc.gross, doc.currency || run.defaultCurrency) : "-"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {doc.extractionConfidence 
-                            ? `${(doc.extractionConfidence * 100).toFixed(0)}%`
-                            : "-"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="w-full">
+                <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
+                  <thead className="bg-[var(--color-panel)] text-left text-xs uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                    <tr>
+                      <th className="px-6 py-4 font-semibold text-left">File</th>
+                      <th className="px-6 py-4 font-semibold text-left">Supplier</th>
+                      <th className="px-6 py-4 font-semibold text-left">Issue Date</th>
+                      <th className="px-6 py-4 font-semibold text-right">Net</th>
+                      <th className="px-6 py-4 font-semibold text-right">VAT</th>
+                      <th className="px-6 py-4 font-semibold text-right">Gross</th>
+                      <th className="px-6 py-4 font-semibold text-right">Confidence</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border)]">
+                    {run.documents.map((doc) => {
+                      const currency = doc.currency || run.defaultCurrency || "GBP";
+                      return (
+                        <tr key={doc.id} className="transition hover:bg-[var(--color-panel)]">
+                          <td className="px-6 py-5 font-medium text-[var(--color-foreground)] max-w-[200px] truncate" title={doc.fileName}>
+                            {doc.fileName}
+                          </td>
+                          <td className="px-6 py-5 text-[var(--color-muted-foreground)]">
+                            {doc.supplier || "-"}
+                          </td>
+                          <td className="px-6 py-5 text-[var(--color-muted-foreground)]">
+                            {doc.issueDate ? new Date(doc.issueDate).toLocaleDateString() : "-"}
+                          </td>
+                          <td className="px-6 py-5 text-right tabular-nums">
+                            {doc.net ? formatCurrency(Number(doc.net), currency) : "-"}
+                          </td>
+                          <td className="px-6 py-5 text-right tabular-nums">
+                            {doc.vat ? formatCurrency(Number(doc.vat), currency) : "-"}
+                          </td>
+                          <td className="px-6 py-5 text-right font-semibold tabular-nums">
+                            {doc.gross ? formatCurrency(Number(doc.gross), currency) : "-"}
+                          </td>
+                          <td className="px-6 py-5 text-right tabular-nums text-[var(--color-muted-foreground)]">
+                            {doc.extractionConfidence 
+                              ? `${(Number(doc.extractionConfidence) * 100).toFixed(0)}%`
+                              : "-"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
-          </CardContent>
+          </div>
         </Card>
       </div>
     </>
