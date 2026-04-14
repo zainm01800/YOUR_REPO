@@ -178,13 +178,6 @@ const unassignedBankTransactionSelect = {
   employee: true,
   reference: true,
   bankStatementId: true,
-  vatCode: true,
-  glCode: true,
-  category: true,
-  taxTreatment: true,
-  taxRate: true,
-  noReceiptRequired: true,
-  excludedFromExport: true,
   bankStatement: {
     select: {
       name: true,
@@ -1569,23 +1562,10 @@ export const basePrismaRepository: Repository = {
 
   async setTransactionCategory(transactionId: string, category: string | null): Promise<void> {
     const prisma = requirePrisma();
-    
-    // Try updating assigned transaction first
-    try {
-      await prisma.transaction.update({
-        where: { id: transactionId },
-        data: { category: category ?? null },
-      });
-    } catch {
-      // Fallback to updating unassigned bank transaction
-      await prisma.bankTransaction.update({
-        where: { id: transactionId },
-        data: { category: category ?? null },
-      }).catch(() => {
-        // If both fail, ignore or handle accordingly
-        console.warn(`[setTransactionCategory] Failed to update transaction ${transactionId} in both tables.`);
-      });
-    }
+    await prisma.transaction.update({
+      where: { id: transactionId },
+      data: { category: category ?? null },
+    });
   },
 
   async deleteTransactions(ids: string[]): Promise<void> {
