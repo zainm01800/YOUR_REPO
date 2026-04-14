@@ -51,7 +51,7 @@ export default async function InvitationPage(props: { params: Promise<{ token: s
     // 1. Create membership
     await prisma.membership.create({
       data: {
-        userId,
+        userId: userId!,
         workspaceId: invitation!.workspaceId,
         role: invitation!.role,
       },
