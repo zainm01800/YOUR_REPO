@@ -11,7 +11,7 @@ export const metadata = {
 export default async function OcrExtractionPage({ params }: { params: Promise<{ runId: string }> }) {
   const { runId } = await params;
   const repository = await getRepository();
-  const run = await repository.getRunById(runId);
+  const run = await repository.getRun(runId);
 
   if (!run || run.bankSourceMode !== "ocr_only") {
     notFound();
