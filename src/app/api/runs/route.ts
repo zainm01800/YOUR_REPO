@@ -34,33 +34,8 @@ function looksLikeFilename(name: string): boolean {
 }
 
 function transactionsFromDocuments(documents: ExtractedDocument[], fallbackCurrency: string): TransactionRecord[] {
-  return documents.map((doc, index) => {
-    // Use the best available amount — gross is preferred, fall back to net+vat or net
-    const amount =
-      (doc.gross != null && doc.gross > 0 ? doc.gross : undefined) ??
-      (doc.net != null && doc.net > 0 && doc.vat != null
-        ? roundMoney(doc.net + doc.vat)
-        : undefined) ??
-      (doc.net != null && doc.net > 0 ? doc.net : undefined) ??
-      0;
-
-    // Prefer a real supplier name; avoid raw filenames/hashes as the merchant
-    const rawSupplier = doc.supplier ?? "";
-    const merchant = rawSupplier && !looksLikeFilename(rawSupplier)
-      ? rawSupplier
-      : `Document ${index + 1}`;
-
-    return {
-      id: `txn_doc_${index + 1}_${doc.id}`,
-      sourceLineNumber: index + 1,
-      transactionDate: doc.issueDate,
-      amount,
-      currency: doc.currency ?? fallbackCurrency,
-      merchant,
-      description: doc.documentNumber ?? doc.fileName,
-      reference: doc.documentNumber,
-    };
-  });
+  // Logic removed: Reconciliation no longer creates dummy transactions for receipts.
+  return [];
 }
 
 function roundMoney(value: number) {
@@ -90,7 +65,7 @@ async function handlePost(request: Request) {
   const countryProfile = String(formData.get("countryProfile") || "GB");
   const defaultCurrency = String(formData.get("defaultCurrency") || "GBP");
   const templateId = String(formData.get("templateId") || "");
-  const bankSourceMode = String(formData.get("bankSourceMode") || "skip") as "statement" | "all_unreconciled" | "skip" | "later";
+  const bankSourceMode = String(formData.get("bankSourceMode") || "skip") as "statement" | "all_unreconciled" | "skip" | "later" | "ocr_only";
   const bankStatementId = String(formData.get("bankStatementId") || "");
   const transactionFile = formData.get("transactionFile");
   const documentEntries = formData.getAll("documentFiles");
@@ -249,8 +224,11 @@ async function handlePost(request: Request) {
 
   await repository.updateRun(run);
 
-  const redirectTo =
-    transactionFile instanceof File && transactionFile.size > 0
+  const isOcrOnly = bankSourceMode === "ocr_only";
+
+  const redirectTo = isOcrOnly
+    ? `/ocr-extraction/${run.id}`
+    : transactionFile instanceof File && transactionFile.size > 0
       ? `/runs/${run.id}/mapping`
       : `/runs/${run.id}/processing`;
 

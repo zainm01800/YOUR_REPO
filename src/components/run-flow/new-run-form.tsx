@@ -24,6 +24,7 @@ import {
   runPresetStorageKey,
   supportedCurrencies,
 } from "@/lib/run-config";
+import { cn } from "@/lib/utils";
 
 const imageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -178,8 +179,8 @@ export function NewRunForm({
   const [presetName, setPresetName] = useState(initialPresetName);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "info" | "success" | "error" } | null>(null);
   const [isPending, setIsPending] = useState(false);
-  const [bankSourceMode, setBankSourceMode] = useState<"statement" | "all_unreconciled" | "skip" | "later">(
-    bankStatements.length > 0 ? "all_unreconciled" : "skip",
+  const [bankSourceMode, setBankSourceMode] = useState<"statement" | "all_unreconciled">(
+    bankStatements.length > 0 ? "statement" : "all_unreconciled",
   );
   const [selectedBankStatementId, setSelectedBankStatementId] = useState(bankStatements[0]?.id || "");
 
@@ -318,6 +319,20 @@ export function NewRunForm({
     <Card className="space-y-6">
       <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
         <div className="space-y-5 rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
+          {bankStatements.length === 0 && (
+            <div className="mb-4 rounded-xl border border-[var(--color-danger-border)] bg-[var(--color-danger-soft)] p-4 text-[var(--color-danger)]">
+              <h3 className="font-semibold flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                Bank Statement Required
+              </h3>
+              <p className="mt-1 text-sm">
+                Reconciliation requires an imported bank statement. Please import one first to begin matching documents.
+              </p>
+              <Button asChild variant="default" className="mt-4">
+                <Link href="/bank-statements/import">Import Bank Statement</Link>
+              </Button>
+            </div>
+          )}
           <div>
             <h2 className="text-xl font-semibold text-[var(--color-foreground)]">
               Run presets
@@ -367,7 +382,7 @@ export function NewRunForm({
           ref={formRef}
           onSubmit={handleSubmit}
           encType="multipart/form-data"
-          className="space-y-6"
+          className={cn("space-y-6", bankStatements.length === 0 && "opacity-50 pointer-events-none")}
         >
           <div className="grid gap-5 lg:grid-cols-2">
             <label className="space-y-2">
@@ -439,8 +454,6 @@ export function NewRunForm({
                   <option value="statement">Use a specific imported bank statement</option>
                 ) : null}
                 <option value="all_unreconciled">Search all unreconciled bank transactions</option>
-                <option value="skip">Skip for now</option>
-                <option value="later">Choose later in review</option>
               </Select>
               <span className="text-xs leading-5 text-[var(--color-muted-foreground)]">
                 Reconciliation runs can now consume imported bank data without re-uploading the same statement every month.

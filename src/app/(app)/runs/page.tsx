@@ -6,7 +6,8 @@ import { getRepository } from "@/lib/data";
 
 export default async function RunsPage() {
   const repository = await getRepository();
-  const runs = await repository.getRunSummaries();
+  const allRuns = await repository.getRunSummaries();
+  const runs = allRuns.filter(r => r.bankSourceMode !== "ocr_only");
 
   return (
     <>

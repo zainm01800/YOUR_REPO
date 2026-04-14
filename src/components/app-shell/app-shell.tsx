@@ -38,9 +38,16 @@ const navigation = [
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
-      { href: "/runs/new", label: "New run", icon: PlusSquare },
-      { href: "/runs", label: "All runs", icon: FolderOpen },
+      { href: "/runs/new", label: "New Recon Run", icon: PlusSquare },
+      { href: "/runs", label: "All Recon Runs", icon: FolderOpen },
       { href: "/templates", label: "Templates", icon: LayoutTemplate },
+    ],
+  },
+  {
+    label: "OCR Extraction",
+    items: [
+      { href: "/ocr-extraction/new", label: "New Extraction", icon: PlusSquare },
+      { href: "/ocr-extraction", label: "All Extractions", icon: FolderOpen },
     ],
   },
   {
