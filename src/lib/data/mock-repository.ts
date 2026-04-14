@@ -107,6 +107,17 @@ export const mockRepository: Repository = {
       vatRules: deepClone(store.vatRules),
       glRules: deepClone(store.glRules),
       categoryRules: deepClone(store.categoryRules),
+      memberships: [
+        {
+          id: "m_1",
+          userId: store.user.id,
+          userName: store.user.name,
+          userEmail: store.user.email,
+          role: "owner",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      invitations: [],
     };
   },
 
@@ -458,6 +469,17 @@ export const mockRepository: Repository = {
   async saveReviewMutation(input: ReviewMutationInput): Promise<ReviewMutationResult> {
     const run = getRunOrThrow(input.runId);
     return applyReviewMutationToRun(run, input, store.user.name);
+  },
+
+  async getUserWorkspaces() {
+    return [
+      {
+        id: store.workspace.id,
+        name: store.workspace.name,
+        slug: store.workspace.slug,
+        role: "owner",
+      },
+    ];
   },
 };
 
