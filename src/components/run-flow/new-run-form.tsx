@@ -446,7 +446,7 @@ export function NewRunForm({
                 value={bankSourceMode}
                 onChange={(event) =>
                   setBankSourceMode(
-                    event.target.value as "statement" | "all_unreconciled" | "skip" | "later",
+                    event.target.value as "statement" | "all_unreconciled",
                   )
                 }
               >
