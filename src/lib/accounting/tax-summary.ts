@@ -43,13 +43,21 @@ export const UK_SOLE_TRADER_ESTIMATE_2026_27 = {
   class4AdditionalRate: 0.02,
 };
 
+export interface TaxBandBreakdown {
+  band: string;
+  rate: number;
+  amount: number;
+}
+
 export interface EstimatedTaxSummary {
   taxYearLabel: string;
   taxableProfitStartingPoint: number;
   personalAllowanceUsed: number;
   taxableIncomeAfterAllowance: number;
   estimatedIncomeTax: number;
+  incomeTaxBreakdown: TaxBandBreakdown[];
   estimatedNationalInsurance: number;
+  niBreakdown: TaxBandBreakdown[];
   totalEstimatedTax: number;
   assumptions: string[];
 }
@@ -104,8 +112,9 @@ export interface TaxSummaryReport {
 }
 
 function estimateSoleTraderIncomeTax(taxableProfitAfterAllowance: number) {
+  const breakdown: TaxBandBreakdown[] = [];
   if (taxableProfitAfterAllowance <= 0) {
-    return 0;
+    return { total: 0, breakdown };
   }
 
   const basicBand = UK_SOLE_TRADER_ESTIMATE_2026_27.basicRateLimit -
@@ -118,25 +127,32 @@ function estimateSoleTraderIncomeTax(taxableProfitAfterAllowance: number) {
   let total = 0;
 
   const basicPortion = Math.min(remaining, basicBand);
-  total += basicPortion * UK_SOLE_TRADER_ESTIMATE_2026_27.basicRate;
+  const basicTax = round2(basicPortion * UK_SOLE_TRADER_ESTIMATE_2026_27.basicRate);
+  total += basicTax;
+  breakdown.push({ band: "Basic Rate", rate: UK_SOLE_TRADER_ESTIMATE_2026_27.basicRate, amount: basicTax });
   remaining -= basicPortion;
 
   if (remaining > 0) {
     const higherPortion = Math.min(remaining, higherBand);
-    total += higherPortion * UK_SOLE_TRADER_ESTIMATE_2026_27.higherRate;
+    const higherTax = round2(higherPortion * UK_SOLE_TRADER_ESTIMATE_2026_27.higherRate);
+    total += higherTax;
+    breakdown.push({ band: "Higher Rate", rate: UK_SOLE_TRADER_ESTIMATE_2026_27.higherRate, amount: higherTax });
     remaining -= higherPortion;
   }
 
   if (remaining > 0) {
-    total += remaining * UK_SOLE_TRADER_ESTIMATE_2026_27.additionalRate;
+    const additionalTax = round2(remaining * UK_SOLE_TRADER_ESTIMATE_2026_27.additionalRate);
+    total += additionalTax;
+    breakdown.push({ band: "Additional Rate", rate: UK_SOLE_TRADER_ESTIMATE_2026_27.additionalRate, amount: additionalTax });
   }
 
-  return round2(total);
+  return { total: round2(total), breakdown };
 }
 
 function estimateSoleTraderNationalInsurance(taxableProfit: number) {
+  const breakdown: TaxBandBreakdown[] = [];
   if (taxableProfit <= UK_SOLE_TRADER_ESTIMATE_2026_27.class4LowerProfitsLimit) {
-    return 0;
+    return { total: 0, breakdown };
   }
 
   const mainBand =
@@ -148,14 +164,18 @@ function estimateSoleTraderNationalInsurance(taxableProfit: number) {
   let total = 0;
 
   const mainPortion = Math.min(remaining, mainBand);
-  total += mainPortion * UK_SOLE_TRADER_ESTIMATE_2026_27.class4MainRate;
+  const mainNi = round2(mainPortion * UK_SOLE_TRADER_ESTIMATE_2026_27.class4MainRate);
+  total += mainNi;
+  breakdown.push({ band: "Class 4 Main Rate", rate: UK_SOLE_TRADER_ESTIMATE_2026_27.class4MainRate, amount: mainNi });
   remaining -= mainPortion;
 
   if (remaining > 0) {
-    total += remaining * UK_SOLE_TRADER_ESTIMATE_2026_27.class4AdditionalRate;
+    const additionalNi = round2(remaining * UK_SOLE_TRADER_ESTIMATE_2026_27.class4AdditionalRate);
+    total += additionalNi;
+    breakdown.push({ band: "Class 4 Additional Rate", rate: UK_SOLE_TRADER_ESTIMATE_2026_27.class4AdditionalRate, amount: additionalNi });
   }
 
-  return round2(total);
+  return { total: round2(total), breakdown };
 }
 
 export function buildTaxSummaryReport({
@@ -300,15 +320,8 @@ export function buildTaxSummaryReport({
       taxableProfitStartingPoint,
       UK_SOLE_TRADER_ESTIMATE_2026_27.personalAllowance,
     );
-    const taxableIncomeAfterAllowance = round2(
-      Math.max(
-        taxableProfitStartingPoint - UK_SOLE_TRADER_ESTIMATE_2026_27.personalAllowance,
-        0,
-      ),
-    );
-    const estimatedIncomeTax = estimateSoleTraderIncomeTax(taxableIncomeAfterAllowance);
-    const estimatedNationalInsurance =
-      estimateSoleTraderNationalInsurance(taxableProfitStartingPoint);
+    const { total: estimatedIncomeTax, breakdown: incomeTaxBreakdown } = estimateSoleTraderIncomeTax(taxableIncomeAfterAllowance);
+    const { total: estimatedNationalInsurance, breakdown: niBreakdown } = estimateSoleTraderNationalInsurance(taxableProfitStartingPoint);
 
     estimatedTax = {
       taxYearLabel: UK_SOLE_TRADER_ESTIMATE_2026_27.taxYearLabel,
@@ -316,7 +329,9 @@ export function buildTaxSummaryReport({
       personalAllowanceUsed: round2(personalAllowanceUsed),
       taxableIncomeAfterAllowance,
       estimatedIncomeTax,
+      incomeTaxBreakdown,
       estimatedNationalInsurance,
+      niBreakdown,
       totalEstimatedTax: round2(estimatedIncomeTax + estimatedNationalInsurance),
       assumptions: [
         "UK sole trader estimate using the 2026/27 personal allowance and headline UK basic / higher / additional income tax bands.",
