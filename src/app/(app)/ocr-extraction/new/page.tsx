@@ -9,6 +9,7 @@ export default function NewOcrExtractionPage() {
   return (
     <>
       <PageHeader
+        eyebrow="OCR Extraction"
         title="OCR Document Extraction"
         description="Upload documents to extract data from them. No bank statement required."
       />

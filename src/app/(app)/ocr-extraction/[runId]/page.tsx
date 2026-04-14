@@ -20,6 +20,7 @@ export default async function OcrExtractionPage({ params }: { params: Promise<{ 
   return (
     <>
       <PageHeader
+        eyebrow="OCR Extraction"
         title="Extraction Results"
         description="Review the extracted data from your uploaded documents."
       />
