@@ -567,26 +567,26 @@ export function TaxSummary({
             </div>
           </section>
 
-          {/* STEP 2: TAX ADJUSTMENTS (THE BRIDGE) */}
+          {/* STEP 2: TAXABLE PROFIT DERIVATION */}
           <section className="space-y-6">
             <div className="flex items-center gap-3">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-foreground)] text-xs font-bold text-white">2</span>
-              <h2 className="text-xl font-bold tracking-tight">Tax Adjustments & Bridge</h2>
+              <h2 className="text-xl font-bold tracking-tight">Taxable Profit Derivation</h2>
             </div>
 
             <Card className="p-0 overflow-hidden border-[var(--color-border)] shadow-md text-[var(--color-foreground)]">
-              <div className="bg-amber-50/50 px-6 py-8 border-b border-[var(--color-border)] text-center">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700 mb-2">Bridge to Taxable Profit</p>
+              <div className="bg-slate-50/50 px-6 py-8 border-b border-[var(--color-border)] text-center">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-muted-foreground)] mb-2">Calculation Flow</p>
                 <div className="flex flex-col items-center justify-center gap-3">
                   <div className="flex items-center gap-8">
                     <div className="text-center">
-                      <p className="text-xs text-[var(--color-muted-foreground)] mb-1">Accounting</p>
-                      <p className="text-xl font-mono font-bold tracking-tight">{formatAmount(taxSummary.profitSummary.accountingProfit, taxSummary.currency)}</p>
+                      <p className="text-xs text-[var(--color-muted-foreground)] mb-1">Gross Income</p>
+                      <p className="text-xl font-mono font-bold tracking-tight">{formatAmount(taxSummary.profitSummary.totalIncome, taxSummary.currency)}</p>
                     </div>
-                    <div className="text-2xl text-[var(--color-muted-foreground)] font-light">+</div>
+                    <div className="text-2xl text-[var(--color-muted-foreground)] font-light">-</div>
                     <div className="text-center">
-                      <p className="text-xs text-amber-700 mb-1">Add-backs</p>
-                      <p className="text-xl font-mono font-bold text-amber-700 tracking-tight">{formatAmount(taxSummary.profitSummary.disallowedExpenses + taxSummary.profitSummary.uncategorizedExpenses, taxSummary.currency)}</p>
+                      <p className="text-xs text-amber-700 mb-1">Claimable Expenses</p>
+                      <p className="text-xl font-mono font-bold text-amber-700 tracking-tight">{formatAmount(taxSummary.profitSummary.totalClaimableExpenses, taxSummary.currency)}</p>
                     </div>
                     <div className="text-2xl text-[var(--color-muted-foreground)] font-light">=</div>
                     <div className="text-center">
@@ -598,18 +598,18 @@ export function TaxSummary({
               </div>
 
               <div className="p-6">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-4">Breakdown of Non-Claimable Items</h3>
+                <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-4">Excluded from Relief</h3>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between py-3">
-                    <span className="text-sm font-medium">Disallowed Expenses</span>
-                    <span className="text-sm font-mono font-bold text-amber-700">+{formatAmount(taxSummary.profitSummary.disallowedExpenses, taxSummary.currency)}</span>
+                    <span className="text-sm font-medium">Non-claimable (Categorised)</span>
+                    <span className="text-sm font-mono font-bold text-slate-500">{formatAmount(taxSummary.profitSummary.disallowedExpenses, taxSummary.currency)}</span>
                   </div>
                   <div className="flex items-center justify-between py-3 border-t border-[var(--color-border)] border-dashed">
-                    <span className="text-sm font-medium">Uncategorised Expenses (Safety Buffer)</span>
-                    <span className="text-sm font-mono font-bold text-amber-700">+{formatAmount(taxSummary.profitSummary.uncategorizedExpenses, taxSummary.currency)}</span>
+                    <span className="text-sm font-medium">Uncategorised Expenses (Excluded by default)</span>
+                    <span className="text-sm font-mono font-bold text-slate-500">{formatAmount(taxSummary.profitSummary.uncategorizedExpenses, taxSummary.currency)}</span>
                   </div>
-                  <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-[10px] text-emerald-800 font-medium font-[var(--font-inter)]">
-                    ⓘ These items were subtracted from your account profit but are added back for tax purposes because they do not qualify for HMRC relief.
+                  <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-[10px] text-amber-800 font-medium font-[var(--font-inter)]">
+                    ⓘ Only categorised expenses marked as "Allowable" are subtracted from your income to reach this taxable figure. Uncategorised items are excluded for safety.
                   </div>
                 </div>
               </div>

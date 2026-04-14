@@ -302,9 +302,9 @@ export function buildTaxSummaryReport({
 
   const accountingProfit = round2(pnl.netProfit);
   // Taxable profit starting point:
-  // Accounting profit + Disallowed expenses + Uncategorized expenses
-  // We add back uncategorized expenses so they do NOT reduce taxable profit until reviewed.
-  const taxableProfit = round2(Math.max(accountingProfit + totalDisallowed + uncategorizedExpenses, 0));
+  // Income - Categorized Claimable Expenses
+  // We exclude uncategorized expenses and disallowed items from the deduction.
+  const taxableProfit = round2(Math.max(pnl.totalIncome - totalClaimableExpenses, 0));
   const taxableProfitStartingPoint = taxableProfit;
   const assumptions = [
     "Built from categorised bookkeeping transactions rather than raw bank lines.",
