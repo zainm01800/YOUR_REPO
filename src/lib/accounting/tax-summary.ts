@@ -320,6 +320,12 @@ export function buildTaxSummaryReport({
       taxableProfitStartingPoint,
       UK_SOLE_TRADER_ESTIMATE_2026_27.personalAllowance,
     );
+    const taxableIncomeAfterAllowance = round2(
+      Math.max(
+        taxableProfitStartingPoint - UK_SOLE_TRADER_ESTIMATE_2026_27.personalAllowance,
+        0,
+      ),
+    );
     const { total: estimatedIncomeTax, breakdown: incomeTaxBreakdown } = estimateSoleTraderIncomeTax(taxableIncomeAfterAllowance);
     const { total: estimatedNationalInsurance, breakdown: niBreakdown } = estimateSoleTraderNationalInsurance(taxableProfitStartingPoint);
 
