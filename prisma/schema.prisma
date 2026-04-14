@@ -163,6 +163,7 @@ model BankTransaction {
   taxRate            Decimal?       @db.Decimal(5, 2)
   noReceiptRequired  Boolean        @default(false)
   excludedFromExport Boolean        @default(false)
+  bankStatement    BankStatement  @relation(fields: [bankStatementId], references: [id], onDelete: Cascade)
   runTransactions  Transaction[]
 
   @@index([bankStatementId, transactionDate])
