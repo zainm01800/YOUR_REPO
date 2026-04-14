@@ -40,6 +40,7 @@ import type {
   ReviewRow,
   RunListItem,
   SettingsSnapshot,
+  TaxTreatment,
   TransactionRecord,
   UploadedFileMeta,
   User,
