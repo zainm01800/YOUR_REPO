@@ -35,8 +35,8 @@ export default async function AuthenticatedLayout({
         {children}
       </AppShell>
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error(`[Layout] Workspace resolution failed:`, error);
-    return <RecoveryUI />;
+    return <RecoveryUI message={error?.message} />;
   }
 }

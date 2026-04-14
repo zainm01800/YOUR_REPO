@@ -2,7 +2,7 @@
 
 import { RefreshCw } from "lucide-react";
 
-export function RecoveryUI() {
+export function RecoveryUI({ message }: { message?: string }) {
   return (
     <div className="mesh-gradient flex min-h-screen flex-col items-center justify-center p-6 text-center text-white">
       <div className="glass-panel max-w-md space-y-6 p-10 backdrop-blur-3xl shadow-2xl rounded-[32px] border border-white/10">
@@ -16,6 +16,11 @@ export function RecoveryUI() {
         </div>
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Syncing your session</h1>
+          {message && (
+            <div className="rounded-xl bg-black/20 p-4 font-mono text-xs text-white/60 border border-white/10 text-left overflow-auto max-h-32">
+              {message}
+            </div>
+          )}
           <p className="text-lg text-white/70">
             We're putting the finishing touches on your private workspace. This usually takes just a few seconds.
           </p>
