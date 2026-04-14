@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push --accept-data-loss && next build",
+    "build": "node -e \"const env={...process.env}; if(env.DIRECT_DATABASE_URL){env.DATABASE_URL=env.DIRECT_DATABASE_URL;} const cmd = 'prisma generate && prisma db push --accept-data-loss && next build'; require('child_process').execSync(cmd, {stdio:'inherit', env});\"",
     "start": "next start",
     "lint": "eslint .",
     "db:generate": "prisma generate",
