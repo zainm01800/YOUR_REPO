@@ -806,13 +806,9 @@ async function ensureBootstrap(prisma: PrismaClient) {
 
   return {
     workspace: result.workspace,
-    user: {
-      id: result.userId,
-      email: "",
-      name: result.workspace.name,
-    },
+    user: toUser(result.user),
   };
-}
+};
 
 async function loadRun(prisma: PrismaClient, runId: string) {
   return prisma.reconciliationRun.findUnique({
@@ -1919,6 +1915,20 @@ export async function createPrismaRepository(
     replaceAllCategoryRules: async (input) => {
       requireAdmin();
       return basePrismaRepository.replaceAllCategoryRules(input);
+    },
+    getUserWorkspaces: async () => {
+      const memberships = await prisma.membership.findMany({
+        where: { userId },
+        include: { workspace: true },
+        orderBy: { createdAt: "asc" },
+      });
+
+      return memberships.map((m) => ({
+        id: m.workspace.id,
+        name: m.workspace.name,
+        slug: m.workspace.slug,
+        role: m.role as import("@/lib/domain/types").WorkspaceRole,
+      }));
     },
 
     getRun: async (runId) => {

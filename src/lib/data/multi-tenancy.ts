@@ -80,30 +80,52 @@ export const resolveUserWorkspace = async (prisma: PrismaClient) => {
   if (!membership) {
     isNewWorkspace = true;
     // New user signup onboarding: create a private workspace
-    const workspaceSlug = context.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + user.id.slice(-4);
-    const workspace = await prisma.workspace.create({
-      data: {
-        name: `${context.name}'s Workspace`,
-        slug: workspaceSlug,
-        amountTolerance: 0.05,
-        dateToleranceDays: 5,
-        vatRegistered: false,
-        businessType: "sole_trader",
-        ownerId: user.id, // Explicit owner
-      },
-    });
+    const workspaceSlug = (context.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "workspace") + "-" + user.id.slice(-4);
+    
+    try {
+      const workspace = await prisma.workspace.create({
+        data: {
+          name: `${context.name}'s Workspace`,
+          slug: workspaceSlug,
+          amountTolerance: 0.05,
+          dateToleranceDays: 5,
+          vatRegistered: false,
+          businessType: "sole_trader",
+          ownerId: user.id, // Explicit owner
+        },
+      });
 
-    membership = await prisma.membership.create({
-      data: {
-        userId: user.id,
-        workspaceId: workspace.id,
-        role: "owner",
-      },
-      include: { workspace: true },
-    });
+      membership = await prisma.membership.create({
+        data: {
+          userId: user.id,
+          workspaceId: workspace.id,
+          role: "owner",
+        },
+        include: { workspace: true },
+      });
+    } catch (e: any) {
+      // If concurrent request already created it, find it
+      if (e.code === "P2002") {
+        membership = await prisma.membership.findFirst({
+          where: { userId: user.id },
+          include: { workspace: true },
+        });
+        if (!membership) throw e; // Rethrow if it wasn't the membership that existed
+        isNewWorkspace = false; // It exists now, so it's not "new" for THIS request
+      } else {
+        throw e;
+      }
+    }
+  }
 
-    // Seed default rules for the new private workspace
-    await seedDefaultRules(prisma, workspace.id);
+  // Final check to ensure membership exists
+  if (!membership) {
+    throw new Error("Failed to resolve or create a workspace for the user.");
+  }
+
+  // Seed default rules for the new private workspace if we were the creator
+  if (isNewWorkspace && membership) {
+    await seedDefaultRules(prisma, membership.workspace.id);
   }
 
   return {
