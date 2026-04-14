@@ -1763,9 +1763,9 @@ export const basePrismaRepository: Repository = {
 
   async getUserWorkspaces() {
     const prisma = requirePrisma();
-    const { userId } = await ensureBootstrap(prisma);
+    const { user } = await ensureBootstrap(prisma);
     const memberships = await prisma.membership.findMany({
-      where: { userId },
+      where: { userId: user.id },
       include: { workspace: true },
     });
     return memberships.map((m) => ({
