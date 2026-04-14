@@ -17,13 +17,24 @@ export default async function AuthenticatedLayout({
 
   try {
     const repository = await getRepository();
-    const workspace = await repository.getWorkspace();
+    const [workspace, workspaces] = await Promise.all([
+      repository.getWorkspace(),
+      repository.getUserWorkspaces(),
+    ]);
 
     if (!workspace) {
       redirect("/sign-up");
     }
 
-    return <AppShell workspaceName={workspace.name}>{children}</AppShell>;
+    return (
+      <AppShell
+        workspaceName={workspace.name}
+        workspaces={workspaces}
+        currentWorkspaceId={workspace.id}
+      >
+        {children}
+      </AppShell>
+    );
   } catch (error) {
     console.error(`[Layout] Workspace resolution failed:`, error);
     return <RecoveryUI />;

@@ -593,10 +593,30 @@ export interface DashboardSnapshot {
   categoryRules: CategoryRule[];
 }
 
+export interface WorkspaceMember {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  role: string;
+  createdAt: string;
+}
+
+export interface Invitation {
+  id: string;
+  email: string;
+  role: string;
+  status: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
+  invitedByName: string;
+  createdAt: string;
+}
+
 export interface SettingsSnapshot {
   workspace: Workspace;
   templates: MappingTemplate[];
   vatRules: VatRule[];
   glRules: GlCodeRule[];
   categoryRules: CategoryRule[];
+  memberships: WorkspaceMember[];
+  invitations: Invitation[];
 }

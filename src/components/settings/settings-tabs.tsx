@@ -8,13 +8,14 @@ import { GlRuleManager } from "@/components/settings/gl-rule-manager";
 import { ToleranceEditor } from "@/components/settings/tolerance-editor";
 import { VatRegistrationCard } from "@/components/settings/vat-registration-card";
 import { VatRuleManager } from "@/components/settings/vat-rule-manager";
+import { MemberManager } from "@/components/settings/member-manager";
 
 interface SettingsTabsProps {
   settings: SettingsSnapshot;
 }
 
 export function SettingsTabs({ settings }: SettingsTabsProps) {
-  const [activeTab, setActiveTab] = useState<"general" | "tax" | "advanced">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "tax" | "team" | "advanced">("general");
 
   const workspace = settings.workspace;
 
@@ -42,6 +43,16 @@ export function SettingsTabs({ settings }: SettingsTabsProps) {
             }`}
           >
             Tax & Company Profile
+          </button>
+          <button
+            onClick={() => setActiveTab("team")}
+            className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium transition ${
+              activeTab === "team"
+                ? "border-[var(--color-accent)] text-[var(--color-foreground)]"
+                : "border-transparent text-[var(--color-muted-foreground)] hover:border-[var(--color-border)] hover:text-[var(--color-foreground)]"
+            }`}
+          >
+            Team & Access
           </button>
           <button
             onClick={() => setActiveTab("advanced")}
@@ -73,6 +84,16 @@ export function SettingsTabs({ settings }: SettingsTabsProps) {
               initialBusinessType={workspace.businessType}
             />
             <VatRuleManager initialRules={settings.vatRules} />
+          </div>
+        )}
+
+        {activeTab === "team" && (
+          <div className="max-w-6xl">
+            <MemberManager 
+              memberships={settings.memberships} 
+              invitations={settings.invitations}
+              workspaceId={workspace.id}
+            />
           </div>
         )}
 

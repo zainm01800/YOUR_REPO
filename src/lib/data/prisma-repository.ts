@@ -573,6 +573,28 @@ function toExportRecord(record: DbDetailedRun["exports"][number]): ExportRecord 
   };
 }
 
+function toWorkspaceMember(m: any): import("@/lib/domain/types").WorkspaceMember {
+  return {
+    id: m.id,
+    userId: m.userId,
+    userName: m.user.name,
+    userEmail: m.user.email,
+    role: m.role,
+    createdAt: m.createdAt.toISOString(),
+  };
+}
+
+function toInvitation(i: any): import("@/lib/domain/types").Invitation {
+  return {
+    id: i.id,
+    email: i.email,
+    role: i.role,
+    status: i.status,
+    invitedByName: i.invitedBy.name,
+    createdAt: i.createdAt.toISOString(),
+  };
+}
+
 function toDomainRun(run: DbDetailedRun): ReconciliationRun {
   return {
     id: run.id,
@@ -1052,7 +1074,7 @@ export const basePrismaRepository: Repository = {
   async getSettingsSnapshot(): Promise<SettingsSnapshot> {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
-    const [templates, vatRules, glRules, categoryRules] = await Promise.all([
+    const [templates, vatRules, glRules, categoryRules, memberships, invitations] = await Promise.all([
       prisma.mappingTemplate.findMany({
         where: { workspaceId: workspace.id },
         orderBy: { createdAt: "asc" },
@@ -1060,6 +1082,16 @@ export const basePrismaRepository: Repository = {
       prisma.vatRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { taxCode: "asc" } }),
       prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
       prisma.categoryRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+      prisma.membership.findMany({
+        where: { workspaceId: workspace.id },
+        include: { user: true },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.invitation.findMany({
+        where: { workspaceId: workspace.id },
+        include: { invitedBy: true },
+        orderBy: { createdAt: "desc" },
+      }),
     ]);
 
     return {
@@ -1068,6 +1100,8 @@ export const basePrismaRepository: Repository = {
       vatRules: vatRules.map(toVatRule),
       glRules: glRules.map(toGlRule),
       categoryRules: mergeWorkspaceCategoryRules(categoryRules.map(toCategoryRule)),
+      memberships: memberships.map(toWorkspaceMember),
+      invitations: invitations.map(toInvitation),
     };
   },
 
@@ -1726,6 +1760,21 @@ export const basePrismaRepository: Repository = {
     await persistRun(prisma, domainRun, workspace.id, user.id);
     return result;
   },
+
+  async getUserWorkspaces() {
+    const prisma = requirePrisma();
+    const { userId } = await ensureBootstrap(prisma);
+    const memberships = await prisma.membership.findMany({
+      where: { userId },
+      include: { workspace: true },
+    });
+    return memberships.map((m) => ({
+      id: m.workspace.id,
+      name: m.workspace.name,
+      slug: m.workspace.slug,
+      role: m.role,
+    }));
+  },
 };
 
 export const prismaRepository = basePrismaRepository;
@@ -1741,53 +1790,48 @@ export async function createPrismaRepository(
   context: UserContext,
 ): Promise<Repository> {
 
-  // 1. Resolve or Create the User in our DB
-  const user = await prisma.user.upsert({
-    where: { email: context.email },
-    update: { name: context.name },
-    create: {
-      email: context.email,
-      name: context.name,
-      passwordHash: "",
-    },
+  const { userId, workspaceId, workspace } = await resolveUserWorkspace(prisma);
+
+  // 3. Resolve current membership role
+  const membership = await prisma.membership.findUnique({
+    where: { userId_workspaceId: { userId, workspaceId } },
   });
+  const userRole = membership?.role || "viewer";
 
-  // 2. Resolve or Create the User's primary Workspace
-  let membership = await prisma.membership.findFirst({
-    where: { userId: user.id },
-    include: { workspace: true },
-  });
-
-  if (!membership) {
-    const workspaceSlug = context.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + user.id.slice(-4);
-    const workspace = await prisma.workspace.create({
-      data: {
-        name: context.name + "'s Workspace",
-        slug: workspaceSlug,
-        amountTolerance: 0.05,
-        dateToleranceDays: 5,
-        vatRegistered: false,
-        businessType: "sole_trader",
-      },
-    });
-
-    membership = await prisma.membership.create({
-      data: {
-        userId: user.id,
-        workspaceId: workspace.id,
-        role: "owner",
-      },
-      include: { workspace: true },
-    });
+  function isAdmin() {
+    return userRole === "owner" || userRole === "admin";
   }
 
-  const workspace = membership.workspace;
+  function requireAdmin() {
+    if (!isAdmin()) {
+      throw new Error(`Permission denied: Your role (${userRole}) does not allow this action.`);
+    }
+  }
 
-  // 3. Return a repository instance bound to this specific workspace
+  // 4. Return a repository instance bound to this specific workspace
   return {
     ...basePrismaRepository,
-    getCurrentUser: async () => toUser(user),
+    getCurrentUser: async () => {
+      const dbUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (!dbUser) throw new Error("User not found");
+      return toUser(dbUser);
+    },
     getWorkspace: async () => toWorkspace(workspace),
+    updateWorkspace: async (input) => {
+      requireAdmin();
+      const updated = await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: {
+          vatRegistered: input.vatRegistered,
+          businessType: input.businessType,
+          amountTolerance: input.amountTolerance,
+          dateToleranceDays: input.dateToleranceDays,
+          defaultCurrency: input.defaultCurrency,
+          countryProfile: input.countryProfile,
+        },
+      });
+      return toWorkspace(updated);
+    },
     getDashboardSnapshot: async () => {
       const [runs, vatRules, glRules, categoryRules, templates] = await Promise.all([
         prisma.reconciliationRun.findMany({
@@ -1835,6 +1879,48 @@ export async function createPrismaRepository(
         toRunListItem(toSummaryDomainRun(run), domainVatRules, domainGlRules, domainCategoryRules),
       );
     },
+
+    importBankStatement: async (input) => {
+      requireAdmin();
+      return basePrismaRepository.importBankStatement(input);
+    },
+    deleteBankStatement: async (id) => {
+      requireAdmin();
+      return basePrismaRepository.deleteBankStatement(id);
+    },
+    createRun: async (input) => {
+      requireAdmin();
+      return basePrismaRepository.createRun(input);
+    },
+    deleteRun: async (runId) => {
+      requireAdmin();
+      return basePrismaRepository.deleteRun(runId);
+    },
+    saveReviewMutation: async (input) => {
+      requireAdmin();
+      return basePrismaRepository.saveReviewMutation(input);
+    },
+    upsertVatRules: async (input) => {
+      requireAdmin();
+      return basePrismaRepository.upsertVatRules(input);
+    },
+    replaceAllVatRules: async (rules) => {
+      requireAdmin();
+      return basePrismaRepository.replaceAllVatRules(rules);
+    },
+    upsertGlCodeRules: async (input) => {
+      requireAdmin();
+      return basePrismaRepository.upsertGlCodeRules(input);
+    },
+    replaceAllGlCodeRules: async (rules) => {
+      requireAdmin();
+      return basePrismaRepository.replaceAllGlCodeRules(rules);
+    },
+    replaceAllCategoryRules: async (input) => {
+      requireAdmin();
+      return basePrismaRepository.replaceAllCategoryRules(input);
+    },
+
     getRun: async (runId) => {
       const run = await loadRun(prisma, runId);
       if (!run || run.workspaceId !== workspace.id) return null;

@@ -45,6 +45,13 @@ enum ReviewActionType {
   exclude_from_export
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
 model User {
   id              String          @id @default(cuid())
   email           String          @unique
@@ -53,8 +60,10 @@ model User {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   memberships     Membership[]
+  ownedWorkspaces Workspace[]     @relation("WorkspaceOwner")
   reviewActions   ReviewAction[]
   exportHistories ExportHistory[]
+  invitations     Invitation[]    @relation("InvitedBy")
 }
 
 model Workspace {
@@ -76,6 +85,9 @@ model Workspace {
   categoryRules     CategoryRule[]
   mappingTemplates  MappingTemplate[]
   bankStatements    BankStatement[]
+  ownerId           String?
+  owner             User?              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  invitations       Invitation[]
 }
 
 model Membership {
@@ -366,3 +378,23 @@ model ExportHistory {
 
   @@index([runId, createdAt(sort: Desc)])
 }
+
+model Invitation {
+  id          String           @id @default(cuid())
+  email       String
+  role        String           @default("viewer")
+  token       String           @unique
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  workspaceId String
+  invitedById String
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy   User             @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([workspaceId])
+  @@index([email])
+}
+

@@ -1,5 +1,5 @@
-import { cache } from "react";
 import { currentUser } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
 import { type PrismaClient } from "@prisma/client";
 import { demoStore } from "@/lib/demo/demo-store";
 
@@ -23,7 +23,7 @@ async function getResilientClerkUser(retries = 3) {
   return null;
 }
 
-export const resolveUserWorkspace = cache(async (prisma: PrismaClient) => {
+export const resolveUserWorkspace = async (prisma: PrismaClient) => {
   const clerkUser = await getResilientClerkUser();
   if (!clerkUser) {
     throw new Error("Authentication session failed to synchronize. Please refresh the page.");
@@ -52,11 +52,29 @@ export const resolveUserWorkspace = cache(async (prisma: PrismaClient) => {
     },
   });
 
-  // 2. Resolve or Create the User's primary Workspace
-  let membership = await prisma.membership.findFirst({
-    where: { userId: user.id },
-    include: { workspace: true },
-  });
+  // 2. Resolve the requested Workspace (from cookie) or the primary one
+  const cookieStore = await cookies();
+  const activeWorkspaceId = cookieStore.get("active_workspace_id")?.value;
+
+  let membership;
+
+  if (activeWorkspaceId) {
+    membership = await prisma.membership.findFirst({
+      where: {
+        userId: user.id,
+        workspaceId: activeWorkspaceId,
+      },
+      include: { workspace: true },
+    });
+  }
+
+  // Fallback to the first available membership if no active one or invalid
+  if (!membership) {
+    membership = await prisma.membership.findFirst({
+      where: { userId: user.id },
+      include: { workspace: true },
+    });
+  }
 
   let isNewWorkspace = false;
   if (!membership) {
@@ -71,6 +89,7 @@ export const resolveUserWorkspace = cache(async (prisma: PrismaClient) => {
         dateToleranceDays: 5,
         vatRegistered: false,
         businessType: "sole_trader",
+        ownerId: user.id, // Explicit owner
       },
     });
 

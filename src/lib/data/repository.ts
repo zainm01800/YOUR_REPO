@@ -113,4 +113,5 @@ export interface Repository {
   deleteRun(runId: string): Promise<void>;
   updateRun(run: ReconciliationRun): Promise<ReconciliationRun>;
   saveReviewMutation(input: ReviewMutationInput): Promise<ReviewMutationResult>;
+  getUserWorkspaces(): Promise<Array<{ id: string; name: string; slug: string; role: string }>>;
 }

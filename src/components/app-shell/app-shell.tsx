@@ -22,6 +22,14 @@ import {
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 import { cn } from "@/lib/utils";
+import { WorkspaceSwitcher } from "./workspace-switcher";
+
+interface WorkspaceInfo {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+}
 
 const navigation = [
   {
@@ -110,24 +118,23 @@ function NavItems({ currentPath, onNavigate }: { currentPath: string; onNavigate
 export function AppShell({
   children,
   workspaceName,
+  workspaces,
+  currentWorkspaceId,
 }: {
   children: React.ReactNode;
   workspaceName: string;
+  workspaces: WorkspaceInfo[];
+  currentWorkspaceId: string;
 }) {
   const currentPath = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const workspaceCard = (
-    <div className="rounded-3xl border border-[var(--color-border)] bg-white p-4">
-      <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-muted-foreground)]">
-        Workspace Profile
-      </div>
-      <h1 className="mt-2 text-xl font-semibold text-[var(--color-foreground)] line-clamp-1">
-        {workspaceName}
-      </h1>
-      <p className="mt-1.5 text-xs leading-5 text-[var(--color-muted-foreground)]">
-        Private Financial Workspace
-      </p>
+    <div className="mb-4">
+      <WorkspaceSwitcher 
+        workspaces={workspaces} 
+        currentWorkspaceId={currentWorkspaceId} 
+      />
     </div>
   );
 
