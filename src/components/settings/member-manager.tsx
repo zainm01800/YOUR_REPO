@@ -137,7 +137,7 @@ export function MemberManager({ memberships, invitations, workspaceId }: MemberM
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge variant={member.role === "owner" ? "default" : "secondary"} className="uppercase text-[10px] tracking-widest font-bold">
+                  <Badge tone={member.role === "owner" ? "info" : "neutral"}>
                     {member.role === "owner" ? <Key className="h-2.5 w-2.5 mr-1" /> : <User className="h-2.5 w-2.5 mr-1" />}
                     {member.role}
                   </Badge>
@@ -174,7 +174,7 @@ export function MemberManager({ memberships, invitations, workspaceId }: MemberM
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none text-[10px] font-bold">
+                    <Badge tone="warning">
                       PENDING
                     </Badge>
                     <button className="text-[var(--color-muted-foreground)] hover:text-red-500 transition-colors">
