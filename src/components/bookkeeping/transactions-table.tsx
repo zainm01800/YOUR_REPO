@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import { CheckCircle2, Search, Tag, Trash2, Sparkles, Loader2, X, ChevronDown, ChevronRight, ListCollapse, ListFilter } from "lucide-react";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
@@ -59,6 +60,7 @@ export function TransactionsTable({
   visibleCategories,
   vatRegistered,
 }: Props) {
+  const router = useRouter();
   const [localTransactions, setLocalTransactions] = useState(transactions);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -197,6 +199,7 @@ export function TransactionsTable({
       });
       setCategoryOverrides((prev) => ({ ...prev, [txId]: newCategory }));
       setSavedId(txId);
+      router.refresh();
       setTimeout(() => setSavedId((id) => (id === txId ? null : id)), 2000);
 
       // Similarity check logic
@@ -257,6 +260,7 @@ export function TransactionsTable({
           nextOverrides[id] = bulkPrompt.category;
         }
         setCategoryOverrides(nextOverrides);
+        router.refresh();
       }
       setBulkPrompt(null);
     } finally {
