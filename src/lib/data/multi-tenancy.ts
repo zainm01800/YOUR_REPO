@@ -108,6 +108,7 @@ export const resolveUserWorkspace = async (prisma: PrismaClient) => {
 
   return {
     userId: user.id,
+    user,
     workspaceId: membership.workspace.id,
     workspace: membership.workspace,
     isNewWorkspace,

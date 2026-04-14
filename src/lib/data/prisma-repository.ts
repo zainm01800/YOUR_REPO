@@ -1790,7 +1790,7 @@ export async function createPrismaRepository(
   context: UserContext,
 ): Promise<Repository> {
 
-  const { userId, workspaceId, workspace } = await resolveUserWorkspace(prisma);
+  const { userId, user, workspaceId, workspace } = await resolveUserWorkspace(prisma);
 
   // 3. Resolve current membership role
   const membership = await prisma.membership.findUnique({
