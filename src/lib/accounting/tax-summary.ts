@@ -304,7 +304,7 @@ export function buildTaxSummaryReport({
   // Taxable profit starting point:
   // Income - Categorized Claimable Expenses
   // We exclude uncategorized expenses and disallowed items from the deduction.
-  const taxableProfit = round2(Math.max(pnl.totalIncome - totalClaimableExpenses, 0));
+  const taxableProfit = round2(Math.max(pnl.incomeSection.netTotal - totalClaimableExpenses, 0));
   const taxableProfitStartingPoint = taxableProfit;
   const assumptions = [
     "Built from categorised bookkeeping transactions rather than raw bank lines.",
