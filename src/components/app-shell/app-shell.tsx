@@ -23,6 +23,7 @@ import {
 import { appConfig } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { WorkspaceSwitcher } from "./workspace-switcher";
+import { ToastProvider } from "@/components/ui/toast";
 
 interface WorkspaceInfo {
   id: string;
@@ -139,6 +140,7 @@ export function AppShell({
   );
 
   return (
+    <ToastProvider>
     <div className="flex h-screen bg-[var(--color-page)]">
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-sidebar)] p-5 lg:block">
@@ -200,5 +202,6 @@ export function AppShell({
         </div>
       </main>
     </div>
+    </ToastProvider>
   );
 }

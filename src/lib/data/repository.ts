@@ -47,6 +47,7 @@ export interface ReviewMutationResult {
 export interface CreateRunInput {
   name: string;
   entity?: string;
+  period?: string;
   countryProfile?: string;
   defaultCurrency?: string;
   templateId?: string;

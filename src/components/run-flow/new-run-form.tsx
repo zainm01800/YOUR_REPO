@@ -174,6 +174,7 @@ export function NewRunForm({
     [templates, workspace],
   );
   const [values, setValues] = useState<RunFormValues>(initialValues);
+  const [period, setPeriod] = useState("");
   const [presets, setPresets] = useState<RunSetupPreset[]>([]);
   const [selectedPresetId, setSelectedPresetId] = useState("");
   const [presetName, setPresetName] = useState(initialPresetName);
@@ -403,6 +404,21 @@ export function NewRunForm({
                 onChange={(event) => updateValue("entity", event.target.value)}
                 placeholder="e.g. Acme Ltd"
               />
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium">
+                Period{" "}
+                <span className="text-xs font-normal text-[var(--color-muted-foreground)]">(optional)</span>
+              </span>
+              <Input
+                name="period"
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                placeholder="e.g. April 2026 or Q1 2026"
+              />
+              <span className="text-xs leading-5 text-[var(--color-muted-foreground)]">
+                Used for reporting and the spend trend chart. Example: &quot;April 2026&quot;, &quot;Q1 2026&quot;, or &quot;FY2026&quot;.
+              </span>
             </label>
             <label className="space-y-2">
               <span className="text-sm font-medium">Default currency</span>

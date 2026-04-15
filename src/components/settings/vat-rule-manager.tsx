@@ -5,11 +5,13 @@ import type { VatRule } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 
 export function VatRuleManager({ initialRules }: { initialRules: VatRule[] }) {
   const [rules, setRules] = useState<VatRule[]>(initialRules);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const sortedRules = useMemo(
     () =>
@@ -80,7 +82,13 @@ export function VatRuleManager({ initialRules }: { initialRules: VatRule[] }) {
         }),
       });
 
-      setMessage(response.ok ? "VAT rules saved." : "Could not save VAT rules.");
+      if (response.ok) {
+        setMessage("VAT rules saved.");
+        toast({ variant: "success", title: "VAT rules saved" });
+      } else {
+        setMessage("Could not save VAT rules.");
+        toast({ variant: "error", title: "Save failed", description: "Could not save VAT rules." });
+      }
     });
   }
 

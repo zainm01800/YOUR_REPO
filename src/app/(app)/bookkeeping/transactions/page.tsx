@@ -96,11 +96,15 @@ export default async function BookkeepingTransactionsPage() {
     (tx) => tx.category || resolveCategory(tx, settingsSnapshot.categoryRules),
   ).length;
   const classifiedTransactions = allTransactions.map((tx) => {
-    const resolvedCategoryName = tx.category ?? resolveCategory(tx, settingsSnapshot.categoryRules);
-    const resolvedCategory = resolvedCategoryName
-      ? categoryRuleMap.get(resolvedCategoryName)
-      : undefined;
-    return classifyTransaction(tx, resolvedCategory, settingsSnapshot.workspace.vatRegistered);
+    try {
+      const resolvedCategoryName = tx.category ?? resolveCategory(tx, settingsSnapshot.categoryRules);
+      const resolvedCategory = resolvedCategoryName
+        ? categoryRuleMap.get(resolvedCategoryName)
+        : undefined;
+      return classifyTransaction(tx, resolvedCategory, settingsSnapshot.workspace.vatRegistered);
+    } catch {
+      return classifyTransaction(tx, undefined, settingsSnapshot.workspace.vatRegistered);
+    }
   });
   const statementCounts = {
     pnl: classifiedTransactions.filter((tx) => tx.statementType === "p_and_l").length,

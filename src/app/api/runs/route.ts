@@ -62,6 +62,7 @@ async function handlePost(request: Request) {
   const formData = await request.formData();
   const name = String(formData.get("name") || "New reconciliation run");
   const entity = String(formData.get("entity") || "");
+  const period = String(formData.get("period") || "");
   const countryProfile = String(formData.get("countryProfile") || "GB");
   const defaultCurrency = String(formData.get("defaultCurrency") || "GBP");
   const templateId = String(formData.get("templateId") || "");
@@ -79,6 +80,7 @@ async function handlePost(request: Request) {
   const run = await repository.createRun({
     name,
     entity,
+    period: period || undefined,
     countryProfile,
     defaultCurrency,
     templateId: templateId || undefined,

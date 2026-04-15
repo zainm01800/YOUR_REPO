@@ -1693,6 +1693,7 @@ export const basePrismaRepository: Repository = {
         name: input.name,
         status: "awaiting_mapping",
         entity: input.entity,
+        period: input.period,
         countryProfile: input.countryProfile || workspace.countryProfile,
         bankStatementId: input.bankStatementId,
         bankSourceMode: input.bankSourceMode,

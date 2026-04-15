@@ -30,8 +30,12 @@ export default async function ReviewPage({
     <>
       <PageHeader
         eyebrow="Review Workspace"
-        title="Approve what is clean and work exceptions in one place"
-        description="This is the core trust layer of the product. Review rows, preview documents, adjust codes, and keep a clear audit trail."
+        title={run.name}
+        description="Approve what is clean and work exceptions in one place. Review rows, preview documents, adjust codes, and keep a clear audit trail."
+        breadcrumbs={[
+          { label: "All runs", href: "/runs" },
+          { label: run.name },
+        ]}
         actions={
           <>
             <Link href={`/runs/${run.id}/exceptions`}>

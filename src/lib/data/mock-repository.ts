@@ -423,6 +423,7 @@ export const mockRepository: Repository = {
       status: "awaiting_mapping" as const,
       createdAt: new Date().toISOString(),
       entity: input.entity,
+      period: input.period,
       countryProfile: input.countryProfile || store.workspace.countryProfile,
       defaultCurrency: input.defaultCurrency || store.workspace.defaultCurrency,
       bankStatementId: input.bankStatementId,

@@ -1,8 +1,7 @@
 import { PageHeader } from "@/components/app-shell/page-header";
-import { Card } from "@/components/ui/card";
 import { getRepository } from "@/lib/data";
 import { buildReviewRows } from "@/lib/reconciliation/review-rows";
-import { formatCurrency } from "@/lib/utils";
+import { SuppliersTable } from "@/components/suppliers/suppliers-table";
 
 export default async function SupplierAnalysisPage() {
   const repository = await getRepository();
@@ -84,50 +83,7 @@ export default async function SupplierAnalysisPage() {
         description="See who you spend the most with, how often they generate exceptions, and which GL codes are being used most often."
       />
 
-      <Card className="overflow-hidden p-0">
-        {suppliers.length === 0 ? (
-          <div className="px-6 py-16 text-center text-sm text-[var(--color-muted-foreground)]">
-            No supplier data yet. Process a run first to populate this view.
-          </div>
-        ) : (
-          <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
-            <thead className="bg-[var(--color-panel)] text-left text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
-              <tr>
-                <th className="px-6 py-3">Supplier</th>
-                <th className="px-6 py-3 text-right">Total spend</th>
-                <th className="px-6 py-3 text-right">Total VAT</th>
-                <th className="px-6 py-3 text-right">Avg VAT %</th>
-                <th className="px-6 py-3 text-right">Rows</th>
-                <th className="px-6 py-3 text-right">Exception rows</th>
-                <th className="px-6 py-3">Top GL codes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--color-border)]">
-              {suppliers.map((supplier) => (
-                <tr key={supplier.supplier} className="hover:bg-[var(--color-panel)]">
-                  <td className="px-6 py-4 font-semibold text-[var(--color-foreground)]">
-                    {supplier.supplier}
-                  </td>
-                  <td className="px-6 py-4 text-right tabular-nums">
-                    {formatCurrency(supplier.totalSpend, currency)}
-                  </td>
-                  <td className="px-6 py-4 text-right tabular-nums">
-                    {formatCurrency(supplier.totalVat, currency)}
-                  </td>
-                  <td className="px-6 py-4 text-right tabular-nums">
-                    {supplier.avgVatRate.toFixed(1)}%
-                  </td>
-                  <td className="px-6 py-4 text-right tabular-nums">{supplier.rowCount}</td>
-                  <td className="px-6 py-4 text-right tabular-nums">{supplier.exceptions}</td>
-                  <td className="px-6 py-4 text-[var(--color-muted-foreground)]">
-                    {supplier.topGlCodes || "None yet"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
+      <SuppliersTable suppliers={suppliers} currency={currency} />
     </>
   );
 }

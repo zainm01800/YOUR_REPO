@@ -10,6 +10,7 @@ import {
   TAX_TREATMENT_LABELS,
 } from "@/lib/accounting/classifier";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { buildMasterCategoryLibrary } from "@/lib/accounting/default-categories";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -99,6 +100,7 @@ export function CategoryRuleManager({ initialRules }: { initialRules: CategoryRu
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
+  const { toast } = useToast();
   const [showPresets, setShowPresets] = useState(false);
   const [search, setSearch] = useState("");
   const [sectionFilter, setSectionFilter] = useState<"all" | CategorySection>("all");
@@ -148,8 +150,14 @@ export function CategoryRuleManager({ initialRules }: { initialRules: CategoryRu
             .sort((a, b) => a.sortOrder - b.sortOrder || a.priority - b.priority),
         }),
       });
-      setSaveStatus(res.ok ? "saved" : "error");
-      if (res.ok) setTimeout(() => setSaveStatus("idle"), 3000);
+      if (res.ok) {
+        setSaveStatus("saved");
+        toast({ variant: "success", title: "Category rules saved" });
+        setTimeout(() => setSaveStatus("idle"), 3000);
+      } else {
+        setSaveStatus("error");
+        toast({ variant: "error", title: "Save failed", description: "Could not save category rules." });
+      }
     });
   }
 

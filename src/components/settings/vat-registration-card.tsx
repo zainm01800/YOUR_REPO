@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/components/ui/toast";
 import type { Workspace } from "@/lib/domain/types";
 
 export function VatRegistrationCard({
@@ -16,6 +17,7 @@ export function VatRegistrationCard({
   const [businessType, setBusinessType] = useState(initialBusinessType);
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
+  const { toast } = useToast();
 
   function save(patch: Partial<Pick<Workspace, "vatRegistered" | "businessType">>) {
     if (patch.vatRegistered !== undefined) setVatRegistered(patch.vatRegistered);
@@ -30,12 +32,17 @@ export function VatRegistrationCard({
           body: JSON.stringify(patch),
         });
 
-        setStatus(response.ok ? "saved" : "error");
         if (response.ok) {
+          setStatus("saved");
+          toast({ variant: "success", title: "Tax profile saved" });
           setTimeout(() => setStatus("idle"), 2500);
+        } else {
+          setStatus("error");
+          toast({ variant: "error", title: "Save failed", description: "Could not save tax profile settings." });
         }
       } catch {
         setStatus("error");
+        toast({ variant: "error", title: "Save failed", description: "Could not save tax profile settings." });
       }
     });
   }

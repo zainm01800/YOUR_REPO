@@ -5,11 +5,13 @@ import type { GlCodeRule } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 
 export function GlRuleManager({ initialRules }: { initialRules: GlCodeRule[] }) {
   const [rules, setRules] = useState<GlCodeRule[]>(initialRules);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const sortedRules = useMemo(
     () =>
@@ -75,7 +77,13 @@ export function GlRuleManager({ initialRules }: { initialRules: GlCodeRule[] }) 
         }),
       });
 
-      setMessage(response.ok ? "GL rules saved." : "Could not save GL rules.");
+      if (response.ok) {
+        setMessage("GL rules saved.");
+        toast({ variant: "success", title: "GL rules saved" });
+      } else {
+        setMessage("Could not save GL rules.");
+        toast({ variant: "error", title: "Save failed", description: "Could not save GL rules." });
+      }
     });
   }
 

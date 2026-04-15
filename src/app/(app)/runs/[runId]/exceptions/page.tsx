@@ -25,8 +25,13 @@ export default async function ExceptionsPage({
     <>
       <PageHeader
         eyebrow="Exceptions"
-        title="Everything that needs finance attention"
+        title={`${run.name} — Exceptions`}
         description="Make issues obvious instead of hiding them inside a spreadsheet export. Filter by severity or type, and jump directly to the row in review."
+        breadcrumbs={[
+          { label: "All runs", href: "/runs" },
+          { label: run.name, href: `/runs/${run.id}/review` },
+          { label: "Exceptions" },
+        ]}
         actions={
           <Link href={`/runs/${run.id}/review`}>
             <Button variant="secondary">Back to review</Button>

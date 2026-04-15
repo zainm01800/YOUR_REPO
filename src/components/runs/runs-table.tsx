@@ -8,10 +8,12 @@ import {
   ChevronDown,
   Search,
   Filter,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { RunStatusPill } from "@/components/ui/status-pill";
+import { useToast } from "@/components/ui/toast";
 import { formatDate } from "@/lib/utils";
 import type { DashboardSnapshot, RunStatus } from "@/lib/domain/types";
 
@@ -44,8 +46,10 @@ function MatchPctBadge({ pct }: { pct: number }) {
 export function RunsTable({ runs }: { runs: RunListItem[] }) {
   const [localRuns, setLocalRuns] = useState(runs);
   const [pendingRunId, setPendingRunId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const { toast } = useToast();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | RunStatus>("");
@@ -63,15 +67,12 @@ export function RunsTable({ runs }: { runs: RunListItem[] }) {
     new Set(localRuns.map((run) => run.entity).filter((entity): entity is string => Boolean(entity))),
   ).sort((left, right) => left.localeCompare(right));
 
-  function handleDelete(run: RunListItem) {
-    const confirmed = window.confirm(
-      `Delete "${run.name}"?\n\nThis will remove the run and its review state from the workspace.`,
-    );
+  function handleDeleteClick(run: RunListItem) {
+    setConfirmDeleteId(run.id);
+  }
 
-    if (!confirmed) {
-      return;
-    }
-
+  function handleDeleteConfirm(run: RunListItem) {
+    setConfirmDeleteId(null);
     startTransition(async () => {
       setPendingRunId(run.id);
       setError(null);
@@ -87,10 +88,11 @@ export function RunsTable({ runs }: { runs: RunListItem[] }) {
         }
 
         setLocalRuns((prev) => prev.filter((candidate) => candidate.id !== run.id));
+        toast({ variant: "success", title: `"${run.name}" deleted` });
       } catch (deleteError) {
-        setError(
-          deleteError instanceof Error ? deleteError.message : "Could not delete that run.",
-        );
+        const msg = deleteError instanceof Error ? deleteError.message : "Could not delete that run.";
+        setError(msg);
+        toast({ variant: "error", title: "Delete failed", description: msg });
       } finally {
         setPendingRunId(null);
       }
@@ -288,7 +290,10 @@ export function RunsTable({ runs }: { runs: RunListItem[] }) {
               </tr>
             ) : (
               sorted.map((run) => (
-                <tr key={run.id} className="transition hover:bg-[var(--color-panel)]">
+                <tr
+                  key={run.id}
+                  className={`transition ${confirmDeleteId === run.id ? "bg-rose-50" : "hover:bg-[var(--color-panel)]"}`}
+                >
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-[var(--color-foreground)]">
@@ -300,6 +305,24 @@ export function RunsTable({ runs }: { runs: RunListItem[] }) {
                         </span>
                       )}
                     </div>
+                    {confirmDeleteId === run.id && (
+                      <div className="mt-2 flex items-center gap-2 rounded-xl bg-rose-100 px-3 py-2 text-xs text-rose-700">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        <span>Permanently delete this run?</span>
+                        <button
+                          className="ml-1 rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-rose-700"
+                          onClick={() => handleDeleteConfirm(run)}
+                        >
+                          Yes, delete
+                        </button>
+                        <button
+                          className="rounded-lg border border-rose-300 px-2.5 py-1 text-xs font-semibold hover:bg-rose-50"
+                          onClick={() => setConfirmDeleteId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-5 text-[var(--color-muted-foreground)]">
                     {run.entity ?? "-"}
@@ -348,8 +371,8 @@ export function RunsTable({ runs }: { runs: RunListItem[] }) {
                         type="button"
                         variant="secondary"
                         className="h-9 px-3 text-rose-700 hover:text-rose-800"
-                        disabled={pendingRunId === run.id}
-                        onClick={() => handleDelete(run)}
+                        disabled={pendingRunId === run.id || confirmDeleteId === run.id}
+                        onClick={() => handleDeleteClick(run)}
                       >
                         {pendingRunId === run.id ? "Deleting..." : "Delete"}
                       </Button>

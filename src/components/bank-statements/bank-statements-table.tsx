@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { AlertTriangle } from "lucide-react";
 import type { BankStatementSummary } from "@/lib/domain/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { formatDate } from "@/lib/utils";
 
 function statusLabel(status: BankStatementSummary["importStatus"]) {
@@ -28,15 +30,21 @@ export function BankStatementsTable({
   const [localStatements, setLocalStatements] = useState(statements);
   const [query, setQuery] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   useEffect(() => {
     setLocalStatements(statements);
   }, [statements]);
 
-  function handleDelete(statement: BankStatementSummary) {
-    if (!window.confirm(`Delete "${statement.name}"?\n\nThis will permanently remove the statement and its transactions.`)) return;
+  function handleDeleteClick(statement: BankStatementSummary) {
+    setConfirmDeleteId(statement.id);
+  }
+
+  function handleDeleteConfirm(statement: BankStatementSummary) {
+    setConfirmDeleteId(null);
     startTransition(async () => {
       setDeletingId(statement.id);
       setDeleteError(null);
@@ -47,8 +55,11 @@ export function BankStatementsTable({
           throw new Error(payload?.error ?? "Could not delete statement.");
         }
         setLocalStatements((prev) => prev.filter((candidate) => candidate.id !== statement.id));
+        toast({ variant: "success", title: `"${statement.name}" deleted` });
       } catch (err) {
-        setDeleteError(err instanceof Error ? err.message : "Could not delete statement.");
+        const msg = err instanceof Error ? err.message : "Could not delete statement.";
+        setDeleteError(msg);
+        toast({ variant: "error", title: "Delete failed", description: msg });
       } finally {
         setDeletingId(null);
       }
@@ -109,10 +120,31 @@ export function BankStatementsTable({
               </tr>
             ) : (
               filtered.map((statement) => (
-                <tr key={statement.id} className="transition hover:bg-[var(--color-panel)]">
+                <tr
+                  key={statement.id}
+                  className={`transition ${confirmDeleteId === statement.id ? "bg-rose-50" : "hover:bg-[var(--color-panel)]"}`}
+                >
                   <td className="px-6 py-5">
                     <div className="font-semibold text-[var(--color-foreground)]">{statement.name}</div>
                     <div className="mt-1 text-xs text-[var(--color-muted-foreground)]">{statement.fileName}</div>
+                    {confirmDeleteId === statement.id && (
+                      <div className="mt-2 flex items-center gap-2 rounded-xl bg-rose-100 px-3 py-2 text-xs text-rose-700">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        <span>Permanently delete this statement and all its transactions?</span>
+                        <button
+                          className="ml-1 rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-rose-700"
+                          onClick={() => handleDeleteConfirm(statement)}
+                        >
+                          Yes, delete
+                        </button>
+                        <button
+                          className="rounded-lg border border-rose-300 px-2.5 py-1 text-xs font-semibold hover:bg-rose-50"
+                          onClick={() => setConfirmDeleteId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-5 text-[var(--color-muted-foreground)]">
                     {[statement.bankName, statement.accountName].filter(Boolean).join(" · ") || "Unknown source"}
@@ -132,8 +164,8 @@ export function BankStatementsTable({
                       </Link>
                       <button
                         type="button"
-                        onClick={() => handleDelete(statement)}
-                        disabled={isPending}
+                        onClick={() => handleDeleteClick(statement)}
+                        disabled={isPending || confirmDeleteId === statement.id}
                         className="text-sm font-medium text-red-500 hover:text-red-700 disabled:opacity-40"
                       >
                         {deletingId === statement.id ? "Deleting…" : "Delete"}

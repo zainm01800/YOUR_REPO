@@ -1,22 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { CheckCircle2, Pencil, X } from "lucide-react";
 import type { Workspace } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 
 export function ToleranceEditor({ workspace }: { workspace: Workspace }) {
   const [editing, setEditing] = useState(false);
   const [amountTolerance, setAmountTolerance] = useState(String(workspace.amountTolerance));
   const [dateToleranceDays, setDateToleranceDays] = useState(String(workspace.dateToleranceDays));
   const [saved, setSaved] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   function handleSave() {
-    // In a full implementation this would POST to an API
-    setSaved(true);
-    setEditing(false);
-    setTimeout(() => setSaved(false), 3000);
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/settings/workspace", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amountTolerance: parseFloat(amountTolerance) || 0,
+            dateToleranceDays: parseInt(dateToleranceDays) || 0,
+          }),
+        });
+        if (response.ok) {
+          setSaved(true);
+          setEditing(false);
+          toast({ variant: "success", title: "Tolerance settings saved" });
+          setTimeout(() => setSaved(false), 3000);
+        } else {
+          toast({ variant: "error", title: "Save failed", description: "Could not save tolerance settings." });
+        }
+      } catch {
+        toast({ variant: "error", title: "Save failed", description: "Could not save tolerance settings." });
+      }
+    });
   }
 
   return (
@@ -68,9 +89,9 @@ export function ToleranceEditor({ workspace }: { workspace: Workspace }) {
             Default currency: <span className="font-semibold text-[var(--color-foreground)]">{workspace.defaultCurrency}</span>
             &nbsp;·&nbsp; Country: <span className="font-semibold text-[var(--color-foreground)]">{workspace.countryProfile}</span>
           </div>
-          <Button onClick={handleSave} className="gap-2">
+          <Button onClick={handleSave} disabled={isPending} className="gap-2">
             <CheckCircle2 className="h-4 w-4" />
-            Save tolerance settings
+            {isPending ? "Saving…" : "Save tolerance settings"}
           </Button>
         </div>
       ) : (

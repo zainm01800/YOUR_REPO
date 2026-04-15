@@ -9,6 +9,7 @@ import type { WorkspaceMember, Invitation } from "@/lib/domain/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast";
 import { useRouter } from "next/navigation";
 import {
   inviteUser,
@@ -61,9 +62,12 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
 
   // Per-row state
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -72,10 +76,12 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
       const result = await inviteUser(inviteEmail.trim(), inviteRole);
       if (!result.success) {
         setInviteError(result.error);
+        toast({ variant: "error", title: "Invite failed", description: result.error });
         return;
       }
       setInviteLink(result.inviteLink);
       setInviteEmail("");
+      toast({ variant: "success", title: "Invitation created", description: "Copy the link and share it with your team member." });
       router.refresh();
     });
   }
@@ -84,20 +90,23 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
     if (!inviteLink) return;
     navigator.clipboard.writeText(inviteLink).then(() => {
       setLinkCopied(true);
+      toast({ variant: "success", title: "Link copied to clipboard" });
       setTimeout(() => setLinkCopied(false), 2000);
     });
   }
 
-  async function handleRemove(membershipId: string) {
-    if (!window.confirm("Remove this member? They will lose access immediately.")) return;
+  async function handleRemoveConfirm(membershipId: string) {
+    setConfirmRemoveId(null);
     setRemovingId(membershipId);
     setRowError(null);
     const result = await removeMember(membershipId);
     setRemovingId(null);
     if (!result.success) {
       setRowError(result.error);
+      toast({ variant: "error", title: "Could not remove member", description: result.error });
     } else {
       setMemberships((prev) => prev.filter((m) => m.id !== membershipId));
+      toast({ variant: "success", title: "Member removed" });
     }
   }
 
@@ -108,23 +117,27 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
     setEditingRoleId(null);
     if (!result.success) {
       setRowError(result.error);
+      toast({ variant: "error", title: "Could not update role", description: result.error });
     } else {
       setMemberships((prev) =>
         prev.map((m) => (m.id === membershipId ? { ...m, role: newRole } : m)),
       );
+      toast({ variant: "success", title: "Role updated" });
     }
   }
 
-  async function handleRevoke(invitationId: string) {
-    if (!window.confirm("Revoke this invitation? The link will stop working immediately.")) return;
+  async function handleRevokeConfirm(invitationId: string) {
+    setConfirmRevokeId(null);
     setRevokingId(invitationId);
     setRowError(null);
     const result = await revokeInvitation(invitationId);
     setRevokingId(null);
     if (!result.success) {
       setRowError(result.error);
+      toast({ variant: "error", title: "Could not revoke invitation", description: result.error });
     } else {
       setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+      toast({ variant: "success", title: "Invitation revoked" });
     }
   }
 
@@ -305,17 +318,34 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
                     </div>
                   )}
                   {member.role !== "owner" && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(member.id)}
-                      disabled={removingId === member.id}
-                      className="rounded-lg p-1.5 text-[var(--color-muted-foreground)] transition hover:bg-red-50 hover:text-red-500"
-                      title="Remove member"
-                    >
-                      {removingId === member.id
-                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        : <Trash2 className="h-3.5 w-3.5" />}
-                    </button>
+                    <>
+                      {confirmRemoveId === member.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveConfirm(member.id)}
+                            className="rounded-lg bg-red-500 px-2 py-1 text-[10px] font-semibold text-white hover:bg-red-600"
+                          >Remove?</button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmRemoveId(null)}
+                            className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[10px] hover:bg-slate-50"
+                          >Cancel</button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmRemoveId(member.id)}
+                          disabled={removingId === member.id}
+                          className="rounded-lg p-1.5 text-[var(--color-muted-foreground)] transition hover:bg-red-50 hover:text-red-500"
+                          title="Remove member"
+                        >
+                          {removingId === member.id
+                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            : <Trash2 className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -355,7 +385,9 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
                         title="Copy invite link"
                         onClick={() => {
                           const base = typeof window !== "undefined" ? window.location.origin : "";
-                          navigator.clipboard.writeText(`${base}/invitations/${invite.token}`);
+                          navigator.clipboard.writeText(`${base}/invitations/${invite.token}`).then(() => {
+                            toast({ variant: "success", title: "Invite link copied" });
+                          });
                         }}
                         className="rounded-lg p-1.5 text-[var(--color-muted-foreground)] transition hover:bg-slate-100 hover:text-[var(--color-foreground)]"
                       >
@@ -365,17 +397,32 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
                     <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
                       Pending
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRevoke(invite.id)}
-                      disabled={revokingId === invite.id}
-                      className="rounded-lg p-1.5 text-[var(--color-muted-foreground)] transition hover:bg-red-50 hover:text-red-500"
-                      title="Revoke invitation"
-                    >
-                      {revokingId === invite.id
-                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        : <X className="h-3.5 w-3.5" />}
-                    </button>
+                    {confirmRevokeId === invite.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleRevokeConfirm(invite.id)}
+                          className="rounded-lg bg-red-500 px-2 py-1 text-[10px] font-semibold text-white hover:bg-red-600"
+                        >Revoke?</button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmRevokeId(null)}
+                          className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[10px] hover:bg-slate-50"
+                        >Cancel</button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmRevokeId(invite.id)}
+                        disabled={revokingId === invite.id}
+                        className="rounded-lg p-1.5 text-[var(--color-muted-foreground)] transition hover:bg-red-50 hover:text-red-500"
+                        title="Revoke invitation"
+                      >
+                        {revokingId === invite.id
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <X className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

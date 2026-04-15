@@ -77,8 +77,13 @@ export default async function ExportPage({
     <>
       <PageHeader
         eyebrow="Export & Output"
-        title="Download your reconciliation"
+        title={`${run.name} — Export`}
         description="Review the readiness summary, then download in CSV or Excel. Column layout is configured on the Review page."
+        breadcrumbs={[
+          { label: "All runs", href: "/runs" },
+          { label: run.name, href: `/runs/${run.id}/review` },
+          { label: "Export" },
+        ]}
         actions={
           <Link href={`/runs/${run.id}/review`}>
             <Button variant="secondary">
