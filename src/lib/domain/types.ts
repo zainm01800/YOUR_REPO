@@ -611,6 +611,9 @@ export interface Invitation {
   status: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
   invitedByName: string;
   createdAt: string;
+  /** The acceptance token — included for PENDING invites so owners can share the link */
+  token?: string;
+  expiresAt?: string;
 }
 
 export interface SettingsSnapshot {

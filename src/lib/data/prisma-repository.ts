@@ -592,6 +592,8 @@ function toInvitation(i: any): import("@/lib/domain/types").Invitation {
     status: i.status,
     invitedByName: i.invitedBy.name,
     createdAt: i.createdAt.toISOString(),
+    token: i.status === "PENDING" ? i.token : undefined,
+    expiresAt: i.expiresAt ? new Date(i.expiresAt).toISOString() : undefined,
   };
 }
 
@@ -1084,7 +1086,7 @@ export const basePrismaRepository: Repository = {
         orderBy: { createdAt: "asc" },
       }),
       prisma.invitation.findMany({
-        where: { workspaceId: workspace.id },
+        where: { workspaceId: workspace.id, status: "PENDING" },
         include: { invitedBy: true },
         orderBy: { createdAt: "desc" },
       }),
