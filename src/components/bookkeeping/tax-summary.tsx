@@ -287,10 +287,28 @@ export function TaxSummary({
 
         <TabsContent value="overview" className="space-y-12">
           {/* Top Level KPIs */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
              <SummaryCard label="Accounting Profit" value={formatAmount(taxSummary.profitSummary.accountingProfit, taxSummary.currency)} icon={LayoutDashboard} description="Your net P&L position" />
              <SummaryCard label="Tax Add-backs" value={formatAmount(taxSummary.profitSummary.totalTaxAdjustments, taxSummary.currency)} tone="warning" icon={Receipt} description="Non-claimable items" />
-             <SummaryCard label="Taxable Profit" value={formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)} tone="profit" icon={Calculator} description="Final HMRC-ready figure" />
+             <SummaryCard label="Gross Taxable" value={formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)} tone="default" icon={Calculator} description="Amount before allowances" />
+             {taxSummary.estimatedTax && (
+               <>
+                 <SummaryCard 
+                  label="Personal Allowance" 
+                  value={`-${formatAmount(taxSummary.estimatedTax.personalAllowanceUsed, taxSummary.currency)}`} 
+                  tone="expense" 
+                  icon={MinusCircle} 
+                  description="Tax-free threshold" 
+                 />
+                 <SummaryCard 
+                  label="Net Taxable Income" 
+                  value={formatAmount(taxSummary.estimatedTax.taxableIncomeAfterAllowance, taxSummary.currency)} 
+                  tone="profit" 
+                  icon={Calculator} 
+                  description="Actual tax base" 
+                 />
+               </>
+             )}
              <SummaryCard 
                label="Est. Liability" 
                value={taxSummary.estimatedTax ? formatAmount(taxSummary.estimatedTax.totalEstimatedTax, taxSummary.currency) : "—"} 
@@ -307,25 +325,43 @@ export function TaxSummary({
               <h2 className="text-xl font-bold tracking-tight text-slate-900">Profit Reconciliation</h2>
             </div>
             
-            <div className="relative grid gap-8 lg:grid-cols-3">
-               <Card className="p-8 border-slate-200 bg-white shadow-sm flex flex-col items-center justify-center text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2">P&L Net Profit</p>
-                  <p className="text-4xl font-mono font-bold tracking-tighter text-slate-900">{formatAmount(taxSummary.profitSummary.accountingProfit, taxSummary.currency)}</p>
+            <div className={`relative grid gap-4 ${taxSummary.estimatedTax ? 'lg:grid-cols-5' : 'lg:grid-cols-3'}`}>
+               <Card className="p-6 border-slate-200 bg-white shadow-sm flex flex-col items-center justify-center text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2">Accounting Profit</p>
+                  <p className="text-2xl font-mono font-bold tracking-tighter text-slate-900">{formatAmount(taxSummary.profitSummary.accountingProfit, taxSummary.currency)}</p>
                </Card>
 
-               <div className="flex items-center justify-center -my-4 lg:my-0">
-                  <div className="flex flex-col items-center gap-2">
-                     <span className="h-10 w-10 flex items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-slate-400">
-                        <ArrowRight className="h-5 w-5 transform rotate-90 lg:rotate-0" />
+               <div className="flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-1">
+                     <span className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-50 border border-slate-100 text-slate-400">
+                        <ArrowRight className="h-4 w-4 transform rotate-90 lg:rotate-0" />
                      </span>
-                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Adjustments</p>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Adjust</p>
                   </div>
                </div>
 
-               <Card className="p-8 border-slate-200 bg-slate-900 text-white shadow-xl flex flex-col items-center justify-center text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2 underline decoration-orange-500 decoration-2 underline-offset-4">HMRC Taxable Profit</p>
-                  <p className="text-4xl font-mono font-bold tracking-tighter text-white">{formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)}</p>
+               <Card className="p-6 border-slate-200 bg-white shadow-sm flex flex-col items-center justify-center text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2 underline decoration-orange-500 decoration-2 underline-offset-4">Gross Taxable</p>
+                  <p className="text-2xl font-mono font-bold tracking-tighter text-slate-900">{formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)}</p>
                </Card>
+
+               {taxSummary.estimatedTax && (
+                 <>
+                   <div className="flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-1">
+                         <span className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-50 border border-slate-100 text-slate-400">
+                            <ArrowRight className="h-4 w-4 transform rotate-90 lg:rotate-0" />
+                         </span>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Allowance</p>
+                      </div>
+                   </div>
+
+                   <Card className="p-6 border-slate-200 bg-slate-900 text-white shadow-xl flex flex-col items-center justify-center text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2 underline decoration-blue-500 decoration-2 underline-offset-4">Net Taxable</p>
+                      <p className="text-2xl font-mono font-bold tracking-tighter text-white">{formatAmount(taxSummary.estimatedTax.taxableIncomeAfterAllowance, taxSummary.currency)}</p>
+                   </Card>
+                 </>
+               )}
             </div>
 
             <Card className="bg-slate-50/50 border-slate-200 p-8">
@@ -341,10 +377,22 @@ export function TaxSummary({
                            <span className="text-slate-600">Claimable Expenses</span>
                            <span className="font-mono text-orange-700">-{formatAmount(taxSummary.profitSummary.totalClaimableExpenses, taxSummary.currency)}</span>
                         </div>
-                        <div className="flex justify-between items-center text-sm font-bold pt-2">
-                           <span>Taxable Total</span>
-                           <span className="font-mono text-emerald-800">{formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)}</span>
-                        </div>
+                         <div className="flex justify-between items-center text-sm font-bold py-2 border-b border-slate-200/50">
+                            <span>Gross Taxable Profit</span>
+                            <span className="font-mono text-slate-900">{formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)}</span>
+                         </div>
+                         {taxSummary.estimatedTax && (
+                           <>
+                             <div className="flex justify-between items-center text-sm py-2 border-b border-slate-200/50">
+                                <span className="text-slate-600">Personal Allowance</span>
+                                <span className="font-mono text-orange-700">-{formatAmount(taxSummary.estimatedTax.personalAllowanceUsed, taxSummary.currency)}</span>
+                             </div>
+                             <div className="flex justify-between items-center text-sm font-bold pt-2">
+                                <span>Final Taxable Income</span>
+                                <span className="font-mono text-emerald-800">{formatAmount(taxSummary.estimatedTax.taxableIncomeAfterAllowance, taxSummary.currency)}</span>
+                             </div>
+                           </>
+                         )}
                      </div>
                   </div>
 
