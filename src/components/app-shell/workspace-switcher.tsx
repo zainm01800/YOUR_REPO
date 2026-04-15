@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, Plus, Building2, Check, UserIcon, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { setActiveWorkspace } from "@/lib/actions/workspace-actions";
@@ -20,6 +21,7 @@ export function WorkspaceSwitcher({
   currentWorkspaceId: string;
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   const currentWorkspace = workspaces.find((w) => w.id === currentWorkspaceId) || workspaces[0];
 
   const handleSwitch = async (id: string) => {
@@ -118,8 +120,8 @@ export function WorkspaceSwitcher({
                 <button
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-[var(--color-muted-foreground)] transition hover:bg-slate-50 hover:text-[var(--color-foreground)]"
                   onClick={() => {
-                    // Logic for "New Workspace" could go here
                     setOpen(false);
+                    router.push("/workspaces/new");
                   }}
                 >
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 border border-dashed border-slate-300">
