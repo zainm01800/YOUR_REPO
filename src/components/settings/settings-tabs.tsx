@@ -9,12 +9,14 @@ import { ToleranceEditor } from "@/components/settings/tolerance-editor";
 import { VatRegistrationCard } from "@/components/settings/vat-registration-card";
 import { VatRuleManager } from "@/components/settings/vat-rule-manager";
 import { MemberManager } from "@/components/settings/member-manager";
+import { DeleteWorkspaceCard } from "@/components/settings/delete-workspace-card";
 
 interface SettingsTabsProps {
   settings: SettingsSnapshot;
+  isOwner: boolean;
 }
 
-export function SettingsTabs({ settings }: SettingsTabsProps) {
+export function SettingsTabs({ settings, isOwner }: SettingsTabsProps) {
   const [activeTab, setActiveTab] = useState<"general" | "tax" | "team" | "advanced">("general");
 
   const workspace = settings.workspace;
@@ -98,45 +100,59 @@ export function SettingsTabs({ settings }: SettingsTabsProps) {
         )}
 
         {activeTab === "advanced" && (
-          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-            <GlRuleManager initialRules={settings.glRules} />
-            
-            <div className="space-y-6">
-              <Card className="space-y-5">
-                <ToleranceEditor workspace={workspace} />
-              </Card>
+          <div className="space-y-6">
+            <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+              <GlRuleManager initialRules={settings.glRules} />
 
-              <Card className="space-y-5">
-                <div>
-                  <h2 className="text-xl font-semibold">Mapping templates</h2>
-                  <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-                    Saved column mappings from previous uploads. Applied when creating a new run.
-                  </p>
-                </div>
-                <div className="space-y-3">
-                  {settings.templates.length === 0 ? (
-                    <p className="rounded-2xl bg-[var(--color-panel)] p-5 text-sm text-[var(--color-muted-foreground)]">
-                      No mapping templates saved yet. They appear here after you save one during a run.
+              <div className="space-y-6">
+                <Card className="space-y-5">
+                  <ToleranceEditor workspace={workspace} />
+                </Card>
+
+                <Card className="space-y-5">
+                  <div>
+                    <h2 className="text-xl font-semibold">Mapping templates</h2>
+                    <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+                      Saved column mappings from previous uploads. Applied when creating a new run.
                     </p>
-                  ) : (
-                    settings.templates.map((template) => (
-                      <div key={template.id} className="rounded-2xl bg-[var(--color-panel)] p-5 text-sm">
-                        <div className="font-semibold text-[var(--color-foreground)]">{template.name}</div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {Object.entries(template.columnMappings).map(([field, column]) => (
-                            <span
-                              key={field}
-                              className="rounded-lg bg-white px-2 py-1 font-mono text-xs text-[var(--color-muted-foreground)] shadow-sm"
-                            >
-                              {field}: {column}
-                            </span>
-                          ))}
+                  </div>
+                  <div className="space-y-3">
+                    {settings.templates.length === 0 ? (
+                      <p className="rounded-2xl bg-[var(--color-panel)] p-5 text-sm text-[var(--color-muted-foreground)]">
+                        No mapping templates saved yet. They appear here after you save one during a run.
+                      </p>
+                    ) : (
+                      settings.templates.map((template) => (
+                        <div key={template.id} className="rounded-2xl bg-[var(--color-panel)] p-5 text-sm">
+                          <div className="font-semibold text-[var(--color-foreground)]">{template.name}</div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {Object.entries(template.columnMappings).map(([field, column]) => (
+                              <span
+                                key={field}
+                                className="rounded-lg bg-white px-2 py-1 font-mono text-xs text-[var(--color-muted-foreground)] shadow-sm"
+                              >
+                                {field}: {column}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </Card>
+                      ))
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </div>
+
+            {/* Danger zone */}
+            <div className="max-w-2xl">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted-foreground)]">
+                Danger zone
+              </p>
+              <DeleteWorkspaceCard
+                workspaceId={workspace.id}
+                workspaceName={workspace.name}
+                isOwner={isOwner}
+              />
             </div>
           </div>
         )}

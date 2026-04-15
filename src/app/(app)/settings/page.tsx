@@ -4,7 +4,15 @@ import { getRepository } from "@/lib/data";
 
 export default async function SettingsPage() {
   const repository = await getRepository();
-  const settings = await repository.getSettingsSnapshot();
+  const [settings, currentUser, userWorkspaces] = await Promise.all([
+    repository.getSettingsSnapshot(),
+    repository.getCurrentUser(),
+    repository.getUserWorkspaces(),
+  ]);
+
+  const currentWorkspaceId = settings.workspace.id;
+  const myMembership = userWorkspaces.find((w) => w.id === currentWorkspaceId);
+  const isOwner = myMembership?.role === "owner";
 
   return (
     <>
@@ -14,7 +22,7 @@ export default async function SettingsPage() {
         description="VAT rules, GL codes, category rules, mapping templates, and tolerance settings. All rules are configured at your workspace level."
       />
 
-      <SettingsTabs settings={settings} />
+      <SettingsTabs settings={settings} isOwner={isOwner} />
     </>
   );
 }

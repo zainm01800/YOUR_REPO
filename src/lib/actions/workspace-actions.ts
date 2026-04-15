@@ -152,6 +152,45 @@ export async function updateMemberRole(
   }
 }
 
+// ─── Delete workspace ─────────────────────────────────────────────────────────
+
+export async function deleteWorkspace(
+  workspaceId: string,
+  confirmName: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const { prisma, workspace } = await requireAdminRepo();
+
+    if (workspace.id !== workspaceId) {
+      return { success: false, error: "Workspace mismatch." };
+    }
+
+    // Only the owner can delete
+    const repo = await getRepository();
+    const workspaces = await repo.getUserWorkspaces();
+    const membership = workspaces.find((w) => w.id === workspaceId);
+    if (!membership || membership.role !== "owner") {
+      return { success: false, error: "Only the workspace owner can delete it." };
+    }
+
+    // Require the user to type the exact workspace name as confirmation
+    if (confirmName.trim() !== workspace.name) {
+      return { success: false, error: "Workspace name does not match. Deletion cancelled." };
+    }
+
+    // Delete — CASCADE in the schema removes all runs, statements, rules, members, invites
+    await prisma.workspace.delete({ where: { id: workspaceId } });
+
+    // Clear the active workspace cookie so the layout picks up another workspace (or prompts creation)
+    const cookieStore = await cookies();
+    cookieStore.delete("active_workspace_id");
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message ?? "Failed to delete workspace." };
+  }
+}
+
 // ─── Revoke invitation ────────────────────────────────────────────────────────
 
 export async function revokeInvitation(
