@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 type State = { error?: string } | null;
 
 export function NewWorkspaceForm() {
-  const [state, action, pending] = useActionState<State, FormData>(createWorkspace, null);
+  const [state, action, pending] = useActionState(createWorkspace, null);
 
   return (
     <form action={action} className="space-y-4">

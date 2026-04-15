@@ -7,7 +7,10 @@ import { getPrismaClient } from "@/lib/data/prisma";
 import { mergeWorkspaceCategoryRules } from "@/lib/accounting/default-categories";
 import { demoStore } from "@/lib/demo/demo-store";
 
-export async function createWorkspace(formData: FormData) {
+export async function createWorkspace(
+  _prevState: { error?: string } | null,
+  formData: FormData,
+) {
   const name = (formData.get("name") as string | null)?.trim();
   if (!name || name.length < 2) {
     return { error: "Workspace name must be at least 2 characters." };
