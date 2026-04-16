@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2, AlertTriangle } from "lucide-react";
 import { acceptInvitation } from "@/lib/actions/invitation-actions";
 
 export function AcceptInvitationButton({ token }: { token: string }) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -17,8 +15,7 @@ export function AcceptInvitationButton({ token }: { token: string }) {
       try {
         const result = await acceptInvitation(token);
         if (result.success) {
-          router.push("/dashboard");
-          router.refresh();
+          window.location.href = "/dashboard";
         } else {
           setError(result.error);
         }
