@@ -56,8 +56,8 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("accountant");
   const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteLink, setInviteLink] = useState<string | null>(null);
-  const [linkCopied, setLinkCopied] = useState(false);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
   const [invitePending, startInvite] = useTransition();
 
   // Per-row state
@@ -79,19 +79,19 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
         toast({ variant: "error", title: "Invite failed", description: result.error });
         return;
       }
-      setInviteLink(result.inviteLink);
+      setInviteCode(result.inviteCode);
       setInviteEmail("");
-      toast({ variant: "success", title: "Invitation created", description: "Copy the link and share it with your team member." });
+      toast({ variant: "success", title: "Invitation created", description: "Share the invitation code with your team member." });
       router.refresh();
     });
   }
 
-  function copyLink() {
-    if (!inviteLink) return;
-    navigator.clipboard.writeText(inviteLink).then(() => {
-      setLinkCopied(true);
-      toast({ variant: "success", title: "Link copied to clipboard" });
-      setTimeout(() => setLinkCopied(false), 2000);
+  function copyCode() {
+    if (!inviteCode) return;
+    navigator.clipboard.writeText(inviteCode).then(() => {
+      setCodeCopied(true);
+      toast({ variant: "success", title: "Code copied to clipboard" });
+      setTimeout(() => setCodeCopied(false), 2000);
     });
   }
 
@@ -152,7 +152,7 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
           </p>
         </div>
         {!isInviting && (
-          <Button onClick={() => { setIsInviting(true); setInviteLink(null); setInviteError(null); }} className="gap-2">
+          <Button onClick={() => { setIsInviting(true); setInviteCode(null); setInviteError(null); }} className="gap-2">
             <UserPlus className="h-4 w-4" />
             Invite member
           </Button>
@@ -166,51 +166,43 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
       {/* Invite form */}
       {isInviting && (
         <Card className="border-2 border-[var(--color-accent)] animate-in slide-in-from-top-2 duration-200">
-          {inviteLink ? (
-            /* Step 2: show the link to copy */
+          {inviteCode ? (
+            /* Step 2: show the code to copy */
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold flex items-center gap-2">
                   <Check className="h-4 w-4 text-emerald-600" />
                   Invitation created
                 </h3>
-                <button type="button" onClick={() => { setIsInviting(false); setInviteLink(null); }}>
+                <button type="button" onClick={() => { setIsInviting(false); setInviteCode(null); }}>
                   <X className="h-4 w-4 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]" />
                 </button>
               </div>
               <p className="text-sm text-[var(--color-muted-foreground)]">
-                Share this link with the person you're inviting. It expires in 7 days.
+                Give this code to the person you're inviting. They can use it to join from their sidebar.
               </p>
               <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3">
-                <span className="flex-1 truncate font-mono text-xs text-[var(--color-foreground)]">{inviteLink}</span>
+                <span className="flex-1 truncate font-mono text-base font-bold tracking-widest text-[var(--color-foreground)]">{inviteCode}</span>
                 <button
                   type="button"
-                  onClick={copyLink}
+                  onClick={copyCode}
                   className="flex items-center gap-1.5 rounded-lg bg-white border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold hover:bg-slate-50 transition"
                 >
-                  {linkCopied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                  {linkCopied ? "Copied!" : "Copy"}
+                  {codeCopied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  {codeCopied ? "Copied!" : "Copy"}
                 </button>
-                <a
-                  href={inviteLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 rounded-lg bg-white border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold hover:bg-slate-50 transition"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
               </div>
               <div className="flex gap-3">
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => { setInviteLink(null); setInviteEmail(""); }}
+                  onClick={() => { setInviteCode(null); setInviteEmail(""); }}
                   className="gap-2"
                 >
                   <UserPlus className="h-4 w-4" />
                   Invite another
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => { setIsInviting(false); setInviteLink(null); }}>
+                <Button type="button" variant="ghost" onClick={() => { setIsInviting(false); setInviteCode(null); }}>
                   Done
                 </Button>
               </div>
@@ -382,11 +374,10 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
                     {invite.token && (
                       <button
                         type="button"
-                        title="Copy invite link"
+                        title="Copy invite code"
                         onClick={() => {
-                          const base = typeof window !== "undefined" ? window.location.origin : "";
-                          navigator.clipboard.writeText(`${base}/invitations/${invite.token}`).then(() => {
-                            toast({ variant: "success", title: "Invite link copied" });
+                          navigator.clipboard.writeText(invite.token).then(() => {
+                            toast({ variant: "success", title: "Invite code copied" });
                           });
                         }}
                         className="rounded-lg p-1.5 text-[var(--color-muted-foreground)] transition hover:bg-slate-100 hover:text-[var(--color-foreground)]"
