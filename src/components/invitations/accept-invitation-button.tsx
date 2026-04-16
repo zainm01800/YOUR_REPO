@@ -1,33 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2, AlertTriangle } from "lucide-react";
+import { acceptInvitation } from "@/lib/actions/invitation-actions";
 
 export function AcceptInvitationButton({ token }: { token: string }) {
-  const [isPending, setIsPending] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  async function handleAccept() {
-    setIsPending(true);
+  function handleAccept() {
     setError(null);
-    try {
-      const res = await fetch("/api/invitations/accept", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        window.location.href = "/dashboard";
-      } else {
-        setError(data.error ?? "Something went wrong.");
-        setIsPending(false);
+    startTransition(async () => {
+      try {
+        const result = await acceptInvitation(token);
+        if (result.success) {
+          window.location.href = "/dashboard";
+        } else {
+          setError(result.error);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An unexpected error occurred.");
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error.");
-      setIsPending(false);
-    }
+    });
   }
 
   return (
