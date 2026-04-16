@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Plus, Building2, Check, UserIcon, ShieldCheck } from "lucide-react";
+import { ChevronDown, Plus, Building2, Check, UserIcon, ShieldCheck, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { setActiveWorkspace } from "@/lib/actions/workspace-actions";
 import { JoinWorkspaceDialog } from "@/components/invitations/join-workspace-dialog";
