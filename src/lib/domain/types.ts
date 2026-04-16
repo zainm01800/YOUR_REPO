@@ -614,6 +614,10 @@ export interface Invitation {
   /** The acceptance token — included for PENDING invites so owners can share the link */
   token?: string;
   expiresAt?: string;
+  workspace?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface SettingsSnapshot {

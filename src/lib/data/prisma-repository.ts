@@ -599,6 +599,10 @@ function toInvitation(i: any): import("@/lib/domain/types").Invitation {
     createdAt: i.createdAt.toISOString(),
     token: i.status === "PENDING" ? i.token : undefined,
     expiresAt: i.expiresAt ? new Date(i.expiresAt).toISOString() : undefined,
+    workspace: i.workspace ? {
+      id: i.workspace.id,
+      name: i.workspace.name,
+    } : undefined,
   };
 }
 

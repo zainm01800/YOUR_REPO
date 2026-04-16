@@ -118,7 +118,7 @@ export function JoinWorkspaceDialog({
                   <Building2 className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-gray-900 tracking-tight">{invitation.workspace.name}</p>
+                  <p className="text-sm font-bold text-gray-900 tracking-tight">{invitation.workspace?.name || "Unknown Workspace"}</p>
                   <p className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider">Joining as {invitation.role}</p>
                 </div>
               </div>
