@@ -1779,6 +1779,70 @@ export const basePrismaRepository: Repository = {
       role: m.role,
     }));
   },
+  async getInvitationByToken(token: string) {
+    const prisma = requirePrisma();
+    const invitation = await prisma.invitation.findUnique({
+      where: { token },
+      include: invitationInclude,
+    });
+    if (!invitation) return null;
+    return toInvitation(invitation);
+  },
+  async acceptInvitation(token: string, userId: string) {
+    const prisma = requirePrisma();
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const invitation = await tx.invitation.findUnique({
+          where: { token },
+          include: { workspace: true },
+        });
+
+        if (!invitation || invitation.status !== "PENDING") {
+          throw new Error("Invitation not found or no longer pending.");
+        }
+
+        if (invitation.expiresAt < new Date()) {
+          await tx.invitation.update({
+            where: { id: invitation.id },
+            data: { status: "EXPIRED" },
+          });
+          throw new Error("Invitation has expired.");
+        }
+
+        // Create membership
+        await tx.membership.upsert({
+          where: {
+            userId_workspaceId: {
+              userId,
+              workspaceId: invitation.workspaceId,
+            },
+          },
+          update: { role: invitation.role },
+          create: {
+            userId,
+            workspaceId: invitation.workspaceId,
+            role: invitation.role,
+          },
+        });
+
+        // Mark invitation as accepted
+        await tx.invitation.update({
+          where: { id: invitation.id },
+          data: {
+            status: "ACCEPTED",
+            acceptedAt: new Date(),
+          },
+        });
+
+        return { success: true, workspaceId: invitation.workspaceId };
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to accept invitation.",
+      };
+    }
+  },
 };
 
 export const prismaRepository = basePrismaRepository;
