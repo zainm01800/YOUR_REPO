@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { getPrismaClient } from "@/lib/data/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Landmark, ShieldCheck, Mail, ArrowRight, AlertTriangle } from "lucide-react";
+import { Landmark, ShieldCheck, Mail, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { acceptInvitation } from "@/lib/actions/invitation-actions";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Owner",
@@ -50,75 +50,7 @@ export default async function InvitationPage(props: { params: Promise<{ token: s
     );
   }
 
-  // Check if already a member
-  const existingMembership = await prisma.membership.findUnique({
-    where: { userId_workspaceId: { userId, workspaceId: invitation.workspaceId } },
-  });
-
-  if (existingMembership) {
-    // Already a member — just switch to that workspace and redirect
-    const cookieStore = await cookies();
-    cookieStore.set("active_workspace_id", invitation.workspaceId, {
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60,
-    });
-    redirect("/dashboard");
-  }
-
-  async function acceptAction() {
-    "use server";
-
-    const { userId: currentUserId } = await auth();
-    if (!currentUserId) redirect("/sign-in");
-
-    const db = getPrismaClient();
-    if (!db) throw new Error("Database not available");
-
-    // Re-fetch invitation fresh (don't rely on closure variables)
-    const inv = await db.invitation.findUnique({ where: { token } });
-
-    if (!inv || inv.status !== "PENDING" || inv.expiresAt < new Date()) {
-      throw new Error("This invitation is no longer valid or has expired.");
-    }
-
-    // Ensure the user record exists in our DB
-    const { currentUser } = await import("@clerk/nextjs/server");
-    const clerkUser = await currentUser();
-    if (!clerkUser) throw new Error("Could not verify your identity. Please refresh and try again.");
-
-    const email = clerkUser.emailAddresses[0]?.emailAddress;
-    if (!email) throw new Error("No email address found on your account.");
-
-    const displayName = `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || email;
-
-    await db.user.upsert({
-      where: { email },
-      update: { name: displayName },
-      create: { id: currentUserId, email, name: displayName, passwordHash: "" },
-    });
-
-    // Create (or update) membership
-    await db.membership.upsert({
-      where: { userId_workspaceId: { userId: currentUserId, workspaceId: inv.workspaceId } },
-      update: { role: inv.role },
-      create: { userId: currentUserId, workspaceId: inv.workspaceId, role: inv.role },
-    });
-
-    // Mark invitation as accepted
-    await db.invitation.update({
-      where: { id: inv.id },
-      data: { status: "ACCEPTED", acceptedAt: new Date() },
-    });
-
-    // Switch to the invited workspace
-    const cookieStore = await cookies();
-    cookieStore.set("active_workspace_id", inv.workspaceId, {
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60,
-    });
-
-    redirect("/dashboard");
-  }
+  const acceptWithToken = acceptInvitation.bind(null, token);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-page)] p-6">
@@ -174,7 +106,7 @@ export default async function InvitationPage(props: { params: Promise<{ token: s
           </div>
 
           <div className="mt-6 flex flex-col gap-3 w-full">
-            <form action={acceptAction}>
+            <form action={acceptWithToken}>
               <Button className="w-full rounded-2xl py-6 text-base font-semibold gap-2 shadow-sm">
                 Accept Invitation
                 <ArrowRight className="h-5 w-5" />
