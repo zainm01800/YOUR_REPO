@@ -486,8 +486,8 @@ export const mockRepository: Repository = {
   async getInvitationByToken(token: string): Promise<Invitation | null> {
     return null;
   },
-  async acceptInvitation(token: string, userId: string) {
-    return { success: true };
+  async acceptInvitation(token: string, userId: string): Promise<{ success: boolean; error?: string; workspaceId?: string }> {
+    return { success: true, workspaceId: "ws_mock" };
   },
 };
 

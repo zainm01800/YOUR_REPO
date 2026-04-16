@@ -376,7 +376,7 @@ export function MemberManager({ memberships: initialMemberships, invitations: in
                         type="button"
                         title="Copy invite code"
                         onClick={() => {
-                          navigator.clipboard.writeText(invite.token).then(() => {
+                          navigator.clipboard.writeText(invite.token as string).then(() => {
                             toast({ variant: "success", title: "Invite code copied" });
                           });
                         }}
