@@ -14,12 +14,18 @@ export function AcceptInvitationButton({ token }: { token: string }) {
   function handleAccept() {
     setError(null);
     startTransition(async () => {
-      const result = await acceptInvitation(token);
-      if (result.success) {
-        router.push("/dashboard");
-        router.refresh();
-      } else {
-        setError(result.error);
+      try {
+        const result = await acceptInvitation(token);
+        if (result.success) {
+          router.push("/dashboard");
+          router.refresh();
+        } else {
+          setError(result.error);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
+        console.error("[AcceptInvitationButton] caught:", err);
+        setError(msg);
       }
     });
   }

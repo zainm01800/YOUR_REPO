@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { getPrismaClient } from "@/lib/data/prisma";
@@ -9,9 +8,11 @@ export async function acceptInvitation(
   token: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { userId } = await auth();
+    const authResult = await auth();
+    const userId = authResult?.userId;
+
     if (!userId) {
-      redirect("/sign-in");
+      return { success: false, error: "You must be signed in to accept an invitation." };
     }
 
     const db = getPrismaClient();
@@ -49,18 +50,15 @@ export async function acceptInvitation(
     const displayName =
       `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || email;
 
-    // Sync user — try by email first, fall back to id
+    // Sync user record — handle all three cases to avoid unique constraint violations
     const existingByEmail = await db.user.findUnique({ where: { email } });
     const existingById = await db.user.findUnique({ where: { id: userId } });
 
     if (existingByEmail) {
-      // Update name only
       await db.user.update({ where: { email }, data: { name: displayName } });
     } else if (existingById) {
-      // User exists by Clerk id but with different email — update email + name
       await db.user.update({ where: { id: userId }, data: { email, name: displayName } });
     } else {
-      // Brand new user
       await db.user.create({
         data: { id: userId, email, name: displayName, passwordHash: "" },
       });
@@ -79,7 +77,7 @@ export async function acceptInvitation(
       data: { status: "ACCEPTED", acceptedAt: new Date() },
     });
 
-    // 5. Switch active workspace
+    // 5. Switch active workspace cookie
     const cookieStore = await cookies();
     cookieStore.set("active_workspace_id", inv.workspaceId, {
       path: "/",
@@ -88,15 +86,9 @@ export async function acceptInvitation(
 
     return { success: true };
   } catch (err) {
-    // Re-throw redirects so Next.js handles them correctly
-    if (
-      err instanceof Error &&
-      (err.message === "NEXT_REDIRECT" || (err as { digest?: string }).digest?.startsWith("NEXT_REDIRECT"))
-    ) {
-      throw err;
-    }
-    console.error("[acceptInvitation] unexpected error:", err);
-    const message = err instanceof Error ? err.message : "An unexpected error occurred.";
-    return { success: false, error: message };
+    const message =
+      err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
+    console.error("[acceptInvitation] error:", message, err);
+    return { success: false, error: `Error: ${message}` };
   }
 }
