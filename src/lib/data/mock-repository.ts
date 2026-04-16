@@ -12,6 +12,7 @@ import type {
   User,
   VatRule,
   Workspace,
+  Invitation,
 } from "@/lib/domain/types";
 import type {
   AttachBankSourceInput,
@@ -481,6 +482,12 @@ export const mockRepository: Repository = {
         role: "owner",
       },
     ];
+  },
+  async getInvitationByToken(token: string): Promise<Invitation | null> {
+    return null;
+  },
+  async acceptInvitation(token: string, userId: string) {
+    return { success: true };
   },
 };
 
