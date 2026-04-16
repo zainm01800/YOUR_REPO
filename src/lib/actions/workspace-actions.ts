@@ -43,7 +43,7 @@ async function requireAdminRepo() {
 export async function inviteUser(
   email: string,
   role: string,
-): Promise<{ success: true; inviteLink: string } | { success: false; error: string }> {
+): Promise<{ success: true; inviteCode: string } | { success: false; error: string }> {
   try {
     const { prisma, workspace } = await requireAdminRepo();
     const repo = await getRepository();
@@ -76,7 +76,13 @@ export async function inviteUser(
       data: { status: "REVOKED" },
     });
 
-    const token = randomBytes(32).toString("hex");
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let randomPart = "";
+    for (let i = 0; i < 8; i++) {
+      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const token = `INV-${randomPart.slice(0, 4)}-${randomPart.slice(4)}`;
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -91,10 +97,7 @@ export async function inviteUser(
       },
     });
 
-    const inviteLink = `${getBaseUrl()}/invitations/${token}`;
-    console.log(`[Invite] ${normalised} → ${inviteLink}`);
-
-    return { success: true, inviteLink };
+    return { success: true, inviteCode: token };
   } catch (err: any) {
     return { success: false, error: err.message ?? "Failed to create invitation." };
   }

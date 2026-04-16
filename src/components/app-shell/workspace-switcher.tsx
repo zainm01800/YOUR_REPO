@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Plus, Building2, Check, UserIcon, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { setActiveWorkspace } from "@/lib/actions/workspace-actions";
+import { JoinWorkspaceDialog } from "@/components/invitations/join-workspace-dialog";
 
 interface WorkspaceInfo {
   id: string;
@@ -21,6 +22,7 @@ export function WorkspaceSwitcher({
   currentWorkspaceId: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [joinDialogOpen, setJoinDialogOpen] = useState(false);
   const router = useRouter();
   const currentWorkspace = workspaces.find((w) => w.id === currentWorkspaceId) || workspaces[0];
 
@@ -129,11 +131,29 @@ export function WorkspaceSwitcher({
                   </div>
                   New Workspace
                 </button>
+
+                <button
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-[var(--color-muted-foreground)] transition hover:bg-slate-50 hover:text-[var(--color-foreground)]"
+                  onClick={() => {
+                    setOpen(false);
+                    setJoinDialogOpen(true);
+                  }}
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50/50 border border-dashed border-indigo-200 text-indigo-500">
+                    <UserPlus className="h-4 w-4" />
+                  </div>
+                  Join Workspace
+                </button>
               </div>
             </div>
           </div>
         </>
       )}
+
+      <JoinWorkspaceDialog 
+        open={joinDialogOpen} 
+        onOpenChange={setJoinDialogOpen} 
+      />
     </div>
   );
 }
