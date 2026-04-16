@@ -2,10 +2,9 @@ import { redirect } from "next/navigation";
 import { getPrismaClient } from "@/lib/data/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Landmark, ShieldCheck, Mail, ArrowRight } from "lucide-react";
+import { Landmark, ShieldCheck, Mail } from "lucide-react";
 import Link from "next/link";
-import { acceptInvitation } from "@/lib/actions/invitation-actions";
+import { AcceptInvitationButton } from "@/components/invitations/accept-invitation-button";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Owner",
@@ -49,8 +48,6 @@ export default async function InvitationPage(props: { params: Promise<{ token: s
       </div>
     );
   }
-
-  const acceptWithToken = acceptInvitation.bind(null, token);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-page)] p-6">
@@ -105,15 +102,9 @@ export default async function InvitationPage(props: { params: Promise<{ token: s
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3 w-full">
-            <form action={acceptWithToken}>
-              <Button className="w-full rounded-2xl py-6 text-base font-semibold gap-2 shadow-sm">
-                Accept Invitation
-                <ArrowRight className="h-5 w-5" />
-              </Button>
-            </form>
-
-            <p className="text-xs text-slate-400 mt-1">
+          <div className="mt-6 w-full">
+            <AcceptInvitationButton token={token} />
+            <p className="text-xs text-slate-400 mt-3">
               Accepting will switch your active workspace to{" "}
               <span className="font-semibold">{invitation.workspace.name}</span>.
             </p>
