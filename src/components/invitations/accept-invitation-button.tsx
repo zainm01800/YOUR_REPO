@@ -3,24 +3,26 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2, AlertTriangle } from "lucide-react";
-import { acceptInvitation } from "@/lib/actions/invitation-actions";
+import { acceptInvitationAction } from "@/app/actions/invitation-actions";
+import { useRouter } from "next/navigation";
 
 export function AcceptInvitationButton({ token }: { token: string }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   function handleAccept() {
     setError(null);
     startTransition(async () => {
       try {
-        const result = await acceptInvitation(token);
+        const result = await acceptInvitationAction(token);
         if (result.success) {
-          window.location.href = "/dashboard";
+          router.push("/dashboard");
         } else {
-          setError(result.error);
+          setError(result.error || "Failed to accept invitation.");
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+        setError("An unexpected error occurred. Please try again.");
       }
     });
   }

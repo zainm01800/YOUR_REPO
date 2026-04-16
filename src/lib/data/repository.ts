@@ -15,6 +15,7 @@ import type {
   User,
   VatRule,
   Workspace,
+  Invitation,
 } from "@/lib/domain/types";
 
 export interface UpsertVatRulesInput {
@@ -115,4 +116,6 @@ export interface Repository {
   updateRun(run: ReconciliationRun): Promise<ReconciliationRun>;
   saveReviewMutation(input: ReviewMutationInput): Promise<ReviewMutationResult>;
   getUserWorkspaces(): Promise<Array<{ id: string; name: string; slug: string; role: string }>>;
+  getInvitationByToken(token: string): Promise<Invitation | null>;
+  acceptInvitation(token: string, userId: string): Promise<{ success: boolean; error?: string }>;
 }

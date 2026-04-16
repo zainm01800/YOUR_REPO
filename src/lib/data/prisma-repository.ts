@@ -140,6 +140,11 @@ type DbDetailedRun = Prisma.ReconciliationRunGetPayload<{ include: typeof detail
 type DbSummaryRun = Prisma.ReconciliationRunGetPayload<{ include: typeof summaryRunInclude }>;
 type DbBankStatusRun = Prisma.ReconciliationRunGetPayload<{ include: typeof bankStatusRunInclude }>;
 
+const invitationInclude = {
+  invitedBy: true,
+  workspace: true,
+} satisfies Prisma.InvitationInclude;
+
 const bankStatementInclude = {
   transactions: true,
 } satisfies Prisma.BankStatementInclude;
@@ -1982,5 +1987,7 @@ export async function createPrismaRepository(
         })),
       }));
     },
+    getInvitationByToken: (token: string) => basePrismaRepository.getInvitationByToken(token),
+    acceptInvitation: (token: string, userId: string) => basePrismaRepository.acceptInvitation(token, userId),
   };
 }
