@@ -214,6 +214,15 @@ async function handlePost(request: Request) {
         }
       } catch (err) {
         console.error(`[runs/route] extractDocumentFromBuffer failed for ${entry.name}:`, err);
+        // Preserve the rejected document for manual review instead of dropping it
+        run.documents.push({
+          id: `doc_rejected_${Date.now()}_${entry.name}`,
+          fileName: entry.name,
+          confidence: 0,
+          rawExtractedText: `Extraction failed: ${String(err)}`,
+          taxLines: [],
+          supplier: "Manual Review Required",
+        });
       }
     }
   }

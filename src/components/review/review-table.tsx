@@ -257,6 +257,38 @@ function getColumnCellContent(
           </span>
         </div>
       );
+    case "matchStatus": {
+      const hasExceptions = row.exceptions && row.exceptions.length > 0;
+      const status = row.matchStatus;
+      
+      let label = "Unknown";
+      let classes = "bg-gray-100 text-gray-700";
+      
+      if (hasExceptions) {
+        label = "Broken";
+        classes = "bg-rose-100 text-rose-700 shadow-[inset_0_0_0_1px_rgba(225,29,72,0.2)]";
+      } else if (status === "matched") {
+        label = "Matched";
+        classes = "bg-emerald-100 text-emerald-700";
+      } else if (status === "probable_match") {
+        label = "Review";
+        classes = "bg-amber-100 text-amber-700";
+      } else if (status === "unmatched") {
+        label = "Warning";
+        classes = "bg-orange-100 text-orange-700";
+      } else if (status === "duplicate_suspected") {
+        label = "Duplicate";
+        classes = "bg-indigo-100 text-indigo-700";
+      }
+
+      return (
+        <div className="flex h-full items-center">
+          <span className={`rounded-xl px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${classes}`}>
+            {label}
+          </span>
+        </div>
+      );
+    }
     default:
       return <div className="flex h-full items-center">{String(displayValue)}</div>;
   }

@@ -81,18 +81,42 @@ function buildBaseExceptions(
   return exceptions;
 }
 
-function detectDuplicateTransactionIds(run: ReconciliationRun): Set<string> {
-  const seen = new Map<string, string>(); // key -> first transactionId
-  const duplicateIds = new Set<string>();
+function getJaccardSimilarity(s1: string, s2: string) {
+  const set1 = new Set(s1.toLowerCase().split(/\s+/));
+  const set2 = new Set(s2.toLowerCase().split(/\s+/));
+  const intersection = new Set([...set1].filter(x => set2.has(x)));
+  const union = new Set([...set1, ...set2]);
+  return intersection.size / union.size;
+}
 
-  for (const tx of run.transactions) {
-    const dateStr = tx.transactionDate ? new Date(tx.transactionDate).toDateString() : "unknown";
-    const key = `${Math.abs(tx.amount).toFixed(2)}_${dateStr}_${(tx.merchant || "").toLowerCase().trim()}`;
-    const existing = seen.get(key);
-    if (existing) {
-      duplicateIds.add(tx.id);
-    } else {
-      seen.set(key, tx.id);
+function detectDuplicateTransactionIds(run: ReconciliationRun): Set<string> {
+  const duplicateIds = new Set<string>();
+  const transactions = run.transactions;
+
+  for (let i = 0; i < transactions.length; i++) {
+    const tx1 = transactions[i];
+    const date1 = tx1.transactionDate ? new Date(tx1.transactionDate).getTime() : 0;
+    const amount1 = Math.abs(tx1.amount);
+    const memo1 = (tx1.merchant || tx1.description || "").toLowerCase().trim();
+
+    for (let j = i + 1; j < transactions.length; j++) {
+      const tx2 = transactions[j];
+      if (duplicateIds.has(tx2.id)) continue;
+
+      const date2 = tx2.transactionDate ? new Date(tx2.transactionDate).getTime() : 0;
+      const amount2 = Math.abs(tx2.amount);
+      const memo2 = (tx2.merchant || tx2.description || "").toLowerCase().trim();
+
+      // Same amount
+      if (Math.abs(amount1 - amount2) < 0.01) {
+        // Same date ± 1 day (86400000 ms)
+        if (Math.abs(date1 - date2) <= 86400000) {
+          // Exact memo match OR Jaccard > 0.6
+          if (memo1 === memo2 || getJaccardSimilarity(memo1, memo2) > 0.6) {
+            duplicateIds.add(tx2.id);
+          }
+        }
+      }
     }
   }
   return duplicateIds;

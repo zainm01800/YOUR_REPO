@@ -1792,7 +1792,7 @@ export const basePrismaRepository: Repository = {
     if (!invitation) return null;
     return toInvitation(invitation);
   },
-  async acceptInvitation(token: string, userId: string) {
+  async acceptInvitation(token: string, userId: string, email: string, name: string) {
     const prisma = requirePrisma();
     try {
       return await prisma.$transaction(async (tx) => {
@@ -1813,7 +1813,14 @@ export const basePrismaRepository: Repository = {
           throw new Error("Invitation has expired.");
         }
 
-        // Create membership
+        // 1. Sync user record first to satisfy foreign key constraints
+        await tx.user.upsert({
+          where: { id: userId },
+          update: { email, name },
+          create: { id: userId, email, name, passwordHash: "" },
+        });
+
+        // 2. Create or update membership
         await tx.membership.upsert({
           where: {
             userId_workspaceId: {
@@ -1829,7 +1836,7 @@ export const basePrismaRepository: Repository = {
           },
         });
 
-        // Mark invitation as accepted
+        // 3. Mark invitation as accepted
         await tx.invitation.update({
           where: { id: invitation.id },
           data: {
@@ -2056,6 +2063,6 @@ export async function createPrismaRepository(
       }));
     },
     getInvitationByToken: (token: string) => basePrismaRepository.getInvitationByToken(token),
-    acceptInvitation: (token: string, userId: string) => basePrismaRepository.acceptInvitation(token, userId),
+    acceptInvitation: (token: string, userId: string, email: string, name: string) => basePrismaRepository.acceptInvitation(token, userId, email, name),
   };
 }

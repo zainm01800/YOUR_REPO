@@ -279,14 +279,14 @@ export function ReviewDetailPanel({
       </Card>
 
       {row.exceptions.length > 0 && (
-        <Card className="space-y-4">
+        <Card className="space-y-4 border-rose-200 bg-rose-50/30">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
-                Exceptions
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-600">
+                Action Required
               </p>
               <h3 className="mt-2 text-xl font-semibold text-[var(--color-foreground)]">
-                {row.exceptions.length} flag{row.exceptions.length !== 1 ? "s" : ""}
+                {row.exceptions.length} resolution{row.exceptions.length !== 1 ? "s" : ""} needed
               </h3>
             </div>
             <button
@@ -299,19 +299,59 @@ export function ReviewDetailPanel({
               {explaining ? "Explaining..." : "Explain with AI"}
             </button>
           </div>
-          <div className="space-y-2">
-            {row.exceptions.map((ex, index) => (
-              <div key={`${ex.code}_${index}`} className="rounded-2xl bg-[var(--color-panel)] px-4 py-3 text-sm">
-                <div className="font-semibold text-[var(--color-foreground)]">{ex.code.replace(/_/g, " ")}</div>
-                <div className="mt-0.5 text-[var(--color-muted-foreground)]">{ex.message}</div>
-              </div>
-            ))}
+          <div className="space-y-3">
+            {row.exceptions.map((ex, index) => {
+              const code = ex.code;
+              return (
+                <div key={`${ex.code}_${index}`} className="overflow-hidden rounded-2xl border border-rose-200 bg-white shadow-sm">
+                  <div className="bg-rose-50 px-4 py-2 border-b border-rose-100 flex items-center justify-between">
+                     <div className="text-[10px] font-black uppercase tracking-widest text-rose-700">{code.replace(/_/g, " ")}</div>
+                  </div>
+                  <div className="px-4 py-3">
+                    <div className="text-sm text-[var(--color-muted-foreground)] mb-4">{ex.message}</div>
+                    
+                    {/* One-click resolution triggers */}
+                    <div className="flex flex-wrap gap-2">
+                      {code === "gross_mismatch" && (
+                        <Button 
+                          size="sm" 
+                          variant="secondary" 
+                          className="h-8 text-xs bg-rose-600 text-white hover:bg-rose-700 border-0"
+                          onClick={() => {
+                            const bankAmount = transaction?.amount || 0;
+                            handleEditField(row.id, "gross", String(bankAmount));
+                          }}
+                        >
+                          Match Gross to Bank
+                        </Button>
+                      )}
+                      {code === "missing_document" && (
+                        <Button 
+                          size="sm" 
+                          variant="secondary" 
+                          className="h-8 text-xs bg-amber-600 text-white hover:bg-amber-700 border-0"
+                          onClick={() => {
+                            // submitMutation(row.id, "no_receipt_required", "true");
+                            onRunMutated?.({ 
+                              rows: rows.map(r => r.id === row.id ? { ...r, noReceiptRequired: true } : r) 
+                            });
+                          }}
+                        >
+                          No Receipt Required
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="h-8 text-xs">Dismiss Flag</Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
           {explanation && (
-            <div className="rounded-2xl border border-[var(--color-accent-soft)] bg-[var(--color-accent-soft)] p-4 text-sm leading-6 text-[var(--color-foreground)]">
+            <div className="rounded-2xl border border-[var(--color-accent-soft)] bg-[var(--color-accent-soft)] p-4 text-sm leading-6 text-[var(--color-foreground)] shadow-sm">
               <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-accent)]">
                 <Sparkles className="h-3 w-3" />
-                AI explanation
+                AI resolution advice
               </div>
               {explanation}
             </div>

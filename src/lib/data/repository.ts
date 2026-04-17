@@ -117,5 +117,5 @@ export interface Repository {
   saveReviewMutation(input: ReviewMutationInput): Promise<ReviewMutationResult>;
   getUserWorkspaces(): Promise<Array<{ id: string; name: string; slug: string; role: string }>>;
   getInvitationByToken(token: string): Promise<Invitation | null>;
-  acceptInvitation(token: string, userId: string): Promise<{ success: boolean; error?: string; workspaceId?: string }>;
+  acceptInvitation(token: string, userId: string, email: string, name: string): Promise<{ success: boolean; error?: string; workspaceId?: string }>;
 }

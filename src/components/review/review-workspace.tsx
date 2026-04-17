@@ -1017,41 +1017,61 @@ export function ReviewWorkspace({
   return (
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
       <div className="min-w-0 overflow-x-hidden space-y-6">
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <div className="text-sm font-medium text-[var(--color-muted-foreground)]">Matched</div>
-            <div className="mt-3 text-4xl font-semibold">{summary.matched}</div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <Card className="md:col-span-3 p-5 flex flex-col gap-4">
+             <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--color-muted-foreground)]">Run Progress</h3>
+                <div className="flex items-center gap-4 text-xs font-semibold">
+                   <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-emerald-500" /> {summary.matched} Matched</div>
+                   <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-rose-500" /> {summary.exceptions} Broken</div>
+                   <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-amber-500" /> {summary.probable} Review</div>
+                </div>
+             </div>
+             <div className="relative h-3 w-full overflow-hidden rounded-full bg-[var(--color-panel)] flex shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
+                <div 
+                  className="h-full bg-emerald-500 transition-all duration-500 ease-out border-r border-white/20" 
+                  style={{ width: `${(summary.matched / totalCount) * 100}%` }} 
+                />
+                <div 
+                  className="h-full bg-rose-500 transition-all duration-500 ease-out border-r border-white/20" 
+                  style={{ width: `${(summary.exceptions / totalCount) * 100}%` }} 
+                />
+                <div 
+                  className="h-full bg-amber-500 transition-all duration-500 ease-out border-r border-white/20" 
+                  style={{ width: `${(summary.probable / totalCount) * 100}%` }} 
+                />
+                <div 
+                  className="h-full bg-orange-400 transition-all duration-500 ease-out" 
+                  style={{ width: `${((summary.unmatched + summary.duplicates) / totalCount) * 100}%` }} 
+                />
+             </div>
+             <div className="flex justify-between text-[10px] text-[var(--color-muted-foreground)] font-bold uppercase">
+                <span>0% Progress</span>
+                <span className="text-emerald-600">{Math.round((summary.matched / totalCount) * 100)}% Matched</span>
+                <span>100%</span>
+             </div>
           </Card>
-          <Card>
-            <div className="text-sm font-medium text-[var(--color-muted-foreground)]">Needs review</div>
-            <div className="mt-3 text-4xl font-semibold">{summary.exceptions}</div>
-          </Card>
-          <Card>
-            <div className="text-sm font-medium text-[var(--color-muted-foreground)]">Duplicates</div>
-            <div className="mt-3 text-4xl font-semibold">{summary.duplicates}</div>
-          </Card>
-          <Card>
-            <div className="text-sm font-medium text-[var(--color-muted-foreground)]">Unmatched</div>
-            <div className="mt-3 text-4xl font-semibold">{summary.unmatched}</div>
+
+          <Card className="flex flex-col justify-between p-5 bg-gradient-to-br from-indigo-50 to-white border-indigo-100 shadow-sm">
+             <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-indigo-900/60 uppercase tracking-widest">Approval</span>
+                <CheckCheck className={`h-4 w-4 ${approvalPct === 100 ? "text-emerald-500" : "text-indigo-400 opacity-40"}`} />
+             </div>
+             <div className="flex items-baseline gap-1 mt-2">
+                <span className="text-3xl font-black text-indigo-950">{approvalPct}%</span>
+                <span className="text-xs font-bold text-indigo-900/40">Approved</span>
+             </div>
+             <Button 
+              size="sm" 
+              variant="outline" 
+              className="mt-4 h-8 rounded-lg border-indigo-200 bg-white text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:bg-indigo-50"
+              disabled={approvalPct === 100 || isLocked}
+              onClick={handleBulkApproveMatched}
+             >
+                Approve Matched ({summary.matched})
+             </Button>
           </Card>
         </div>
-
-        {/* Approval progress bar */}
-        <Card className="space-y-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-[var(--color-muted-foreground)]">Approval progress</span>
-            <span className={`font-semibold ${approvedCount === totalCount && totalCount > 0 ? "text-[var(--color-accent)]" : "text-[var(--color-foreground)]"}`}>
-              {approvedCount} / {totalCount} approved
-              {approvedCount === totalCount && totalCount > 0 && " ✓"}
-            </span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-panel)]">
-            <div
-              className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-500"
-              style={{ width: `${approvalPct}%` }}
-            />
-          </div>
-        </Card>
 
         {/* Locked banner */}
         {isLocked && (

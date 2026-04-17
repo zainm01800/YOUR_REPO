@@ -350,6 +350,8 @@ function StatementGroupLabelPnL({ label }: { label: string }) {
   );
 }
 
+
+
 function PnLBucketRows({
   bucket,
   currency,
@@ -369,6 +371,8 @@ function PnLBucketRows({
           debit={side === "debit" ? formatAmount(line.netAmount, currency) : ""}
           credit={side === "credit" ? formatAmount(line.netAmount, currency) : ""}
           indent={1}
+          disallowedAmount={line.disallowedAmount}
+          currency={currency}
         />
       ))}
       <PnLValueRow
@@ -388,12 +392,16 @@ function PnLValueRow({
   credit,
   emphasis = "normal",
   indent = 0,
+  disallowedAmount = 0,
+  currency = "GBP",
 }: {
   label: string;
   debit: string;
   credit: string;
   emphasis?: "normal" | "subtotal" | "total";
   indent?: number;
+  disallowedAmount?: number;
+  currency?: string;
 }) {
   const rowClass =
     emphasis === "total"
@@ -402,10 +410,22 @@ function PnLValueRow({
         ? "border-t border-[var(--color-foreground)] font-semibold"
         : "border-t border-[var(--color-border)]";
 
+  const hasDisallowed = disallowedAmount > 0;
+
   return (
     <tr className={rowClass}>
       <td className="px-3 py-2 text-sm text-[var(--color-foreground)]">
-        <span style={{ paddingLeft: `${indent * 18}px` }}>{label}</span>
+        <div className="flex items-center gap-2">
+          <span style={{ paddingLeft: `${indent * 18}px` }}>{label}</span>
+          {hasDisallowed && (
+            <div 
+              className="group relative cursor-help"
+              title={`Includes ${formatAmount(disallowedAmount, currency)} of non-allowable expenses (tax add-back).`}
+            >
+              <Info className="h-3 w-3 text-indigo-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+            </div>
+          )}
+        </div>
       </td>
       <td className="px-3 py-2 text-right font-mono text-sm text-[var(--color-foreground)]">
         {debit || "-"}

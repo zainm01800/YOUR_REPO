@@ -47,8 +47,8 @@ export function ExportDownloadPanel({
     }
   }, []);
 
-  async function handleDownload(format: "csv" | "xlsx") {
-    setDownloading(format);
+  async function handleDownload(format: "csv" | "xlsx" | "management_pack") {
+    setDownloading(format as any);
     try {
       const visibleLayout = getVisibleExportLayout(layout);
       const response = await fetch(`/api/runs/${runId}/export`, {
@@ -61,7 +61,7 @@ export function ExportDownloadPanel({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${runId}.${format}`;
+      a.download = format === "management_pack" ? `${runId}-pack.zip` : `${runId}.${format}`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -104,39 +104,60 @@ export function ExportDownloadPanel({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="flex-1">
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          Downloads use the column layout from your active review template.
-          Adjust columns in the Review page → Template tab.
-        </p>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex-1">
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            Standard downloads use the column layout from your active review template.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => handleDownload("csv")}
+            disabled={downloading !== null}
+          >
+            {downloading === "csv" ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            Download CSV
+          </Button>
+          <Button
+            type="button"
+            onClick={() => handleDownload("xlsx")}
+            disabled={downloading !== null}
+          >
+            {downloading === "xlsx" ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+            )}
+            Download Excel
+          </Button>
+        </div>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Button
+
+      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-5 flex items-center justify-between">
+         <div className="space-y-1">
+            <h4 className="text-sm font-bold text-indigo-950">Management Pack</h4>
+            <p className="text-xs text-indigo-900/60">Generate a ZIP archive containing the reconciled ledger, trial balance, and all supporting PDF documents.</p>
+         </div>
+         <Button 
           type="button"
-          variant="secondary"
-          onClick={() => handleDownload("csv")}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+          onClick={() => handleDownload("management_pack")}
           disabled={downloading !== null}
-        >
-          {downloading === "csv" ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="mr-2 h-4 w-4" />
-          )}
-          Download CSV
-        </Button>
-        <Button
-          type="button"
-          onClick={() => handleDownload("xlsx")}
-          disabled={downloading !== null}
-        >
-          {downloading === "xlsx" ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-          )}
-          Download Excel
-        </Button>
+         >
+           {downloading === "management_pack" ? (
+             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+           ) : (
+             <Download className="mr-2 h-4 w-4" />
+           )}
+           Export Management Pack
+         </Button>
       </div>
     </div>
   );

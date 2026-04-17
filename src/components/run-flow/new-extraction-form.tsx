@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import JSZip from "jszip";
-import { createWorker } from "tesseract.js";
 import { AlertCircle, CheckCircle2, LoaderCircle, Upload } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,7 +18,7 @@ function inferMimeType(fileName: string) {
   return "image/jpeg";
 }
 
-async function recogniseImageBatch(
+async function recogniseImageBatchWithWorker(
   files: Array<{ fileName: string; mimeType: string; blob: Blob }>,
   onProgress: (message: string) => void,
 ) {
@@ -27,31 +26,29 @@ async function recogniseImageBatch(
     return [] as ClientExtractedDocumentInput[];
   }
 
-  onProgress(`Preparing OCR for ${files.length} image file${files.length > 1 ? "s" : ""}...`);
-  const worker = await createWorker("eng");
+  return new Promise<ClientExtractedDocumentInput[]>((resolve, reject) => {
+    const worker = new Worker(new URL("../../workers/ocr.worker.ts", import.meta.url));
 
-  try {
-    const extracted: ClientExtractedDocumentInput[] = [];
+    worker.onmessage = (event) => {
+      const { type, message, extracted, error } = event.data;
+      if (type === "progress") {
+        onProgress(message);
+      } else if (type === "success") {
+        worker.terminate();
+        resolve(extracted);
+      } else if (type === "error") {
+        worker.terminate();
+        reject(new Error(error));
+      }
+    };
 
-    for (let index = 0; index < files.length; index += 1) {
-      const file = files[index];
-      onProgress(`Reading ${file.fileName} (${index + 1}/${files.length})...`);
-      const result = await worker.recognize(file.blob);
-      const rawText = result.data.text || "";
-      const conf = typeof result.data.confidence === "number" ? result.data.confidence / 100 : 0.68;
-      extracted.push({
-        fileName: file.fileName,
-        mimeType: file.mimeType,
-        rawExtractedText: rawText,
-        source: "browser_tesseract",
-        confidence: conf,
-      });
-    }
+    worker.onerror = (error) => {
+      worker.terminate();
+      reject(error);
+    };
 
-    return extracted;
-  } finally {
-    await worker.terminate();
-  }
+    worker.postMessage({ files });
+  });
 }
 
 async function collectBrowserOcrDocuments(files: File[], onProgress: (message: string) => void) {
@@ -84,7 +81,7 @@ async function collectBrowserOcrDocuments(files: File[], onProgress: (message: s
     }
   }
 
-  return recogniseImageBatch([...directImages, ...zipImageEntries], onProgress);
+  return recogniseImageBatchWithWorker([...directImages, ...zipImageEntries], onProgress);
 }
 
 export function NewExtractionForm() {

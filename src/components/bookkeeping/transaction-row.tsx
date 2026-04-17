@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { CheckCircle2, Tag } from "lucide-react";
+import { CheckCircle2, Tag, Sparkles } from "lucide-react";
 import {
   ACCOUNT_TYPE_COLORS,
   ACCOUNT_TYPE_LABELS,
@@ -132,8 +132,15 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
             ) : (
               <Tag className="h-3.5 w-3.5 text-[var(--color-muted-foreground)] group-hover:text-[var(--color-accent)]" />
             )}
-            {tx.resolvedCategory ? (
-              <span className="font-medium text-[var(--color-foreground)]">{tx.resolvedCategory}</span>
+            {tx.category ? (
+               <span className="font-medium text-[var(--color-foreground)]">{tx.resolvedCategory}</span>
+            ) : tx.resolvedCategory ? (
+               <div className="flex items-center gap-1.5">
+                  <span className="font-medium text-[var(--color-foreground)]">{tx.resolvedCategory}</span>
+                  <span className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-violet-50 text-[9px] font-bold text-violet-600 ring-1 ring-violet-200 uppercase tracking-tighter">
+                    <Sparkles className="h-2 w-2" /> Auto
+                  </span>
+               </div>
             ) : (
               <span className="italic text-[var(--color-muted-foreground)]">Uncategorised</span>
             )}

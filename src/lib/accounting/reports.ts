@@ -20,6 +20,7 @@ export interface ReportLineItem {
   netAmount: number;
   taxAmount: number;
   vatRecoverableAmount: number;
+  disallowedAmount: number;
 }
 
 export interface ReportSection {
@@ -142,6 +143,7 @@ function buildSection(
               .filter((t) => t.vatRecoverable)
               .reduce((s, t) => s + t.taxAmount, 0),
           ),
+          disallowedAmount: round2(catTxs.reduce((s, t) => s + t.disallowedAmount, 0)),
         }),
       );
       const subtotal = round2(lines.reduce((s, l) => s + l.grossAmount, 0));

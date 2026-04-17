@@ -12,7 +12,10 @@ export async function acceptInvitationAction(token: string) {
   }
 
   const userId = user.id;
-  const result = await basePrismaRepository.acceptInvitation(token, userId);
+  const email = user.emailAddresses[0]?.emailAddress ?? "";
+  const name = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || email;
+
+  const result = await basePrismaRepository.acceptInvitation(token, userId, email, name);
 
   if (result.success && "workspaceId" in result) {
     const cookieStore = await cookies();

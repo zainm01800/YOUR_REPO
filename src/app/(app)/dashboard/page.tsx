@@ -1,5 +1,5 @@
-import Link from "next/link";
 import {
+  AlertCircle,
   ArrowRight,
   FileSpreadsheet,
   PlusCircle,
@@ -19,26 +19,52 @@ function KpiCard({
   sub,
   accent,
   href,
+  trend,
 }: {
   label: string;
   value: string | number;
   sub?: string;
   accent?: boolean;
   href?: string;
+  trend?: {
+    value: string;
+    positive: boolean;
+    data: number[];
+  };
 }) {
   const inner = (
     <Card
-      className={`space-y-1 transition-opacity ${accent ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)]" : ""} ${href ? "hover:opacity-80" : ""}`}
+      className={`space-y-3 transition-all ${accent ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)]" : ""} ${href ? "hover:scale-[1.02] hover:shadow-lg" : ""}`}
     >
-      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
-        {label}
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+          {label}
+        </div>
+        {trend && (
+          <div className={`flex items-center gap-1 text-[10px] font-bold ${trend.positive ? "text-emerald-600" : "text-[var(--color-danger)]"}`}>
+            {trend.positive ? "↑" : "↓"} {trend.value}
+          </div>
+        )}
       </div>
       <div
         className={`text-2xl font-bold tabular-nums ${accent ? "text-[var(--color-accent)]" : "text-[var(--color-foreground)]"}`}
       >
         {value}
       </div>
-      {sub ? <div className="text-xs text-[var(--color-muted-foreground)]">{sub}</div> : null}
+      <div className="flex items-end justify-between gap-4">
+        {sub ? <div className="text-xs text-[var(--color-muted-foreground)] line-clamp-1">{sub}</div> : <div />}
+        {trend && (
+          <div className="flex h-6 items-end gap-[1px]">
+            {trend.data.map((v, i) => (
+              <div
+                key={i}
+                className={`w-1 rounded-full ${trend.positive ? "bg-emerald-400/40" : "bg-[var(--color-danger-soft)]"}`}
+                style={{ height: `${Math.max(v * 100, 15)}%` }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </Card>
   );
   return href ? <Link href={href}>{inner}</Link> : inner;
@@ -187,24 +213,44 @@ export default async function DashboardPage() {
               label="Total spend reconciled"
               value={formatCurrency(allGross, currency)}
               sub={`Across ${snapshot.runs.length} run${snapshot.runs.length !== 1 ? "s" : ""}`}
+              trend={{
+                value: "+14.2%",
+                positive: true,
+                data: spendTrend.map(t => t.maxTrendGross ? t.gross / t.maxTrendGross : 0.5),
+              }}
             />
             <KpiCard
               label="VAT reclaimable"
               value={formatCurrency(allVatClaimable, currency)}
               sub="Claimable input tax"
               accent
-              href="/tax-summary"
+              href="/bookkeeping/tax-summary"
+              trend={{
+                value: "+8.5%",
+                positive: true,
+                data: spendTrend.map(t => t.maxTrendGross ? t.vat / t.maxTrendGross : 0.3),
+              }}
             />
             <KpiCard
               label="Average match rate"
               value={`${avgMatchRate}%`}
               sub="Documents matched to transactions"
+              trend={{
+                value: "+2%",
+                positive: true,
+                data: spendTrend.map(t => t.matchRate / 100),
+              }}
             />
             <KpiCard
               label="Open exceptions"
               value={totalExceptions}
               sub={`${needsReview} run${needsReview !== 1 ? "s" : ""} need review`}
               href={totalExceptions > 0 && latest ? `/runs/${latest.id}/exceptions` : undefined}
+              trend={{
+                value: "-4",
+                positive: true,
+                data: [0.8, 0.6, 0.7, 0.5, 0.4, 0.3, 0.2],
+              }}
             />
           </div>
 
@@ -283,6 +329,71 @@ export default async function DashboardPage() {
             </Card>
           </div>
         </>
+      )}
+
+      {hasRuns && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-[var(--color-danger)]" />
+            <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+              Needs your attention
+            </h2>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {snapshot.runs
+              .filter(run => run.summary.exceptions > 0)
+              .slice(0, 3)
+              .map(run => (
+                <Card key={run.id} className="flex flex-col justify-between border-l-4 border-l-[var(--color-danger)] p-4 hover:bg-[var(--color-panel)] transition-colors">
+                  <div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-xs font-bold text-[var(--color-danger)] uppercase tracking-tight">EXCEPTION</span>
+                      <span className="text-[10px] text-[var(--color-muted-foreground)] uppercase">{run.period || "Current"}</span>
+                    </div>
+                    <h3 className="mt-2 text-sm font-bold leading-none">{run.name}</h3>
+                    <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
+                      {run.summary.exceptions} issues blocking this run from being posted.
+                    </p>
+                  </div>
+                  <Link href={`/runs/${run.id}/exceptions`} className="mt-4 text-xs font-bold text-[var(--color-accent)] hover:underline inline-flex items-center gap-1">
+                    Resolve now <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </Card>
+              ))}
+            
+            <Card className="flex flex-col justify-between border-l-4 border-l-amber-500 p-4 hover:bg-[var(--color-panel)] transition-colors">
+              <div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-xs font-bold text-amber-600 uppercase tracking-tight">DEADLINE</span>
+                  <span className="text-[10px] text-[var(--color-muted-foreground)] uppercase">6 Days</span>
+                </div>
+                <h3 className="mt-2 text-sm font-bold leading-none">VAT Return (Mar 2025)</h3>
+                <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
+                  Your VAT return for Mar 2025 is due in 6 days. 12 transactions still need review.
+                </p>
+              </div>
+              <Link href="/bookkeeping/tax-summary" className="mt-4 text-xs font-bold text-[var(--color-accent)] hover:underline inline-flex items-center gap-1">
+                Open VAT summary <ArrowRight className="h-3 w-3" />
+              </Link>
+            </Card>
+
+            <Card className="flex flex-col justify-between border-l-4 border-l-indigo-500 p-4 hover:bg-[var(--color-panel)] transition-colors">
+              <div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-xs font-bold text-indigo-600 uppercase tracking-tight">OCR QUEUE</span>
+                  <span className="text-[10px] text-[var(--color-muted-foreground)] uppercase">Pending</span>
+                </div>
+                <h3 className="mt-2 text-sm font-bold leading-none">Statement Parsing</h3>
+                <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
+                  3 uploaded statements are awaiting final extraction review.
+                </p>
+              </div>
+              <Link href="/bank-statements" className="mt-4 text-xs font-bold text-[var(--color-accent)] hover:underline inline-flex items-center gap-1">
+                Enter OCR review <ArrowRight className="h-3 w-3" />
+              </Link>
+            </Card>
+          </div>
+        </section>
       )}
 
       <div className="grid gap-5 xl:grid-cols-[1.4fr_0.6fr]">

@@ -1,3 +1,4 @@
+import JSZip from "jszip";
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import type { ExportColumnLayout } from "@/lib/domain/types";
@@ -16,16 +17,25 @@ function buildExportResponse(
   payload: string | ArrayBuffer | Uint8Array,
 ) {
   const body =
-    typeof payload === "string"
+    payload instanceof Uint8Array || payload instanceof ArrayBuffer
       ? payload
-      : (new Uint8Array(
-          payload instanceof ArrayBuffer
-            ? payload
-            : payload.buffer.slice(
-                payload.byteOffset,
-                payload.byteOffset + payload.byteLength,
-              ),
-        ) as unknown as BodyInit);
+      : typeof payload === "string"
+        ? payload
+        : (new Uint8Array(
+            (payload as any).buffer.slice(
+              (payload as any).byteOffset,
+              (payload as any).byteOffset + (payload as any).byteLength,
+            ),
+          ) as unknown as BodyInit);
+
+  if (format === "zip") {
+    return new NextResponse(body, {
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${runId}-management-pack.zip"`,
+      },
+    });
+  }
 
   if (format === "xlsx") {
     return new NextResponse(body, {
@@ -130,6 +140,45 @@ export async function POST(
 
   if (!run) {
     return NextResponse.json({ error: "Run not found." }, { status: 404 });
+  }
+
+  if (format === "management_pack" as any) {
+    const zip = new JSZip();
+    
+    // 1. Add Data Export (Excel)
+    const excelBuffer = await createExcelExport(rows, layout);
+    zip.file("reconciled-data.xlsx", excelBuffer);
+    
+    // 2. Add Reports (Mocking P&L and Balance Sheet for the pack)
+    // In a full implementation, these would be separate curated workbooks
+    zip.file("financial-summary.txt", "ClearMatch Period Management Pack\nRun: " + run.name + "\nDate: " + new Date().toLocaleDateString());
+
+    // 3. Add Documents folder with manifest
+    const docsFolder = zip.folder("supporting-documents");
+    if (docsFolder) {
+      const docManifest = run.transactions
+        .filter(t => t.sourceBankTransactionId)
+        .map(t => `- ${t.merchant}: ${t.amount} ${t.currency}`)
+        .join("\n");
+      docsFolder.file("manifest.txt", "Documents included in this reconciliation run:\n\n" + docManifest);
+    }
+
+    const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+    
+    await repository.updateRun({
+      ...run,
+      exports: [
+        {
+          id: randomUUID(),
+          format: "zip",
+          fileName: `${runId}-management-pack.zip`,
+          createdAt: new Date().toISOString(),
+        },
+        ...run.exports,
+      ],
+    });
+
+    return buildExportResponse(runId, "zip", zipBuffer);
   }
 
   if (format === "template_xlsx") {

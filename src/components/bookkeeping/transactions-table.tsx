@@ -454,26 +454,57 @@ export function TransactionsTable({
       )}
 
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5">
-          <span className="text-sm font-medium text-red-700">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 shadow-sm">
+          <span className="text-sm font-bold text-indigo-700">
             {selected.size} selected
           </span>
-          <button
-            type="button"
-            onClick={handleDeleteSelected}
-            disabled={deleting}
-            className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            {deleting ? "Deleting…" : `Delete ${selected.size}`}
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelected(new Set())}
-            className="text-xs text-red-600 hover:underline"
-          >
-            Clear selection
-          </button>
+          <div className="h-6 w-px bg-indigo-200 mx-1" />
+          
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Bulk Category:</span>
+            <select
+              onChange={async (e) => {
+                const category = e.target.value;
+                if (!category) return;
+                const ids = Array.from(selected);
+                setBulkApplying(true);
+                try {
+                  await bulkUpdateTransactionCategoryAction(ids, category);
+                  const nextOverrides = { ...categoryOverrides };
+                  for (const id of ids) nextOverrides[id] = category;
+                  setCategoryOverrides(nextOverrides);
+                  setSelected(new Set());
+                } finally {
+                  setBulkApplying(false);
+                }
+              }}
+              disabled={bulkApplying}
+              className="h-8 rounded-lg border border-indigo-200 bg-white px-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Choose category…</option>
+              {visibleCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+            {bulkApplying && <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />}
+            <button
+              type="button"
+              onClick={handleDeleteSelected}
+              disabled={deleting || bulkApplying}
+              className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {deleting ? "Deleting…" : `Delete ${selected.size}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 

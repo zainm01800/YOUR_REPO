@@ -34,42 +34,47 @@ interface WorkspaceInfo {
 
 const navigation = [
   {
-    label: "Bookkeeping",
+    label: "Ingest",
+    items: [
+      { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
+      { href: "/ocr-extraction", label: "OCR Extraction", icon: PackageOpen },
+    ],
+  },
+  {
+    label: "Process",
     items: [
       { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
-      { href: "/bookkeeping/spending", label: "Spending", icon: TrendingUp },
-      { href: "/bookkeeping/reports", label: "Reports", icon: BarChart3 },
-      { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
+      { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
+      { href: "/templates", label: "Mapping Templates", icon: LayoutTemplate },
     ],
   },
   {
-    label: "Reconciliation",
+    label: "Reconcile",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
+      { href: "/runs", label: "Reconciliation Runs", icon: FolderOpen },
       { href: "/runs/new", label: "New Recon Run", icon: PlusSquare },
-      { href: "/runs", label: "All Recon Runs", icon: FolderOpen },
-      { href: "/templates", label: "Templates", icon: LayoutTemplate },
     ],
   },
   {
-    label: "OCR Extraction",
+    label: "Report",
     items: [
-      { href: "/ocr-extraction/new", label: "New Extraction", icon: PlusSquare },
-      { href: "/ocr-extraction", label: "All Extractions", icon: FolderOpen },
+      { href: "/bookkeeping/reports", label: "Financial Reports", icon: BarChart3 },
+      { href: "/bookkeeping/tax-summary", label: "VAT & Tax Summary", icon: Calculator },
     ],
   },
   {
-    label: "Export & Output",
+    label: "Deliver",
     items: [
       { href: "/posting-file-builder", label: "Posting File Builder", icon: FileOutput },
       { href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen },
     ],
   },
   {
-    label: "Settings",
+    label: "Configure",
     items: [
-      { href: "/settings", label: "Settings", icon: Settings2 },
+      { href: "/settings", label: "Settings & Members", icon: Settings2 },
+      { href: "/suppliers", label: "Suppliers", icon: Table2 },
     ],
   },
 ];
@@ -194,6 +199,30 @@ export function AppShell({
             <span className="text-sm font-semibold text-[var(--color-foreground)] lg:hidden">
               {appConfig.name}
             </span>
+            {/* Workspace Context Strip */}
+            <div className="hidden lg:flex items-center gap-3 px-4 py-1.5 rounded-2xl bg-white border border-[var(--color-border)] shadow-sm">
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-bold text-[10px]">
+                {workspaceName.slice(0, 2).toUpperCase()}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted-foreground)] leading-none">
+                  Workspace
+                </span>
+                <span className="text-sm font-semibold text-[var(--color-foreground)] leading-tight">
+                  {workspaceName}
+                </span>
+              </div>
+              <div className="h-6 w-px bg-[var(--color-border)] mx-1" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted-foreground)] leading-none">
+                  Period
+                </span>
+                <span className="text-sm font-semibold text-[var(--color-foreground)] leading-tight">
+                  {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+                </span>
+              </div>
+            </div>
+
             <div className="flex items-center gap-3 lg:ml-auto">
               <UserButton />
             </div>
