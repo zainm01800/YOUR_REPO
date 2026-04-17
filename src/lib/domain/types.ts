@@ -97,6 +97,7 @@ export type CategorySection =
   | "Travel & Vehicle"
   | "Office & Admin"
   | "Marketing & Sales"
+  | "Financial / Finance Costs"
   | "Staff & Payroll"
   | "Property & Premises"
   | "Tax & Compliance"
