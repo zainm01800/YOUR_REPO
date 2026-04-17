@@ -217,7 +217,7 @@ export default async function DashboardPage() {
               trend={{
                 value: "+14.2%",
                 positive: true,
-                data: spendTrend.map(t => t.maxTrendGross ? t.gross / t.maxTrendGross : 0.5),
+                data: spendTrend.map(t => maxTrendGross ? t.gross / maxTrendGross : 0.5),
               }}
             />
             <KpiCard
@@ -229,7 +229,7 @@ export default async function DashboardPage() {
               trend={{
                 value: "+8.5%",
                 positive: true,
-                data: spendTrend.map(t => t.maxTrendGross ? t.vat / t.maxTrendGross : 0.3),
+                data: spendTrend.map(t => maxTrendGross ? t.vat / maxTrendGross : 0.3),
               }}
             />
             <KpiCard
