@@ -57,13 +57,18 @@ export default async function BookkeepingReportsPage() {
     settingsSnapshot.workspace.vatRegistered,
   );
   const uncategorised = buildUncategorisedList(allTransactions);
+  const isSoleTrader = settingsSnapshot.workspace.businessType === "sole_trader";
 
   return (
     <>
       <PageHeader
         eyebrow="Bookkeeping"
-        title="Financial reports"
-        description="Review Profit & Loss, Balance Sheet, VAT position, and uncategorised transactions from the same transaction data the bookkeeping workflow uses."
+        title={isSoleTrader ? "Business summary" : "Financial reports"}
+        description={
+          isSoleTrader
+            ? "Review profit, VAT position, and uncategorised transactions in a simpler sole-trader view without the full balance sheet screens."
+            : "Review Profit & Loss, Balance Sheet, VAT position, and uncategorised transactions from the same transaction data the bookkeeping workflow uses."
+        }
       />
 
       <FinancialReports
@@ -72,6 +77,7 @@ export default async function BookkeepingReportsPage() {
         vatReport={vatReport}
         uncategorised={uncategorised}
         currency={settingsSnapshot.workspace.defaultCurrency}
+        businessType={settingsSnapshot.workspace.businessType}
       />
     </>
   );

@@ -62,8 +62,9 @@ export function VatRegistrationCard({
           <div>
             <p className="text-sm font-semibold text-[var(--color-foreground)]">Business type</p>
             <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-              Sole trader mode enables an owner-level small-business tax estimate. General small
-              business mode keeps the page focused on profit and VAT summaries only.
+              Sole trader mode simplifies the app around profit, tax, and everyday bookkeeping,
+              and hides the fuller balance-sheet-style statement screens. General small business
+              mode keeps the broader accounting reporting experience available.
             </p>
           </div>
           <select

@@ -74,13 +74,18 @@ export default async function BookkeepingTaxSummaryPage({
     currency: settingsSnapshot.workspace.defaultCurrency,
     classifiedTransactions: allTransactions,
   });
+  const isSoleTrader = settingsSnapshot.workspace.businessType === "sole_trader";
 
   return (
     <>
       <PageHeader
         eyebrow="Bookkeeping"
         title="Tax summary"
-        description="Practical profit, VAT, and estimated tax figures built from the same categorised bookkeeping data that powers the reports."
+        description={
+          isSoleTrader
+            ? "Practical profit, VAT, and owner-level tax estimates built from the same categorised bookkeeping data that powers the rest of the sole-trader workflow."
+            : "Practical profit, VAT, and estimated tax figures built from the same categorised bookkeeping data that powers the reports."
+        }
       />
 
       <TaxSummary

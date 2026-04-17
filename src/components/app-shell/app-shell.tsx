@@ -9,6 +9,7 @@ import {
   Calculator,
   FileOutput,
   FolderOpen,
+  type LucideIcon,
   LayoutDashboard,
   LayoutTemplate,
   Landmark,
@@ -21,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
+import type { Workspace } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { ToastProvider } from "@/components/ui/toast";
@@ -32,7 +34,19 @@ interface WorkspaceInfo {
   role: string;
 }
 
-const navigation = [
+type NavigationSection = {
+  label: string;
+  items: Array<{
+    href: string;
+    label: string;
+    icon: LucideIcon;
+  }>;
+};
+
+function buildNavigation(businessType: Workspace["businessType"]): NavigationSection[] {
+  const reportsLabel = businessType === "sole_trader" ? "Business Summary" : "Financial Reports";
+
+  return [
   {
     label: "Ingest",
     items: [
@@ -59,7 +73,7 @@ const navigation = [
   {
     label: "Report",
     items: [
-      { href: "/bookkeeping/reports", label: "Financial Reports", icon: BarChart3 },
+      { href: "/bookkeeping/reports", label: reportsLabel, icon: BarChart3 },
       { href: "/bookkeeping/tax-summary", label: "VAT & Tax Summary", icon: Calculator },
     ],
   },
@@ -78,8 +92,19 @@ const navigation = [
     ],
   },
 ];
+}
 
-function NavItems({ currentPath, onNavigate }: { currentPath: string; onNavigate?: () => void }) {
+function NavItems({
+  currentPath,
+  businessType,
+  onNavigate,
+}: {
+  currentPath: string;
+  businessType: Workspace["businessType"];
+  onNavigate?: () => void;
+}) {
+  const navigation = buildNavigation(businessType);
+
   return (
     <nav className="mt-6 space-y-5">
       {navigation.map((section) => (
@@ -126,14 +151,18 @@ export function AppShell({
   workspaceName,
   workspaces,
   currentWorkspaceId,
+  businessType,
 }: {
   children: React.ReactNode;
   workspaceName: string;
   workspaces: WorkspaceInfo[];
   currentWorkspaceId: string;
+  businessType: Workspace["businessType"];
 }) {
   const currentPath = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const businessTypeLabel =
+    businessType === "sole_trader" ? "Sole trader mode" : "Business mode";
 
   const workspaceCard = (
     <div className="mb-4">
@@ -150,7 +179,7 @@ export function AppShell({
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-sidebar)] p-5 lg:block">
         {workspaceCard}
-        <NavItems currentPath={currentPath} />
+        <NavItems currentPath={currentPath} businessType={businessType} />
       </aside>
 
       {/* Mobile overlay */}
@@ -179,7 +208,7 @@ export function AppShell({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <NavItems currentPath={currentPath} onNavigate={() => setMobileOpen(false)} />
+        <NavItems currentPath={currentPath} businessType={businessType} onNavigate={() => setMobileOpen(false)} />
       </aside>
 
       <main className="flex-1 overflow-y-auto">
@@ -219,6 +248,15 @@ export function AppShell({
                 </span>
                 <span className="text-sm font-semibold text-[var(--color-foreground)] leading-tight">
                   {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+                </span>
+              </div>
+              <div className="h-6 w-px bg-[var(--color-border)] mx-1" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted-foreground)] leading-none">
+                  Mode
+                </span>
+                <span className="text-sm font-semibold text-[var(--color-foreground)] leading-tight">
+                  {businessTypeLabel}
                 </span>
               </div>
             </div>

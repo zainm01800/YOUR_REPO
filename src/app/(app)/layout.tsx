@@ -31,6 +31,7 @@ export default async function AuthenticatedLayout({
         workspaceName={workspace.name}
         workspaces={workspaces}
         currentWorkspaceId={workspace.id}
+        businessType={workspace.businessType}
       >
         {children}
       </AppShell>

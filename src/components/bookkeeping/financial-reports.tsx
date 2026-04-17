@@ -21,6 +21,7 @@ import type {
   UncategorisedTransaction,
   VatReport,
 } from "@/lib/accounting/reports";
+import type { Workspace } from "@/lib/domain/types";
 import { TAX_TREATMENT_LABELS } from "@/lib/accounting/classifier";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -722,24 +723,37 @@ export function FinancialReports({
   vatReport,
   uncategorised,
   currency,
+  businessType,
 }: {
   pnl: PnLReport;
   balanceSheet: BalanceSheetReport;
   vatReport: VatReport;
   uncategorised: UncategorisedTransaction[];
   currency: string;
+  businessType: Workspace["businessType"];
 }) {
   const [tab, setTab] = useState<Tab>("pnl");
+  const isSoleTrader = businessType === "sole_trader";
 
   const tabs: Array<{ id: Tab; label: string; badge?: number }> = [
-    { id: "pnl", label: "Profit & Loss" },
-    { id: "balance", label: "Balance Sheet" },
+    { id: "pnl", label: isSoleTrader ? "Profit Summary" : "Profit & Loss" },
     { id: "vat", label: "VAT Summary" },
     { id: "uncategorised", label: "Uncategorised", badge: uncategorised.length || undefined },
   ];
 
+  if (!isSoleTrader) {
+    tabs.splice(1, 0, { id: "balance", label: "Balance Sheet" });
+  }
+
   return (
     <div className="space-y-5">
+      {isSoleTrader ? (
+        <Card className="border-[var(--color-border)] bg-[var(--color-panel)] p-5 text-sm text-[var(--color-muted-foreground)]">
+          Sole trader mode keeps this area focused on profit, VAT, and review-ready bookkeeping totals.
+          Full balance-sheet-style financial statements stay hidden to keep the workflow simpler.
+        </Card>
+      ) : null}
+
       <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-2">
         <div className="flex flex-wrap gap-2">
           {tabs.map((item) => (
@@ -765,7 +779,7 @@ export function FinancialReports({
       </div>
 
       {tab === "pnl" ? <PnLCreditDebitStatement report={pnl} /> : null}
-      {tab === "balance" ? (
+      {tab === "balance" && !isSoleTrader ? (
         <BalanceSheetStatement report={balanceSheet} retainedProfit={pnl.netProfit} />
       ) : null}
       {tab === "vat" ? <VatTab report={vatReport} /> : null}
