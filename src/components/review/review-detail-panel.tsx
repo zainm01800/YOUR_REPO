@@ -37,8 +37,10 @@ export function ReviewDetailPanel({
   runId,
   onRunMutated,
   onEditField,
+  rows,
 }: {
   row: ReviewRow;
+  rows: ReviewRow[];
   run: ReconciliationRun;
   runId: string;
   onRunMutated?: (payload: {

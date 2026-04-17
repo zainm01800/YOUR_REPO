@@ -901,6 +901,7 @@ export function ReviewWorkspace({
       return (
         <ReviewDetailPanel
           row={selectedRow}
+          rows={rows}
           run={{ ...run, documents: runDocuments }}
           runId={run.id}
           onRunMutated={(payload) => {
