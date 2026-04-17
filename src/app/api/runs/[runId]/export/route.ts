@@ -16,17 +16,17 @@ function buildExportResponse(
   format: string,
   payload: string | ArrayBuffer | Uint8Array,
 ) {
-  const body =
-    payload instanceof Uint8Array || payload instanceof ArrayBuffer
+  const body: BodyInit =
+    typeof payload === "string"
       ? payload
-      : typeof payload === "string"
+      : payload instanceof ArrayBuffer
         ? payload
-        : (new Uint8Array(
-            (payload as any).buffer.slice(
-              (payload as any).byteOffset,
-              (payload as any).byteOffset + (payload as any).byteLength,
-            ),
-          ) as unknown as BodyInit);
+        : new Blob([
+            payload.buffer.slice(
+              payload.byteOffset,
+              payload.byteOffset + payload.byteLength,
+            ) as ArrayBuffer,
+          ]);
 
   if (format === "zip") {
     return new NextResponse(body, {
