@@ -22,7 +22,7 @@ export function ExportDownloadPanel({
   /** Compact mode shows just the two buttons side-by-side, no label text */
   compact?: boolean;
 }) {
-  const [downloading, setDownloading] = useState<"csv" | "xlsx" | null>(null);
+  const [downloading, setDownloading] = useState<"csv" | "xlsx" | "management_pack" | null>(null);
   const [layout, setLayout] = useState(defaultExportLayout);
 
   // Derive export layout from saved review template on mount
