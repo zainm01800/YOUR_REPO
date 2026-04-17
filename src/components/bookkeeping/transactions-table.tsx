@@ -28,14 +28,14 @@ interface TransactionRow extends TransactionRecord {
 interface Props {
   transactions: TransactionRow[];
   categoryRules: CategoryRule[];
-  visibleCategories: string[];
+  pickerCategoryRules: CategoryRule[];
   vatRegistered: boolean;
 }
 
 export function TransactionsTable({
   transactions,
   categoryRules,
-  visibleCategories,
+  pickerCategoryRules,
   vatRegistered,
 }: Props) {
   const router = useRouter();
@@ -482,7 +482,9 @@ export function TransactionsTable({
               className="h-8 rounded-lg border border-indigo-200 bg-white px-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Choose category…</option>
-              {visibleCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              {pickerCategoryRules.map((rule) => (
+                <option key={rule.slug} value={rule.category}>{rule.category}</option>
+              ))}
             </select>
           </div>
 
@@ -622,7 +624,7 @@ export function TransactionsTable({
                           setEditValue={setEditValue}
                           handleSaveCategory={handleSaveCategory}
                           handleToggleAllowable={handleToggleAllowable}
-                          visibleCategories={visibleCategories}
+                          categoryOptions={pickerCategoryRules}
                         />
                       ))}
                     </Fragment>

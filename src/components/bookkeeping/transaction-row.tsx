@@ -5,6 +5,7 @@ import {
   ACCOUNT_TYPE_LABELS,
   TAX_TREATMENT_LABELS,
 } from "@/lib/accounting/classifier";
+import type { CategoryRule } from "@/lib/domain/types";
 
 export function fmtAmount(amount: number, currency: string) {
   const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -37,7 +38,7 @@ interface TransactionRowProps {
   setEditValue: (val: string) => void;
   handleSaveCategory: (id: string, newCategory: string) => void;
   handleToggleAllowable: (category: string, currentVal: boolean) => void;
-  visibleCategories: string[];
+  categoryOptions: CategoryRule[];
 }
 
 export const TransactionRowComponent = memo(function TransactionRowComponent({
@@ -52,11 +53,43 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
   setEditValue,
   handleSaveCategory,
   handleToggleAllowable,
-  visibleCategories,
+  categoryOptions,
 }: TransactionRowProps) {
-  const categoryOptions = tx.resolvedCategory && !visibleCategories.includes(tx.resolvedCategory)
-    ? [...visibleCategories, tx.resolvedCategory].sort((a, b) => a.localeCompare(b))
-    : visibleCategories;
+  const optionSections = new Map<string, CategoryRule[]>();
+  for (const rule of categoryOptions) {
+    const existing = optionSections.get(rule.section) ?? [];
+    existing.push(rule);
+    optionSections.set(rule.section, existing);
+  }
+
+  const currentCategoryExists = categoryOptions.some((rule) => rule.category === tx.resolvedCategory);
+  if (tx.resolvedCategory && !currentCategoryExists) {
+    const existing = optionSections.get("Current selection") ?? [];
+    existing.push({
+      id: `current-${tx.id}`,
+      category: tx.resolvedCategory,
+      slug: `current-${tx.id}`,
+      description: "",
+      section: "Other & Special",
+      supplierPattern: "",
+      keywordPattern: "",
+      priority: 9999,
+      accountType: "expense",
+      statementType: "p_and_l",
+      reportingBucket: "Current selection",
+      defaultTaxTreatment: "no_vat",
+      defaultVatRate: 0,
+      defaultVatRecoverable: false,
+      glCode: "",
+      isSystemDefault: false,
+      isActive: true,
+      isVisible: true,
+      allowableForTax: false,
+      allowablePercentage: 0,
+      sortOrder: 9999,
+    });
+    optionSections.set("Current selection", existing);
+  }
 
   return (
     <tr className={`transition ${isSelected ? "bg-red-50" : "hover:bg-[var(--color-accent-soft)]"}`}>
@@ -96,11 +129,17 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
               autoFocus
               value={editValue}
               onChange={(event) => setEditValue(event.target.value)}
-              className="h-7 w-36 rounded-lg border border-[var(--color-accent)] bg-white px-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+              className="h-7 w-48 rounded-lg border border-[var(--color-accent)] bg-white px-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
             >
               <option value="" disabled>Select category…</option>
-              {categoryOptions.map((category) => (
-                <option key={category} value={category}>{category}</option>
+              {Array.from(optionSections.entries()).map(([section, rules]) => (
+                <optgroup key={section} label={section}>
+                  {rules.map((rule) => (
+                    <option key={`${section}-${rule.category}`} value={rule.category}>
+                      {rule.category}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
             <button
