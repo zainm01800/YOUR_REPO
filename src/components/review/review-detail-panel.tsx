@@ -36,6 +36,7 @@ export function ReviewDetailPanel({
   run,
   runId,
   onRunMutated,
+  onEditField,
 }: {
   row: ReviewRow;
   run: ReconciliationRun;
@@ -44,6 +45,7 @@ export function ReviewDetailPanel({
     rows?: ReviewRow[];
     run?: ReconciliationRun | null;
   }) => void;
+  onEditField?: (rowId: string, field: string, value: string) => void;
 }) {
   const [explanation, setExplanation] = useState<string | null>(null);
   const [explaining, setExplaining] = useState(false);
@@ -318,7 +320,7 @@ export function ReviewDetailPanel({
                           className="h-8 text-xs bg-rose-600 text-white hover:bg-rose-700 border-0"
                           onClick={() => {
                             const bankAmount = transaction?.amount || 0;
-                            handleEditField(row.id, "gross", String(bankAmount));
+                            onEditField?.(row.id, "gross", String(bankAmount));
                           }}
                         >
                           Match Gross to Bank

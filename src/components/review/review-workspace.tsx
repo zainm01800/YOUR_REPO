@@ -919,6 +919,7 @@ export function ReviewWorkspace({
               setSelectedRowId(nextSelectedRow.id);
             }
           }}
+          onEditField={handleEditField}
         />
       );
         }
