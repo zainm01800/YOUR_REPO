@@ -2,6 +2,17 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { 
+  Building2, 
+  CreditCard, 
+  ChevronRight, 
+  Download, 
+  Search, 
+  AlertTriangle,
+  FileSpreadsheet,
+  Info,
+  ArrowRight
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import type {
   BalanceSheetReport,
