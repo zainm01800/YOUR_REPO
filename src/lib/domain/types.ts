@@ -382,7 +382,7 @@ export interface ReviewAction {
 
 export interface ExportRecord {
   id: string;
-  format: "csv" | "xlsx";
+  format: "csv" | "xlsx" | "zip";
   fileName: string;
   createdAt: string;
 }
