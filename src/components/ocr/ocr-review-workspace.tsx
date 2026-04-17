@@ -63,7 +63,7 @@ export function OcrReviewWorkspace({ run }: OcrReviewWorkspaceProps) {
         <div className="flex items-center gap-4">
           <Button 
             variant="ghost" 
-            size="icon" 
+            className="w-10 p-0"
             onClick={() => setCurrentIndex(c => Math.max(0, c - 1))}
             disabled={currentIndex === 0}
           >
@@ -74,7 +74,7 @@ export function OcrReviewWorkspace({ run }: OcrReviewWorkspaceProps) {
           </div>
           <Button 
             variant="ghost" 
-            size="icon"
+            className="w-10 p-0"
             onClick={() => setCurrentIndex(c => Math.min(documents.length - 1, c + 1))}
             disabled={currentIndex === documents.length - 1}
           >
@@ -226,7 +226,7 @@ export function OcrReviewWorkspace({ run }: OcrReviewWorkspaceProps) {
           <Card className="p-6">
              <div className="flex items-center justify-between mb-4">
                 <h4 className="text-sm font-bold uppercase tracking-widest text-[var(--color-muted-foreground)]">Tax Breakdown</h4>
-                <Button variant="ghost" size="sm" className="text-xs h-7">+ Add Line</Button>
+                <Button variant="ghost" className="text-xs h-7 px-2">+ Add Line</Button>
              </div>
              <div className="space-y-3">
                 {currentDoc.taxLines.length === 0 ? (
