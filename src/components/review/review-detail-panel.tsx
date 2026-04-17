@@ -312,9 +312,8 @@ export function ReviewDetailPanel({
                     
                     {/* One-click resolution triggers */}
                     <div className="flex flex-wrap gap-2">
-                      {code === "gross_mismatch" && (
+                      {code === "amount_mismatch" && (
                         <Button 
-                          size="sm" 
                           variant="secondary" 
                           className="h-8 text-xs bg-rose-600 text-white hover:bg-rose-700 border-0"
                           onClick={() => {
@@ -325,22 +324,21 @@ export function ReviewDetailPanel({
                           Match Gross to Bank
                         </Button>
                       )}
-                      {code === "missing_document" && (
+                      {code === "missing_receipt" && (
                         <Button 
-                          size="sm" 
                           variant="secondary" 
                           className="h-8 text-xs bg-amber-600 text-white hover:bg-amber-700 border-0"
                           onClick={() => {
                             // submitMutation(row.id, "no_receipt_required", "true");
                             onRunMutated?.({ 
                               rows: rows.map(r => r.id === row.id ? { ...r, noReceiptRequired: true } : r) 
-                            });
+                             });
                           }}
                         >
                           No Receipt Required
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" className="h-8 text-xs">Dismiss Flag</Button>
+                      <Button variant="ghost" className="h-8 text-xs">Dismiss Flag</Button>
                     </div>
                   </div>
                 </div>

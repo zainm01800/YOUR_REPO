@@ -1062,9 +1062,8 @@ export function ReviewWorkspace({
                 <span className="text-xs font-bold text-indigo-900/40">Approved</span>
              </div>
              <Button 
-              size="sm" 
-              variant="outline" 
-              className="mt-4 h-8 rounded-lg border-indigo-200 bg-white text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:bg-indigo-50"
+               variant="outline" 
+               className="mt-4 h-8 rounded-lg border-indigo-200 bg-white text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:bg-indigo-50"
               disabled={approvalPct === 100 || isLocked}
               onClick={handleBulkApproveMatched}
              >
