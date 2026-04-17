@@ -139,11 +139,13 @@ function StatementValueRow({
   current,
   emphasis = "normal",
   indent = 0,
+  tooltip,
 }: {
   label: string;
   current: string;
   emphasis?: "normal" | "subtotal" | "total";
   indent?: number;
+  tooltip?: string;
 }) {
   const rowClass =
     emphasis === "total"
@@ -155,7 +157,14 @@ function StatementValueRow({
   return (
     <tr className={rowClass}>
       <td className="px-3 py-2 text-sm text-[var(--color-foreground)]">
-        <span style={{ paddingLeft: `${indent * 18}px` }}>{label}</span>
+        <div className="flex items-center gap-2">
+          <span style={{ paddingLeft: `${indent * 18}px` }}>{label}</span>
+          {tooltip && (
+            <div className="group relative cursor-help" title={tooltip}>
+              <Info className="h-3 w-3 text-indigo-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+            </div>
+          )}
+        </div>
       </td>
       <td className="px-3 py-2 text-right font-mono text-sm text-[var(--color-foreground)]">
         {current}
@@ -254,6 +263,7 @@ function BalanceSheetStatement({
               label="Retained profit from Profit & Loss"
               current={formatAmount(retainedProfit, report.currency)}
               indent={1}
+              tooltip="Current year net profit carried over from Profit & Loss."
             />
             <StatementValueRow
               label="Total Equity"
