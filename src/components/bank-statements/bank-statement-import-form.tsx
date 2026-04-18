@@ -38,7 +38,7 @@ export function BankStatementImportForm({
     }
 
     try {
-      const parsed = parseTransactionFile(await nextFile.arrayBuffer());
+      const parsed = await parseTransactionFile(await nextFile.arrayBuffer());
       setHeaders(parsed.headers);
       setColumnMappings(detectDefaultMapping(parsed.headers));
       if (!name.trim()) {

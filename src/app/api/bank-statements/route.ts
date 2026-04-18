@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     String(formData.get("columnMappings") || "{}"),
   ) as Record<string, string>;
 
-  const parsed = parseTransactionFile(await statementFile.arrayBuffer());
+  const parsed = await parseTransactionFile(await statementFile.arrayBuffer());
   const mappings =
     Object.keys(columnMappings).length > 0
       ? columnMappings

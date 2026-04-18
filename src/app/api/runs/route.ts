@@ -115,10 +115,11 @@ async function handlePost(request: Request) {
   const selectedTemplate = templates.find((template) => template.id === templateId);
 
   if (transactionFile instanceof File && transactionFile.size > 0) {
+    try {
       const buffer = await transactionFile.arrayBuffer();
       const storageKey = await uploadFile(`runs/${run.id}/${transactionFile.name}`, buffer, transactionFile.type);
       
-      const parsed = parseTransactionFile(buffer);
+      const parsed = await parseTransactionFile(buffer);
       const mapping = selectedTemplate?.columnMappings || detectDefaultMapping(parsed.headers);
       run.previewHeaders = parsed.headers;
       run.savedColumnMappings = mapping;
@@ -145,6 +146,7 @@ async function handlePost(request: Request) {
         document.mimeType,
         document.rawExtractedText ?? "",
         document.confidence ?? 0.68,
+        run.id,
       ),
     ),
   );
@@ -180,6 +182,7 @@ async function handlePost(request: Request) {
               item.fileName,
               item.mimeType,
               item.buffer,
+              run.id,
             );
             run.documents.push(extracted);
           } catch (err) {
@@ -205,6 +208,7 @@ async function handlePost(request: Request) {
           entry.name,
           entry.type,
           await entry.arrayBuffer(),
+          run.id,
         );
 
         if (clientDoc) {
@@ -225,6 +229,7 @@ async function handlePost(request: Request) {
         // Preserve the rejected document for manual review instead of dropping it
         run.documents.push({
           id: `doc_rejected_${Date.now()}_${entry.name}`,
+          runId: run.id,
           fileName: entry.name,
           confidence: 0,
           rawExtractedText: `Extraction failed: ${String(err)}`,

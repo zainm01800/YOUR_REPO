@@ -222,27 +222,33 @@ export default async function DashboardPage() {
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="hover-lift p-5 space-y-3 cursor-pointer group" href="/bank-statements">
-               <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                 <FileSpreadsheet className="h-5 w-5" />
-               </div>
-               <h3 className="font-bold text-sm">Import Statements</h3>
-               <p className="text-xs text-[var(--color-muted-foreground)] leading-snug">Prepare your source data from bank exports or card statements.</p>
-            </Card>
-            <Card className="hover-lift p-5 space-y-3 cursor-pointer group" href="/settings">
-               <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                 <ShieldCheck className="h-5 w-5" />
-               </div>
-               <h3 className="font-bold text-sm">Review VAT Rules</h3>
-               <p className="text-xs text-[var(--color-muted-foreground)] leading-snug">Configure how the system calculates reclaimable tax for your entity.</p>
-            </Card>
-            <Card className="hover-lift p-5 space-y-3 cursor-pointer group" href="/settings?tab=members">
-               <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                 <TrendingUp className="h-5 w-5" />
-               </div>
-               <h3 className="font-bold text-sm">Invite Team</h3>
-               <p className="text-xs text-[var(--color-muted-foreground)] leading-snug">Give your accountant or finance team access to specific tools.</p>
-            </Card>
+            <Link href="/bank-statements" className="block">
+              <Card className="hover-lift p-5 space-y-3 cursor-pointer group h-full">
+                <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <FileSpreadsheet className="h-5 w-5" />
+                </div>
+                <h3 className="font-bold text-sm">Import Statements</h3>
+                <p className="text-xs text-[var(--color-muted-foreground)] leading-snug">Prepare your source data from bank exports or card statements.</p>
+              </Card>
+            </Link>
+            <Link href="/settings" className="block">
+              <Card className="hover-lift p-5 space-y-3 cursor-pointer group h-full">
+                <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <h3 className="font-bold text-sm">Review VAT Rules</h3>
+                <p className="text-xs text-[var(--color-muted-foreground)] leading-snug">Configure how the system calculates reclaimable tax for your entity.</p>
+              </Card>
+            </Link>
+            <Link href="/settings?tab=members" className="block">
+              <Card className="hover-lift p-5 space-y-3 cursor-pointer group h-full">
+                <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <h3 className="font-bold text-sm">Invite Team</h3>
+                <p className="text-xs text-[var(--color-muted-foreground)] leading-snug">Give your accountant or finance team access to specific tools.</p>
+              </Card>
+            </Link>
             <Card className="hover-lift p-5 bg-linear-to-br from-[var(--color-panel)] to-white border-dashed border-2 flex flex-col items-center justify-center text-center">
                <p className="text-xs font-medium text-[var(--color-muted-foreground)]">Need help setting up?</p>
                <Button variant="ghost" className="mt-2 text-xs h-8">View documentation</Button>

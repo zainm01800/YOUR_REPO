@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import type { GlCodeRule, VatRule } from "@/lib/domain/types";
 
 function normalizeHeader(value: string) {
@@ -53,18 +53,33 @@ function toNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function readWorkbookRows(buffer: ArrayBuffer) {
-  const workbook = XLSX.read(Buffer.from(buffer), { type: "buffer" });
-  const firstSheetName = workbook.SheetNames[0];
-  if (!firstSheetName) {
+async function readWorkbookRows(buffer: ArrayBuffer) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) {
     return [];
   }
 
-  const sheet = workbook.Sheets[firstSheetName];
-  return XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-    defval: "",
-    raw: false,
+  const rows: Record<string, unknown>[] = [];
+  const headers: string[] = [];
+
+  worksheet.getRow(1).eachCell((cell, colNumber) => {
+    headers[colNumber - 1] = String(cell.value || "").trim();
   });
+
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const record: Record<string, unknown> = {};
+    headers.forEach((header, index) => {
+      if (!header) return;
+      record[header] = row.getCell(index + 1).value;
+    });
+    rows.push(record);
+  });
+
+  return rows;
 }
 
 function parseLine(line: string) {
@@ -135,8 +150,8 @@ export function parseGlRulesFromText(text: string): GlCodeRule[] {
   return rules.filter((rule): rule is GlCodeRule => Boolean(rule));
 }
 
-export function parseGlRulesFromWorkbook(buffer: ArrayBuffer): GlCodeRule[] {
-  const rows = readWorkbookRows(buffer);
+export async function parseGlRulesFromWorkbook(buffer: ArrayBuffer): Promise<GlCodeRule[]> {
+  const rows = await readWorkbookRows(buffer);
   const rules: Array<GlCodeRule | null> = rows
     .map((record, index) => {
       const glCode = toRequiredString(
@@ -200,8 +215,8 @@ export function parseVatRulesFromText(text: string): VatRule[] {
   return rules.filter((rule): rule is VatRule => Boolean(rule));
 }
 
-export function parseVatRulesFromWorkbook(buffer: ArrayBuffer): VatRule[] {
-  const rows = readWorkbookRows(buffer);
+export async function parseVatRulesFromWorkbook(buffer: ArrayBuffer): Promise<VatRule[]> {
+  const rows = await readWorkbookRows(buffer);
   const rules: Array<VatRule | null> = rows
     .map((record) => {
       const countryCode = toRequiredString(

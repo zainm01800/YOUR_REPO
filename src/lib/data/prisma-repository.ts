@@ -509,6 +509,7 @@ function toDocument(
 ): ExtractedDocument {
   return {
     id: document.id,
+    runId: document.runId,
     fileName: document.fileName,
     supplier: document.supplier || undefined,
     issueDate: toDateOnly(document.issueDate),

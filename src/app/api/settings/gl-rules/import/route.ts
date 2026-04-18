@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const importedRules = [
     ...parseGlRulesFromText(notes),
     ...(file instanceof File && file.size > 0
-      ? parseGlRulesFromWorkbook(await file.arrayBuffer())
+      ? await parseGlRulesFromWorkbook(await file.arrayBuffer())
       : []),
   ];
 

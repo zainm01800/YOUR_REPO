@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     typeof mimeType === "string"
   ) {
     const conf = typeof confidence === "string" && confidence.trim() ? Number(confidence) : 0.68;
-    const extracted = await extractDocumentFromTextWithAI(fileName, mimeType, rawExtractedText, conf);
+    const extracted = await extractDocumentFromTextWithAI(fileName, mimeType, rawExtractedText, conf, "generic");
     return NextResponse.json(extracted);
   }
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   }
 
   const buffer = await file.arrayBuffer();
-  const extracted = await extractDocumentFromBuffer(file.name, file.type || "application/octet-stream", buffer);
+  const extracted = await extractDocumentFromBuffer(file.name, file.type || "application/octet-stream", buffer, "generic");
 
   return NextResponse.json(extracted);
 }

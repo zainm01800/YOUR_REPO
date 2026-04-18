@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import type { TransactionRecord } from "@/lib/domain/types";
 import { slugify } from "@/lib/utils";
 
@@ -27,12 +27,13 @@ function toOptionalString(value: unknown) {
 
 function toDateString(value: unknown): string | undefined {
   if (value === undefined || value === null || value === "") return undefined;
-  // JavaScript Date object (from cellDates: true)
+  // JavaScript Date object
   if (value instanceof Date) {
     return isNaN(value.getTime()) ? undefined : value.toISOString().slice(0, 10);
   }
   // Excel serial date number (days since 1900-01-01, with Excel's leap-year bug offset)
   if (typeof value === "number") {
+    // 25569 is the number of days between 1900-01-01 and 1970-01-01
     const ms = Math.round((value - 25569) * 86400 * 1000);
     const d = new Date(ms);
     return isNaN(d.getTime()) ? undefined : d.toISOString().slice(0, 10);
@@ -60,20 +61,44 @@ function pickFirstRecordValue(
   return undefined;
 }
 
-function toRecords(sheet: XLSX.WorkSheet) {
-  return XLSX.utils.sheet_to_json<Record<string, string | number | undefined>>(
-    sheet,
-    { defval: "" },
-  );
-}
+export async function parseTransactionFile(buffer: ArrayBuffer) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) {
+    return { headers: [], records: [] } satisfies ParsedTransactionFile;
+  }
 
-export function parseTransactionFile(buffer: ArrayBuffer) {
-  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const records = toRecords(sheet);
-  const headers = records.length ? Object.keys(records[0]) : [];
+  const records: Record<string, string | number | undefined>[] = [];
+  const headers: string[] = [];
 
-  return { headers, records } satisfies ParsedTransactionFile;
+  // Get headers from first row
+  worksheet.getRow(1).eachCell((cell, colNumber) => {
+    headers[colNumber - 1] = String(cell.value || "").trim();
+  });
+
+  // Get data from subsequent rows
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return; // skip headers
+    
+    const record: Record<string, string | number | undefined> = {};
+    headers.forEach((header, index) => {
+      if (!header) return;
+      const cell = row.getCell(index + 1);
+      
+      // ExcelJS handles values differently depending on cell type
+      let value: any = cell.value;
+      if (value && typeof value === 'object' && 'result' in value) {
+        value = value.result; // handle formula results
+      }
+
+      record[header] = value === null ? undefined : value;
+    });
+    records.push(record);
+  });
+
+  return { headers: headers.filter(Boolean), records } satisfies ParsedTransactionFile;
 }
 
 export function mapTransactions(

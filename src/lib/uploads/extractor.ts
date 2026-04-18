@@ -643,6 +643,7 @@ function buildDocument(
   fields: AiExtractedFields,
   rawExtractedText: string,
   confidence: number,
+  runId: string,
 ): ExtractedDocument {
   const fallbackTaxLines = parseSummaryTaxLinesFromText(rawExtractedText);
   const taxLines = normaliseTaxLines(
@@ -707,6 +708,7 @@ function buildDocument(
 
   return {
     id: `doc_${fileName.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}_${Date.now()}`,
+    runId,
     fileName,
     supplier:
       fields.supplier?.trim() ||
@@ -737,6 +739,7 @@ function buildRegexOnlyDocument(
   mimeType: string,
   rawText: string,
   confidence: number,
+  runId: string,
 ) {
   const values = findMoneyValues(rawText);
   const net = findExplicitNetSubtotal(rawText);
@@ -767,19 +770,21 @@ function buildRegexOnlyDocument(
     },
     rawText,
     confidence,
+    runId,
   );
 }
 
 export async function extractDocumentFromBuffer(
   fileName: string,
   mimeType: string,
-  buffer: ArrayBuffer,
+  buffer: ArrayBuffer | Buffer,
+  runId: string,
 ): Promise<ExtractedDocument> {
   if (mimeType === "application/pdf") {
     let rawText = "";
 
     try {
-      const parser = new PDFParse({ data: Buffer.from(buffer) });
+      const parser = new PDFParse({ data: Buffer.from(buffer as any) });
       const parsed = await parser.getText();
       rawText = parsed.text ?? "";
       await parser.destroy();
@@ -790,16 +795,16 @@ export async function extractDocumentFromBuffer(
     if (rawText.trim().length >= 20) {
       const ai = await extractWithGroq(rawText);
       if (ai) {
-        return buildDocument(fileName, mimeType, ai, rawText, 0.88);
+        return buildDocument(fileName, mimeType, ai, rawText, 0.88, runId);
       }
-      return buildRegexOnlyDocument(fileName, mimeType, rawText, 0.45);
+      return buildRegexOnlyDocument(fileName, mimeType, rawText, 0.45, runId);
     }
 
     const vision =
-      (await extractWithGeminiVision(buffer, mimeType)) ??
-      (await extractWithGroqVision(buffer, mimeType));
+      (await extractWithGeminiVision(buffer as any, mimeType)) ??
+      (await extractWithGroqVision(buffer as any, mimeType));
     if (vision) {
-      return buildDocument(fileName, mimeType, vision, "", 0.85);
+      return buildDocument(fileName, mimeType, vision, "", 0.85, runId);
     }
 
     return buildDocument(
@@ -808,14 +813,15 @@ export async function extractDocumentFromBuffer(
       { supplier: null, issueDate: null, gross: null, net: null, vat: null, currency: null, taxLines: [] },
       "",
       0.2,
+      runId,
     );
   }
 
   const vision =
-    (await extractWithGeminiVision(buffer, mimeType)) ??
-    (await extractWithGroqVision(buffer, mimeType));
+    (await extractWithGeminiVision(buffer as any, mimeType)) ??
+    (await extractWithGroqVision(buffer as any, mimeType));
   if (vision) {
-    return buildDocument(fileName, mimeType, vision, "", 0.9);
+    return buildDocument(fileName, mimeType, vision, "", 0.9, runId);
   }
 
   return buildDocument(
@@ -824,6 +830,7 @@ export async function extractDocumentFromBuffer(
     { supplier: null, issueDate: null, gross: null, net: null, vat: null, currency: null, taxLines: [] },
     "",
     0.2,
+    runId,
   );
 }
 
@@ -832,6 +839,7 @@ export async function extractDocumentFromTextWithAI(
   mimeType: string,
   rawText: string,
   confidence: number,
+  runId: string,
 ): Promise<ExtractedDocument> {
   console.log(`[extractor] ${fileName} | chars=${rawText.length} | conf=${confidence.toFixed(2)}`);
   if (rawText.length > 0) {
@@ -841,21 +849,23 @@ export async function extractDocumentFromTextWithAI(
   const ai = await extractWithGroq(rawText);
   if (ai) {
     console.log(`[extractor] Groq result for ${fileName}:`, JSON.stringify(ai));
-    return buildDocument(fileName, mimeType, ai, rawText, Math.max(confidence, 0.82));
+    return buildDocument(fileName, mimeType, ai, rawText, Math.max(confidence, 0.82), runId);
   }
 
-  const doc = buildRegexOnlyDocument(fileName, mimeType, rawText, confidence);
+  const doc = buildRegexOnlyDocument(fileName, mimeType, rawText, confidence, runId);
   console.log(`[extractor] regex result for ${fileName}: gross=${doc.gross} net=${doc.net} vat=${doc.vat}`);
   return doc;
 }
 
 export function extractDocumentFromClientPayload(
   input: ClientExtractedDocumentInput,
+  runId: string,
 ): ExtractedDocument {
   return buildRegexOnlyDocument(
     input.fileName,
     input.mimeType,
     input.rawExtractedText ?? "",
     input.confidence ?? 0.4,
+    runId,
   );
 }

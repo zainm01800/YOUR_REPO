@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const importedRules = [
     ...parseVatRulesFromText(notes),
     ...(file instanceof File && file.size > 0
-      ? parseVatRulesFromWorkbook(await file.arrayBuffer())
+      ? await parseVatRulesFromWorkbook(await file.arrayBuffer())
       : []),
   ];
 

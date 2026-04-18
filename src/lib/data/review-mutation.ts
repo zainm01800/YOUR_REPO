@@ -420,6 +420,7 @@ export function applyReviewMutationToRun(
             : [];
         const createdDocument: ReconciliationRun["documents"][number] = {
           id: `doc_manual_${Date.now()}_${index}`,
+          runId: run.id,
           fileName: incomingDocument.fileName || `upload_${index + 1}`,
           supplier: incomingDocument.supplier || transaction.merchant,
           issueDate: incomingDocument.issueDate || transaction.transactionDate,

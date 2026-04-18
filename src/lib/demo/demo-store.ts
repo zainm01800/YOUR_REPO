@@ -505,6 +505,7 @@ const run: ReconciliationRun = {
   documents: [
     {
       id: "doc_uber",
+      runId: "run_april_close",
       fileName: "uber-client-visit.pdf",
       supplier: "Uber",
       issueDate: "2026-04-02",
@@ -533,6 +534,7 @@ const run: ReconciliationRun = {
     },
     {
       id: "doc_costa",
+      runId: "run_april_close",
       fileName: "costa-02-apr.jpg",
       supplier: "Costa Coffee",
       issueDate: "2026-04-02",
@@ -561,6 +563,7 @@ const run: ReconciliationRun = {
     },
     {
       id: "doc_aws",
+      runId: "run_april_close",
       fileName: "aws-april-invoice.pdf",
       supplier: "Amazon Web Services",
       issueDate: "2026-04-03",
@@ -589,6 +592,7 @@ const run: ReconciliationRun = {
     },
     {
       id: "doc_hotel_a",
+      runId: "run_april_close",
       fileName: "harbour-hotel-948.pdf",
       supplier: "Harbour Hotel",
       issueDate: "2026-04-05",
@@ -617,6 +621,7 @@ const run: ReconciliationRun = {
     },
     {
       id: "doc_hotel_b",
+      runId: "run_april_close",
       fileName: "harbour-hotel-copy.png",
       supplier: "Harbour Hotel",
       issueDate: "2026-04-05",
