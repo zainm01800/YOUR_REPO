@@ -10,6 +10,7 @@ import {
   updateCategoryAllowabilityAction,
   deleteTransactionsAction,
   createMerchantRuleAction,
+  saveAiLearnedRulesAction,
 } from "@/app/actions/bookkeeping";
 import {
   buildCategoryRuleMap,
@@ -23,18 +24,76 @@ interface TransactionRow extends TransactionRecord {
 }
 
 /**
- * Strips trailing reference codes / payment-processor suffixes so that
- * "PayPal *JANE DOE" and "PayPal *JOHN DOE" both normalise to "paypal",
- * and "Uber Trip 123456" matches "Uber Trip 789012".
+ * Words that appear constantly across unrelated bank statement entries
+ * and carry zero identifying signal.
+ */
+const NOISE_TOKENS = new Set([
+  // Transfer types
+  "bacs", "chaps", "faster", "payment", "payments", "transfer", "direct",
+  "debit", "credit", "standing", "order", "refund", "receipt", "salary",
+  // Prepositions / connectives that end up in descriptions
+  "from", "via", "for", "ref", "reference", "invoice", "number", "date",
+  // Corporate suffixes
+  "ltd", "limited", "plc", "inc", "llp", "llc", "corp", "group", "services",
+  // Country noise
+  "uk", "gb", "eur", "europe",
+  // Misc
+  "the", "and",
+]);
+
+/**
+ * Breaks a merchant / description string into meaningful identifier tokens.
+ * Pure numbers and short/noise words are excluded. What remains is the
+ * "fingerprint" words that actually identify the counterparty.
+ *
+ * Examples:
+ *   "FASTER PAYMENT FROM JOHN SMITH"  → ["john", "smith"]
+ *   "JOHN SMITH REF 123456"           → ["john", "smith"]
+ *   "BACS JOHN SMITH"                 → ["john", "smith"]
+ *   "PayPal *JANE DOE"                → ["paypal", "jane"]
+ *   "AMAZON MARKETPLACE UK"           → ["amazon", "marketplace"]
+ */
+function merchantTokens(s: string): Set<string> {
+  const words = s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ") // strip punctuation
+    .split(/\s+/)
+    .filter(
+      (t) =>
+        t.length >= 4 &&        // at least 4 chars
+        !/^\d+$/.test(t) &&     // not a pure number
+        !NOISE_TOKENS.has(t),   // not a noise word
+    );
+  return new Set(words);
+}
+
+/**
+ * Returns the number of shared identifier tokens between two strings.
+ * > 0 means at least one meaningful word (person name, company name, etc.)
+ * is the same → strong signal that they're the same counterparty.
+ */
+function sharedTokenCount(a: string, b: string): number {
+  const ta = merchantTokens(a);
+  const tb = merchantTokens(b);
+  let shared = 0;
+  for (const token of ta) {
+    if (tb.has(token)) shared++;
+  }
+  return shared;
+}
+
+/**
+ * Used only for the "Remember for future" rule — returns the most compact
+ * clean name for a merchant by stripping payment-processor artifacts.
  */
 function normalizeMerchant(s: string): string {
   return s
     .toLowerCase()
     .trim()
-    .replace(/\s*\*\s*.+$/, "")        // "PayPal *MERCHANT" → "paypal"
-    .replace(/\s+[a-z0-9]{6,}$/i, "") // trailing alphanumeric ref codes
-    .replace(/\s+#[\w-]+$/i, "")      // trailing #REF123
-    .replace(/\s+\d{4,}$/i, "")       // trailing 4+ digit numbers
+    .replace(/\s*\*\s*.+$/, "")         // "PayPal *MERCHANT" → "paypal"
+    .replace(/\s+[a-z0-9]{6,}$/i, "")  // trailing alphanumeric ref codes
+    .replace(/\s+#[\w-]+$/i, "")       // trailing #REF123
+    .replace(/\s+\d{4,}$/i, "")        // trailing 4+ digit numbers
     .trim();
 }
 
@@ -43,6 +102,7 @@ interface Props {
   categoryRules: CategoryRule[];
   pickerCategoryRules: CategoryRule[];
   vatRegistered: boolean;
+  canUseAi?: boolean;
 }
 
 export function TransactionsTable({
@@ -50,6 +110,7 @@ export function TransactionsTable({
   categoryRules,
   pickerCategoryRules,
   vatRegistered,
+  canUseAi = false,
 }: Props) {
   const [localTransactions, setLocalTransactions] = useState(transactions);
   const [search, setSearch] = useState("");
@@ -72,6 +133,7 @@ export function TransactionsTable({
     originalTxId: string;
     category: string;
     merchantName: string;
+    merchantDesc: string;
     matches: TransactionRow[];
   } | null>(null);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
@@ -190,25 +252,20 @@ export function TransactionsTable({
       setSavedId(txId);
       setTimeout(() => setSavedId((id) => (id === txId ? null : id)), 2000);
 
-      // Similarity check logic — uses normalised merchant matching so that
-      // "PayPal *JANE DOE" correctly matches "PayPal *JOHN DOE" etc.
+      // Similarity check — token overlap across merchant + description so that
+      // "FASTER PAYMENT FROM JOHN SMITH", "BACS JOHN SMITH REF123", and
+      // "JOHN SMITH PAYMENT" all match each other via shared tokens ["john","smith"].
       const sourceTx = rowsWithCategory.find((t) => t.id === txId);
       if (sourceTx) {
-        const normalSource = normalizeMerchant(sourceTx.merchant);
-        const sourceDesc = sourceTx.description.toLowerCase().trim();
+        // Combine merchant + description for richer token extraction
+        const sourceText = `${sourceTx.merchant} ${sourceTx.description}`;
 
         const similar = rowsWithCategory.filter((tx) => {
           if (tx.id === txId) return false;
           if (tx.resolvedCategory === newCategory) return false;
 
-          const normalTx = normalizeMerchant(tx.merchant);
-          const td = tx.description.toLowerCase().trim();
-
-          // Match on normalised merchant name (primary) or exact description (fallback)
-          const merchantMatch = normalSource.length >= 2 && normalTx === normalSource;
-          const descMatch = sourceDesc.length >= 4 && td === sourceDesc;
-
-          return merchantMatch || descMatch;
+          const txText = `${tx.merchant} ${tx.description}`;
+          return sharedTokenCount(sourceText, txText) > 0;
         });
 
         if (similar.length > 0) {
@@ -216,6 +273,7 @@ export function TransactionsTable({
             originalTxId: txId,
             category: newCategory,
             merchantName: sourceTx.merchant,
+            merchantDesc: sourceTx.description,
             matches: similar,
           });
           setBulkSelectedIds(new Set(similar.map((t) => t.id)));
@@ -246,11 +304,18 @@ export function TransactionsTable({
         tasks.push(bulkUpdateTransactionCategoryAction(idsToUpdate, bulkPrompt.category));
       }
 
-      // Optionally save a merchant → category rule for future imports
+      // Optionally save a merchant → category rule for future imports.
+      // Build the pattern from the shared tokens so it fires on any variant
+      // of the merchant name (e.g. "john smith" catches all BACS/FP variants).
       if (rememberRule && bulkPrompt.merchantName) {
-        // Normalise so we store the clean root name (e.g. "PayPal" not "PayPal *JANE DOE")
+        const tokens = Array.from(
+          merchantTokens(`${bulkPrompt.merchantName} ${bulkPrompt.merchantDesc ?? ""}`),
+        );
+        // Use tokens as the rule name if we have them; fall back to normalised string
         const cleanMerchant =
-          normalizeMerchant(bulkPrompt.merchantName) || bulkPrompt.merchantName;
+          tokens.length > 0
+            ? tokens.slice(0, 3).join(" ") // e.g. "john smith"
+            : normalizeMerchant(bulkPrompt.merchantName) || bulkPrompt.merchantName;
         tasks.push(createMerchantRuleAction(cleanMerchant, bulkPrompt.category));
       }
 
@@ -334,14 +399,21 @@ export function TransactionsTable({
         return;
       }
 
-      // Parallel apply via bulk server action
-      const validIds = validResults.map(r => r.id);
-      
-      await Promise.allSettled(
-        validResults.map(async (r) => {
-          await updateTransactionCategoryAction(r.id, r.category);
-        })
-      );
+      // Apply categories + save learned rules in parallel
+      const payloadById = new Map(payload.map((p) => [p.id, p]));
+
+      await Promise.allSettled([
+        // Persist each category to the DB
+        ...validResults.map((r) => updateTransactionCategoryAction(r.id, r.category)),
+        // Save AI results as learned rules so future imports skip the AI entirely
+        saveAiLearnedRulesAction(
+          validResults.map((r) => ({
+            merchant: payloadById.get(r.id)?.merchant ?? "",
+            description: payloadById.get(r.id)?.description ?? "",
+            category: r.category!,
+          })),
+        ),
+      ]);
 
       // Update UI optimistically
       const newOverrides = { ...categoryOverrides };
@@ -451,9 +523,9 @@ export function TransactionsTable({
           </button>
         </div>
 
-        {/* AI Categorise Button */}
+        {/* AI Categorise Button — owner/admin only */}
         <div className="ml-auto">
-          {filtered.some((tx) => !tx.resolvedCategory || tx.resolvedCategory === "Uncategorised") && (
+          {canUseAi && filtered.some((tx) => !tx.resolvedCategory || tx.resolvedCategory === "Uncategorised") && (
             <button
               type="button"
               onClick={handleAiCategorise}
@@ -765,12 +837,18 @@ export function TransactionsTable({
                     Remember for future imports
                   </p>
                   <p className="text-xs text-indigo-600">
-                    Automatically categorise{" "}
+                    Automatically categorise transactions containing{" "}
                     <span className="font-medium">
-                      {normalizeMerchant(bulkPrompt.merchantName) || bulkPrompt.merchantName}
+                      {(() => {
+                        const tokens = Array.from(
+                          merchantTokens(`${bulkPrompt.merchantName} ${bulkPrompt.merchantDesc ?? ""}`),
+                        );
+                        return tokens.length > 0
+                          ? tokens.slice(0, 3).join(" ")
+                          : normalizeMerchant(bulkPrompt.merchantName) || bulkPrompt.merchantName;
+                      })()}
                     </span>{" "}
-                    as <span className="font-medium">{bulkPrompt.category}</span> whenever new bank
-                    statements are imported.
+                    as <span className="font-medium">{bulkPrompt.category}</span> on future imports.
                   </p>
                 </div>
               </label>

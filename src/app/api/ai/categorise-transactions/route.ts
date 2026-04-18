@@ -28,8 +28,8 @@ Rules:
 
 export async function POST(req: NextRequest) {
   try {
-    const { transactions } = (await req.json()) as { 
-      transactions?: { id: string; merchant: string; description: string }[] 
+    const { transactions } = (await req.json()) as {
+      transactions?: { id: string; merchant: string; description: string }[]
     };
 
     if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
@@ -42,7 +42,21 @@ export async function POST(req: NextRequest) {
     }
 
     const repository = await getRepository();
-    const settings = await repository.getSettingsSnapshot();
+
+    // AI categorisation is restricted to owner / admin roles
+    const [settings, currentUser] = await Promise.all([
+      repository.getSettingsSnapshot(),
+      repository.getCurrentUser(),
+    ]);
+    const currentMembership = settings.memberships.find((m) => m.userId === currentUser.id);
+    const isOwnerOrAdmin =
+      currentMembership?.role === "owner" || currentMembership?.role === "admin";
+    if (!isOwnerOrAdmin) {
+      return NextResponse.json(
+        { error: "AI categorisation is only available to workspace owners and admins." },
+        { status: 403 },
+      );
+    }
     
     // Get visible categories
     const validCategories = settings.categoryRules

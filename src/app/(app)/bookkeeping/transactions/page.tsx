@@ -6,8 +6,9 @@ import { TransactionsTable } from "@/components/bookkeeping/transactions-table";
 
 export default async function BookkeepingTransactionsPage() {
   const repository = await getRepository();
-  const [settingsSnapshot, runsResult, unassignedBankTransactionsResult] = await Promise.all([
+  const [settingsSnapshot, currentUser, runsResult, unassignedBankTransactionsResult] = await Promise.all([
     repository.getSettingsSnapshot(),
+    repository.getCurrentUser(),
     repository.getRunsWithTransactions().catch((error) => {
       console.error("[bookkeeping/transactions] failed to load runs with transactions:", error);
       return [];
@@ -17,6 +18,13 @@ export default async function BookkeepingTransactionsPage() {
       return [];
     }),
   ]);
+
+  // AI categorisation is restricted to owner / admin only
+  const currentMembership = settingsSnapshot.memberships.find(
+    (m) => m.userId === currentUser.id,
+  );
+  const canUseAi =
+    currentMembership?.role === "owner" || currentMembership?.role === "admin";
   const runs = runsResult;
   const unassignedBankTransactions = unassignedBankTransactionsResult;
   const categoryRuleMap = buildCategoryRuleMap(settingsSnapshot.categoryRules);
@@ -167,6 +175,7 @@ export default async function BookkeepingTransactionsPage() {
           categoryRules={settingsSnapshot.categoryRules}
           pickerCategoryRules={pickerCategoryRules}
           vatRegistered={settingsSnapshot.workspace.vatRegistered}
+          canUseAi={canUseAi}
         />
       )}
     </>

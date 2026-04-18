@@ -66,14 +66,59 @@ export async function deleteTransactionsAction(ids: string[]) {
   revalidatePath("/bookkeeping/tax-summary");
 }
 
+// ─── Noise words that carry no identifying signal in merchant/description strings ───
+const NOISE_TOKENS_SERVER = new Set([
+  "bacs", "chaps", "faster", "payment", "payments", "transfer", "direct",
+  "debit", "credit", "standing", "order", "refund", "receipt", "salary",
+  "from", "via", "for", "ref", "reference", "invoice", "number", "date",
+  "ltd", "limited", "plc", "inc", "llp", "llc", "corp", "group", "services",
+  "uk", "gb", "eur", "europe", "the", "and",
+]);
+
+/**
+ * Extracts meaningful identifier tokens (4+ chars, non-numeric, non-noise)
+ * from a merchant/description string. Used to build supplier patterns.
+ */
+function extractTokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(
+      (t) =>
+        t.length >= 4 &&
+        !/^\d+$/.test(t) &&
+        !NOISE_TOKENS_SERVER.has(t),
+    );
+}
+
+/**
+ * Builds a regex supplierPattern from a set of identifier tokens.
+ * Uses lookaheads so ALL tokens must be present (in any order):
+ *   ["john", "smith"]  →  "(?=.*john)(?=.*smith)"
+ *   ["amazon"]         →  "amazon"
+ *
+ * This means "JOHN SMITH REF001" and "BACS JOHN SMITH" both match,
+ * but "JOHN DOE" (no "smith") does not.
+ */
+function buildSupplierPattern(tokens: string[]): string {
+  if (tokens.length === 0) return "";
+  if (tokens.length === 1) return tokens[0];
+  return tokens.map((t) => `(?=.*${t})`).join("");
+}
+
 /**
  * Creates a learned merchant→category rule so that future imports automatically
  * categorise transactions from this merchant.
  *
- * The rule is stored as a CategoryRule with supplierPattern = escaped merchant
- * name and high priority (5) so it fires before keyword rules.
+ * The rule is stored as a CategoryRule with a token-based supplierPattern at
+ * priority 5 so it fires before keyword/system rules.
  */
-export async function createMerchantRuleAction(merchantName: string, category: string) {
+export async function createMerchantRuleAction(
+  merchantName: string,
+  category: string,
+  description = "",
+) {
   if (!merchantName.trim() || !category.trim()) return;
 
   const repository = await getRepository();
@@ -83,42 +128,112 @@ export async function createMerchantRuleAction(merchantName: string, category: s
   const baseRule = rules.find((r) => r.category === category);
   if (!baseRule) throw new Error(`Category "${category}" not found`);
 
-  // Escape the merchant name so it works as a regex supplierPattern
-  const escaped = merchantName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const tokens = extractTokens(`${merchantName} ${description}`);
+  if (tokens.length === 0) return; // nothing meaningful to learn
 
-  // Don't create a duplicate
-  const alreadyExists = rules.some(
-    (r) =>
-      r.supplierPattern === escaped ||
-      r.supplierPattern === `^${escaped}` ||
-      // Exact case-insensitive match against existing patterns
-      (r.supplierPattern &&
-        new RegExp(r.supplierPattern, "i").test(merchantName) &&
-        r.category === category),
-  );
+  const pattern = buildSupplierPattern(tokens);
+
+  // Don't create a duplicate pattern for the same category
+  const alreadyExists = rules.some((r) => {
+    if (!r.supplierPattern) return false;
+    try {
+      return (
+        r.supplierPattern === pattern ||
+        (r.category === category &&
+          new RegExp(r.supplierPattern, "i").test(merchantName))
+      );
+    } catch {
+      return false;
+    }
+  });
   if (alreadyExists) return;
 
-  const slug = `learned-${merchantName
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .slice(0, 40)}-${Date.now()}`;
+  const slug = `learned-${tokens.slice(0, 3).join("-").slice(0, 40)}-${Date.now()}`;
 
   const newRule = {
     ...baseRule,
     id: randomUUID(),
     slug,
-    supplierPattern: escaped,
+    supplierPattern: pattern,
     keywordPattern: undefined,
-    priority: 5, // high priority — fires before keyword rules
+    priority: 5,
     isSystemDefault: false,
     isActive: true,
     isVisible: true,
-    description: `Auto-learned: ${merchantName}`,
+    description: `Auto-learned: ${tokens.slice(0, 3).join(" ")}`,
     sortOrder: baseRule.sortOrder - 1,
   };
 
   await repository.replaceAllCategoryRules({ rules: [...rules, newRule] });
+
+  revalidatePath("/bookkeeping/transactions");
+  revalidatePath("/settings");
+}
+
+/**
+ * Batch-saves AI categorisation results as learned rules.
+ * Called automatically after every successful AI run so future imports
+ * don't need to hit the AI API for already-known merchants.
+ *
+ * Rules are created at priority 20 (lower urgency than manual-learned=5,
+ * higher than system keyword rules=100). Duplicates and low-confidence
+ * results (null category) are silently skipped.
+ */
+export async function saveAiLearnedRulesAction(
+  results: { merchant: string; description: string; category: string }[],
+) {
+  if (results.length === 0) return;
+
+  const repository = await getRepository();
+  const rules = await repository.getCategoryRules();
+
+  const newRules = [...rules];
+  let added = 0;
+
+  for (const result of results) {
+    if (!result.category || !result.merchant) continue;
+
+    const baseRule = rules.find((r) => r.category === result.category);
+    if (!baseRule) continue;
+
+    const tokens = extractTokens(`${result.merchant} ${result.description ?? ""}`);
+    if (tokens.length === 0) continue;
+
+    const pattern = buildSupplierPattern(tokens);
+
+    // Skip if a pattern already covers this merchant+category combination
+    const alreadyCovered = [...rules, ...newRules.slice(rules.length)].some((r) => {
+      if (!r.supplierPattern) return false;
+      try {
+        return new RegExp(r.supplierPattern, "i").test(result.merchant);
+      } catch {
+        return false;
+      }
+    });
+    if (alreadyCovered) continue;
+
+    const slug = `ai-${tokens.slice(0, 3).join("-").slice(0, 40)}-${Date.now()}-${added}`;
+
+    newRules.push({
+      ...baseRule,
+      id: randomUUID(),
+      slug,
+      supplierPattern: pattern,
+      keywordPattern: undefined,
+      priority: 20, // AI-learned: lower urgency than manual rules
+      isSystemDefault: false,
+      isActive: true,
+      isVisible: true,
+      description: `AI-learned: ${tokens.slice(0, 3).join(" ")}`,
+      sortOrder: baseRule.sortOrder,
+    });
+
+    added++;
+  }
+
+  if (added === 0) return;
+
+  await repository.replaceAllCategoryRules({ rules: newRules });
 
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/settings");
