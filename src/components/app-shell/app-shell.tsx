@@ -16,6 +16,8 @@ import {
   Menu,
   PackageOpen,
   PlusSquare,
+  Receipt,
+  ScanText,
   Settings2,
   Table2,
   TrendingUp,
@@ -44,13 +46,14 @@ type NavigationSection = {
 };
 
 function buildNavigation(businessType: Workspace["businessType"]): NavigationSection[] {
-  // Sole trader: stripped-down tax-first flow
+  // Sole trader: focused tax-first flow
   if (businessType === "sole_trader") {
     return [
       {
         label: "Import",
         items: [
           { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
+          { href: "/ocr-extraction", label: "OCR Extraction", icon: ScanText },
         ],
       },
       {
@@ -64,6 +67,7 @@ function buildNavigation(businessType: Workspace["businessType"]): NavigationSec
         label: "Report",
         items: [
           { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
+          { href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt },
           { href: "/bookkeeping/reports", label: "Profit & Loss", icon: BarChart3 },
         ],
       },
@@ -88,7 +92,7 @@ function buildNavigation(businessType: Workspace["businessType"]): NavigationSec
       label: "Ingest",
       items: [
         { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
-        { href: "/ocr-extraction", label: "OCR Extraction", icon: PackageOpen },
+        { href: "/ocr-extraction", label: "OCR Extraction", icon: ScanText },
       ],
     },
     {
@@ -111,7 +115,8 @@ function buildNavigation(businessType: Workspace["businessType"]): NavigationSec
       label: "Report",
       items: [
         { href: "/bookkeeping/reports", label: "Financial Reports", icon: BarChart3 },
-        { href: "/bookkeeping/tax-summary", label: "VAT & Tax Summary", icon: Calculator },
+        { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
+        { href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt },
       ],
     },
     {
