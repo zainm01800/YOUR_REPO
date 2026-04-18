@@ -105,11 +105,13 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
           className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
         />
       </td>
-      <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-[var(--color-muted-foreground)] border-t border-[var(--color-border)]">
+      <td className="hidden whitespace-nowrap px-4 py-3 font-mono text-xs text-[var(--color-muted-foreground)] border-t border-[var(--color-border)] xs:table-cell">
         {fmtDate(tx.transactionDate || "")}
       </td>
       <td className="px-4 py-3 font-medium text-[var(--color-foreground)] border-t border-[var(--color-border)]">
-        {tx.merchant}
+        <div className="truncate max-w-[100px] sm:max-w-none" title={tx.merchant}>
+          {tx.merchant}
+        </div>
       </td>
       <td className="hidden max-w-[220px] px-4 py-3 text-[var(--color-muted-foreground)] sm:table-cell border-t border-[var(--color-border)]">
         <span className="line-clamp-1">{tx.description}</span>
@@ -184,7 +186,7 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
               setEditingId(tx.id);
               setEditValue(tx.resolvedCategory || "");
             }}
-            className="group flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition hover:bg-[var(--color-panel)]"
+            className="group flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition hover:bg-[var(--color-panel)] max-w-[120px] sm:max-w-none"
           >
             {justSaved ? (
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
@@ -192,21 +194,16 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
               <Tag className="h-3.5 w-3.5 text-[var(--color-muted-foreground)] group-hover:text-[var(--color-accent)]" />
             )}
             {tx.resolvedCategory ? (
-              <div className="flex items-center gap-1.5">
-                <span className="font-medium text-[var(--color-foreground)]">{tx.resolvedCategory}</span>
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="font-medium text-[var(--color-foreground)] truncate">{tx.resolvedCategory}</span>
                 {confidence === "learned" && (
-                  <span className="rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-tighter bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+                  <span className="hidden sm:inline-block rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-tighter bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
                     Learned
                   </span>
                 )}
                 {confidence === "ai" && (
                   <span className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-tighter bg-violet-50 text-violet-600 ring-1 ring-violet-200">
                     <Sparkles className="h-2 w-2" /> AI
-                  </span>
-                )}
-                {confidence === "auto" && (
-                  <span className="rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-tighter bg-slate-100 text-slate-500 ring-1 ring-slate-200">
-                    Auto
                   </span>
                 )}
               </div>

@@ -240,10 +240,10 @@ export function RunsTable({ runs }: { runs: RunListItem[] }) {
                   <SortIcon field="name" />
                 </button>
               </th>
-              <th className="px-6 py-4">Entity</th>
-              <th className="px-6 py-4">Period</th>
+              <th className="hidden px-6 py-4 sm:table-cell">Entity</th>
+              <th className="hidden px-6 py-4 md:table-cell">Period</th>
               <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4">
+              <th className="hidden px-6 py-4 lg:table-cell">
                 <button
                   type="button"
                   className="flex items-center hover:text-[var(--color-foreground)]"
@@ -253,19 +253,19 @@ export function RunsTable({ runs }: { runs: RunListItem[] }) {
                   <SortIcon field="transactions" />
                 </button>
               </th>
-              <th className="px-6 py-4">Matched</th>
-              <th className="px-6 py-4">Exceptions</th>
-              <th className="px-6 py-4">
+              <th className="hidden px-6 py-4 xl:table-cell">Matched</th>
+              <th className="px-6 py-4 text-right">Exceptions</th>
+              <th className="hidden px-6 py-4 lg:table-cell text-right">
                 <button
                   type="button"
-                  className="flex items-center hover:text-[var(--color-foreground)]"
+                  className="flex items-center justify-end hover:text-[var(--color-foreground)]"
                   onClick={() => toggleSort("matchRatePct")}
                 >
                   Match %
                   <SortIcon field="matchRatePct" />
                 </button>
               </th>
-              <th className="px-6 py-4">
+              <th className="hidden px-6 py-4 xl:table-cell">
                 <button
                   type="button"
                   className="flex items-center hover:text-[var(--color-foreground)]"
@@ -324,18 +324,18 @@ export function RunsTable({ runs }: { runs: RunListItem[] }) {
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-5 text-[var(--color-muted-foreground)]">
+                  <td className="hidden px-6 py-5 text-[var(--color-muted-foreground)] sm:table-cell text-xs sm:text-sm">
                     {run.entity ?? "-"}
                   </td>
-                  <td className="px-6 py-5 text-[var(--color-muted-foreground)]">
+                  <td className="hidden px-6 py-5 text-[var(--color-muted-foreground)] md:table-cell text-xs sm:text-sm">
                     {run.period ?? "—"}
                   </td>
                   <td className="px-6 py-5">
                     <RunStatusPill status={run.status} />
                   </td>
-                  <td className="px-6 py-5 tabular-nums">{run.summary.transactions}</td>
-                  <td className="px-6 py-5 tabular-nums">{run.summary.matched}</td>
-                  <td className="px-6 py-5">
+                  <td className="hidden px-6 py-5 tabular-nums lg:table-cell">{run.summary.transactions}</td>
+                  <td className="hidden px-6 py-5 tabular-nums xl:table-cell">{run.summary.matched}</td>
+                  <td className="px-6 py-5 text-right font-medium">
                     {run.summary.exceptions > 0 ? (
                       <Link
                         href={`/runs/${run.id}/exceptions`}
@@ -347,10 +347,10 @@ export function RunsTable({ runs }: { runs: RunListItem[] }) {
                       <span className="text-[var(--color-muted-foreground)]">0</span>
                     )}
                   </td>
-                  <td className="px-6 py-5">
+                  <td className="hidden px-6 py-5 lg:table-cell text-right">
                     <MatchPctBadge pct={run.summary.matchRatePct ?? 0} />
                   </td>
-                  <td className="px-6 py-5 text-[var(--color-muted-foreground)]">
+                  <td className="hidden px-6 py-5 text-[var(--color-muted-foreground)] xl:table-cell">
                     {formatDate(run.createdAt)}
                   </td>
                   <td className="px-6 py-5">

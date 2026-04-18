@@ -209,7 +209,7 @@ export default async function DashboardPage() {
         </Card>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
             <KpiCard
               label="Total spend reconciled"
               value={formatCurrency(allGross, currency)}
@@ -255,7 +255,7 @@ export default async function DashboardPage() {
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
             <KpiCard label="Total runs" value={snapshot.runs.length} sub="All reconciliation periods" />
             <KpiCard label="Locked periods" value={lockedRuns} sub="Signed off and read-only" />
             <KpiCard label="GL rules active" value={snapshot.glRules.length} sub="Auto-suggest patterns" />
@@ -274,18 +274,21 @@ export default async function DashboardPage() {
               </div>
               <div className="space-y-3">
                 {spendTrend.map((entry) => (
-                  <div key={entry.id} className="grid grid-cols-[120px_1fr_110px_70px] items-center gap-3 text-sm">
-                    <span className="truncate text-[var(--color-muted-foreground)]">{entry.label}</span>
-                    <div className="h-3 overflow-hidden rounded-full bg-[var(--color-panel)]">
+                  <div key={entry.id} className="grid grid-cols-[1fr_auto] sm:grid-cols-[120px_1fr_110px_70px] items-center gap-x-3 gap-y-1.5 text-sm">
+                    <span className="truncate text-[var(--color-muted-foreground)] font-medium sm:font-normal">{entry.label}</span>
+                    <span className="text-right font-semibold tabular-nums sm:hidden">
+                      {formatCurrency(entry.gross, currency)}
+                    </span>
+                    <div className="col-span-2 sm:col-span-1 h-3 overflow-hidden rounded-full bg-[var(--color-panel)]">
                       <div
                         className="h-full rounded-full bg-linear-to-r from-[var(--color-accent-soft)] to-[var(--color-accent)]"
                         style={{ width: `${Math.max((entry.gross / maxTrendGross) * 100, entry.gross > 0 ? 8 : 0)}%` }}
                       />
                     </div>
-                    <span className="text-right font-semibold tabular-nums">
+                    <span className="hidden sm:block text-right font-semibold tabular-nums">
                       {formatCurrency(entry.gross, currency)}
                     </span>
-                    <span className="text-right text-xs text-[var(--color-muted-foreground)]">
+                    <span className="hidden sm:block text-right text-xs text-[var(--color-muted-foreground)]">
                       {entry.matchRate}%
                     </span>
                   </div>
@@ -414,10 +417,10 @@ export default async function DashboardPage() {
               <thead className="bg-[var(--color-panel)] text-left text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
                 <tr>
                   <th className="px-6 py-3">Run</th>
-                  <th className="px-6 py-3">Status</th>
+                  <th className="hidden px-6 py-3 sm:table-cell">Status</th>
                   <th className="px-6 py-3 text-right">Gross</th>
-                  <th className="px-6 py-3 text-right">Match %</th>
-                  <th className="px-6 py-3 text-right">Exceptions</th>
+                  <th className="hidden px-6 py-3 text-right lg:table-cell">Match %</th>
+                  <th className="hidden px-6 py-3 text-right md:table-cell">Exceptions</th>
                   <th className="px-6 py-3"></th>
                 </tr>
               </thead>
@@ -425,33 +428,36 @@ export default async function DashboardPage() {
                 {snapshot.runs.slice(0, 8).map((run) => (
                   <tr key={run.id} className="transition hover:bg-[var(--color-panel)]">
                     <td className="px-6 py-4">
-                      <div className="font-semibold">{run.name}</div>
+                      <div className="font-semibold truncate max-w-[120px] sm:max-w-none">{run.name}</div>
                       <div className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
                         {run.period ? `${run.period} · ` : ""}
-                        {formatDate(run.createdAt)}
+                        <span className="hidden sm:inline">{formatDate(run.createdAt)}</span>
                         {run.locked ? (
                           <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
                             LOCKED
                           </span>
                         ) : null}
                       </div>
+                      <div className="mt-2 sm:hidden">
+                        <RunStatusPill status={run.status} />
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="hidden px-6 py-4 sm:table-cell">
                       <RunStatusPill status={run.status} />
                     </td>
-                    <td className="px-6 py-4 text-right tabular-nums">
+                    <td className="px-6 py-4 text-right tabular-nums font-medium">
                       {(run.summary.totalGross ?? 0) > 0
                         ? formatCurrency(run.summary.totalGross ?? 0, currency)
                         : "—"}
                     </td>
-                    <td className="px-6 py-4 text-right tabular-nums">
+                    <td className="hidden px-6 py-4 text-right tabular-nums lg:table-cell">
                       <span
                         className={`font-medium ${(run.summary.matchRatePct ?? 0) >= 80 ? "text-emerald-600" : (run.summary.matchRatePct ?? 0) >= 50 ? "text-amber-600" : "text-[var(--color-danger)]"}`}
                       >
                         {run.summary.matchRatePct ?? 0}%
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="hidden px-6 py-4 text-right md:table-cell">
                       {run.summary.exceptions > 0 ? (
                         <Link
                           href={`/runs/${run.id}/exceptions`}
@@ -464,7 +470,7 @@ export default async function DashboardPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-3">
+                      <div className="flex justify-end gap-3 text-xs sm:text-sm">
                         <Link
                           href={`/runs/${run.id}/review`}
                           className="font-semibold text-[var(--color-accent)]"
@@ -473,7 +479,7 @@ export default async function DashboardPage() {
                         </Link>
                         <Link
                           href={`/runs/${run.id}/export`}
-                          className="text-[var(--color-muted-foreground)]"
+                          className="hidden sm:inline text-[var(--color-muted-foreground)]"
                         >
                           Export
                         </Link>

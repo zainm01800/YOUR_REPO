@@ -147,7 +147,7 @@ export function ReviewDetailPanel({
             {transaction?.merchant || row.supplier}
           </h3>
         </div>
-        <dl className="grid grid-cols-2 gap-4 text-sm">
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <dt className="text-[var(--color-muted-foreground)]">Amount</dt>
             <dd className="mt-1 font-semibold">
@@ -186,7 +186,7 @@ export function ReviewDetailPanel({
           </Badge>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <dt className="text-[var(--color-muted-foreground)]">Invoice country</dt>
             <dd className="mt-1 font-semibold">{document?.countryCode || "Unknown"}</dd>
@@ -375,7 +375,7 @@ export function ReviewDetailPanel({
         </div>
         {document ? (
           <>
-            <dl className="grid grid-cols-2 gap-4 text-sm">
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <dt className="text-[var(--color-muted-foreground)]">Supplier</dt>
                 <dd className="mt-1 font-semibold">{row.supplier}</dd>

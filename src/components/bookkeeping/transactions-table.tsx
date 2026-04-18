@@ -650,7 +650,7 @@ export function TransactionsTable({
                     className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
+                <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)] xs:table-cell">
                   Date
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
