@@ -489,6 +489,47 @@ export const mockRepository: Repository = {
   async acceptInvitation(token: string, userId: string, email: string, name: string): Promise<{ success: boolean; error?: string; workspaceId?: string }> {
     return { success: true, workspaceId: "ws_mock" };
   },
+
+  async getTransactionStats() {
+    const allTxs = store.bankStatements.flatMap(s => s.transactions);
+    const runTxs = store.runs.flatMap(r => r.transactions);
+    const totalCount = allTxs.length + runTxs.length;
+    
+    return {
+      totalCount,
+      categorisedCount: runTxs.length,
+      uncategorisedCount: allTxs.length,
+      categoryCount: new Set(runTxs.map(tx => tx.category)).size,
+      pnlCount: 0,
+      balanceSheetCount: 0,
+      equityCount: 0,
+    };
+  },
+
+  async getPaginatedTransactions(skip: number, take: number) {
+    const runTxs = store.runs.flatMap(run => 
+      run.transactions.map(tx => ({
+        ...tx,
+        runId: run.id,
+        runName: run.name,
+        period: run.period,
+      }))
+    );
+
+    const bankTxs = store.bankStatements.flatMap(s => 
+      s.transactions.map(tx => ({
+        ...tx,
+        runId: s.id,
+        runName: s.name,
+      }))
+    );
+
+    const all = [...runTxs, ...bankTxs].sort((a, b) => 
+      (b.transactionDate || "").localeCompare(a.transactionDate || "")
+    );
+
+    return all.slice(skip, skip + take);
+  },
 };
 
 export async function getCurrentUser(): Promise<User> {

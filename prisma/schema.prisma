@@ -178,6 +178,8 @@ model BankTransaction {
 
   @@index([bankStatementId, transactionDate])
   @@index([bankStatementId, postedDate])
+  @@index([merchant])
+  @@index([amount])
 }
 
 model UploadedFile {
@@ -221,6 +223,8 @@ model Transaction {
   @@index([runId, transactionDate])
   @@index([runId, postedDate])
   @@index([sourceBankTransactionId])
+  @@index([merchant])
+  @@index([amount])
 }
 
 model Document {
@@ -244,6 +248,8 @@ model Document {
   matches              MatchDecision[]
 
   @@index([runId, issueDate])
+  @@index([supplier])
+  @@index([gross])
 }
 
 model DocumentTaxLine {

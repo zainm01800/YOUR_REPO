@@ -5,7 +5,7 @@ import {
   ACCOUNT_TYPE_LABELS,
   TAX_TREATMENT_LABELS,
 } from "@/lib/accounting/classifier";
-import type { CategoryRule } from "@/lib/domain/types";
+import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
 
 export function fmtAmount(amount: number, currency: string) {
   const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -27,7 +27,7 @@ export function fmtDate(dateStr?: string) {
 }
 
 interface TransactionRowProps {
-  tx: any; // Using any for swift extraction; ideally should use TransactionRow from parent
+  tx: TransactionRecord;
   isSelected: boolean;
   toggleRow: (id: string) => void;
   isEditing: boolean;
@@ -228,7 +228,7 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
             type="checkbox"
             checked={tx.allowableForTax}
             disabled={!tx.resolvedCategory}
-            onChange={() => handleToggleAllowable(tx.resolvedCategory, !!tx.allowableForTax)}
+            onChange={() => tx.resolvedCategory && handleToggleAllowable(tx.resolvedCategory, !!tx.allowableForTax)}
             className="h-4 w-4 cursor-pointer rounded border-[var(--color-border)] accent-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
             title={tx.resolvedCategory ? `Toggle allowability for all ${tx.resolvedCategory} items` : "Set a category first"}
           />

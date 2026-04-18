@@ -1,6 +1,7 @@
 "use client";
 import { Fragment, useEffect, useMemo, useState, useTransition, useCallback } from "react";
-import { CheckCircle2, Search, Trash2, Sparkles, Loader2, X, ChevronDown, ChevronRight, ListCollapse, ListFilter } from "lucide-react";
+import { CheckCircle2, Search, Trash2, Sparkles, Loader2, X, ChevronDown, ChevronRight, ListCollapse, ListFilter, ChevronLeft } from "lucide-react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
 import { resolveCategoryWithConfidence } from "@/lib/categories/suggester";
 import { TransactionRowComponent, fmtAmount, fmtDate } from "./transaction-row";
@@ -17,11 +18,6 @@ import {
   classifyTransaction,
 } from "@/lib/accounting/classifier";
 
-interface TransactionRow extends TransactionRecord {
-  runName: string;
-  runId: string;
-  period?: string;
-}
 
 /**
  * Words that appear constantly across unrelated bank statement entries
@@ -98,12 +94,17 @@ function normalizeMerchant(s: string): string {
 }
 
 interface Props {
-  transactions: TransactionRow[];
+  transactions: TransactionRecord[];
   categoryRules: CategoryRule[];
   pickerCategoryRules: CategoryRule[];
   vatRegistered: boolean;
   canUseAi?: boolean;
   anomalies?: Record<string, { reason: string; severity: "warning" | "info"; expectedAvg: number; currency: string }>;
+  pagination?: {
+    currentPage: number;
+    pageSize: number;
+    totalCount: number;
+  };
 }
 
 export function TransactionsTable({
@@ -113,7 +114,12 @@ export function TransactionsTable({
   vatRegistered,
   canUseAi = false,
   anomalies = {},
+  pagination,
 }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
   const [localTransactions, setLocalTransactions] = useState(transactions);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -136,7 +142,7 @@ export function TransactionsTable({
     category: string;
     merchantName: string;
     merchantDesc: string;
-    matches: TransactionRow[];
+    matches: TransactionRecord[];
   } | null>(null);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [bulkApplying, setBulkApplying] = useState(false);
@@ -196,11 +202,11 @@ export function TransactionsTable({
       return (
         tx.merchant.toLowerCase().includes(q) ||
         tx.description.toLowerCase().includes(q) ||
-        tx.runName.toLowerCase().includes(q) ||
+        (tx.runName || "").toLowerCase().includes(q) ||
         (tx.employee || "").toLowerCase().includes(q) ||
         (tx.resolvedCategory || "").toLowerCase().includes(q) ||
-        tx.accountType.toLowerCase().includes(q) ||
-        tx.statementType.toLowerCase().includes(q)
+        (tx.accountType || "").toLowerCase().includes(q) ||
+        (tx.statementType || "").toLowerCase().includes(q)
       );
     });
   }, [rowsWithCategory, search, filterCategory]);
@@ -413,12 +419,15 @@ export function TransactionsTable({
         return;
       }
 
+      // Log reasons for debugging
+      console.log("[AI Scan Results]", results.map(r => `${r.id}: ${r.category ?? "NONE"} - ${r.reason}`));
+
       // Apply categories + save learned rules in parallel
       const payloadById = new Map(payload.map((p) => [p.id, p]));
 
       await Promise.allSettled([
         // Persist each category to the DB
-        ...validResults.map((r) => updateTransactionCategoryAction(r.id, r.category)),
+        ...validResults.map((r) => updateTransactionCategoryAction(r.id, r.category!)),
         // Save AI results as learned rules so future imports skip the AI entirely
         saveAiLearnedRulesAction(
           validResults.map((r) => ({
@@ -436,8 +445,12 @@ export function TransactionsTable({
       }
       setCategoryOverrides(newOverrides);
 
-      setAiSuccessMsg(`Categorised ${validResults.length} transaction${validResults.length === 1 ? "" : "s"}.`);
-      setTimeout(() => setAiSuccessMsg(null), 4000);
+      if (validResults.length < payload.length) {
+        setAiSuccessMsg(`AI mapped ${validResults.length} of ${payload.length} items. Check console for details on skipped items.`);
+      } else {
+        setAiSuccessMsg(`Successfully categorised all ${validResults.length} items.`);
+      }
+      setTimeout(() => setAiSuccessMsg(null), 6000);
 
     } catch (err) {
       setAiError(err instanceof Error ? err.message : "AI auto-categorisation failed.");
@@ -760,6 +773,47 @@ export function TransactionsTable({
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {pagination && (
+        <div className="flex items-center justify-between border-t border-[var(--color-border)] bg-white px-6 py-4">
+          <div className="text-sm text-[var(--color-muted-foreground)]">
+            Showing <span className="font-medium">{Math.min(pagination.totalCount, (pagination.currentPage - 1) * pagination.pageSize + 1)}</span> to{" "}
+            <span className="font-medium">{Math.min(pagination.totalCount, pagination.currentPage * pagination.pageSize)}</span> of{" "}
+            <span className="font-medium">{pagination.totalCount}</span> results
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("page", (pagination.currentPage - 1).toString());
+                startTransition(() => {
+                  router.replace(`${pathname}?${params.toString()}`);
+                });
+              }}
+              disabled={pagination.currentPage <= 1 || isPending}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-white px-4 text-sm font-medium text-[var(--color-foreground)] transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] disabled:opacity-50"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </button>
+            <button
+              onClick={() => {
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("page", (pagination.currentPage + 1).toString());
+                startTransition(() => {
+                  router.replace(`${pathname}?${params.toString()}`);
+                });
+              }}
+              disabled={pagination.currentPage * pagination.pageSize >= pagination.totalCount || isPending}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-white px-4 text-sm font-medium text-[var(--color-foreground)] transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] disabled:opacity-50"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bulk Categorisation Prompt Modal */}
       {bulkPrompt && (

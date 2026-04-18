@@ -16,6 +16,7 @@ import type {
   VatRule,
   Workspace,
   Invitation,
+  TransactionStats,
 } from "@/lib/domain/types";
 
 export interface UpsertVatRulesInput {
@@ -118,4 +119,6 @@ export interface Repository {
   getUserWorkspaces(): Promise<Array<{ id: string; name: string; slug: string; role: string }>>;
   getInvitationByToken(token: string): Promise<Invitation | null>;
   acceptInvitation(token: string, userId: string, email: string, name: string): Promise<{ success: boolean; error?: string; workspaceId?: string }>;
+  getTransactionStats(): Promise<TransactionStats>;
+  getPaginatedTransactions(skip: number, take: number): Promise<TransactionRecord[]>;
 }

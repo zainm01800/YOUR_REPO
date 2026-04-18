@@ -5,101 +5,32 @@ import { resolveCategory } from "@/lib/categories/suggester";
 import { TransactionsTable } from "@/components/bookkeeping/transactions-table";
 import { detectAnomalies } from "@/lib/analytics/anomaly-detector";
 import type { AnomalyInfo } from "@/lib/analytics/anomaly-detector";
+import { Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export default async function BookkeepingTransactionsPage() {
+export default async function BookkeepingTransactionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { page } = await searchParams;
+  const currentPage = Number(page || "1");
+  const pageSize = 50;
+  const skip = (currentPage - 1) * pageSize;
+
   const repository = await getRepository();
-  const [settingsSnapshot, currentUser, runsResult, unassignedBankTransactionsResult] = await Promise.all([
+  const [settingsSnapshot, currentUser, stats] = await Promise.all([
     repository.getSettingsSnapshot(),
     repository.getCurrentUser(),
-    repository.getRunsWithTransactions().catch((error) => {
-      console.error("[bookkeeping/transactions] failed to load runs with transactions:", error);
-      return [];
-    }),
-    repository.getUnassignedBankTransactions().catch((error) => {
-      console.error("[bookkeeping/transactions] failed to load unassigned bank transactions:", error);
-      return [];
-    }),
+    repository.getTransactionStats(),
   ]);
 
   // AI categorisation is restricted to the account set in AI_OWNER_EMAIL
   const aiOwnerEmail = process.env.AI_OWNER_EMAIL?.trim().toLowerCase();
   const canUseAi = Boolean(aiOwnerEmail && currentUser.email.toLowerCase() === aiOwnerEmail);
-  const runs = runsResult;
-  const unassignedBankTransactions = unassignedBankTransactionsResult;
-  const categoryRuleMap = buildCategoryRuleMap(settingsSnapshot.categoryRules);
 
-  // Gather all transactions across all completed/reviewed runs
-  const allTransactions: {
-    id: string;
-    sourceBankTransactionId?: string;
-    externalId?: string;
-    sourceLineNumber?: number;
-    transactionDate?: string;
-    postedDate?: string;
-    amount: number;
-    currency: string;
-    merchant: string;
-    description: string;
-    employee?: string;
-    reference?: string;
-    costCentre?: string;
-    department?: string;
-    vatCode?: string;
-    glCode?: string;
-    category?: string;
-    noReceiptRequired?: boolean;
-    excludedFromExport?: boolean;
-    runName: string;
-    runId: string;
-    period?: string;
-  }[] = [];
-
-  // Collect all run transactions
-  for (const run of runs) {
-    if (run.transactions.length === 0) continue;
-    for (const tx of run.transactions) {
-      allTransactions.push({
-        ...tx,
-        runName: run.name,
-        runId: run.id,
-        period: run.period,
-      });
-    }
-  }
-
-  // Also include centrally stored bank transactions not yet pulled into a run
-  for (const transaction of unassignedBankTransactions) {
-    allTransactions.push({
-      ...transaction,
-      runName: transaction.bankStatementName || "Imported bank statement",
-      runId: transaction.bankStatementId || transaction.id,
-    });
-  }
-
-  // Sort by date descending
-  allTransactions.sort((a, b) => {
-    const da = a.transactionDate ?? "";
-    const db = b.transactionDate ?? "";
-    return db.localeCompare(da);
-  });
-
-  // Compute per-merchant anomaly data server-side
-  const anomalyMap = detectAnomalies(allTransactions);
-  // Serialise Map → plain Record so it can be passed as a prop
-  const anomalies: Record<string, AnomalyInfo> = {};
-  for (const [id, info] of anomalyMap) {
-    anomalies[id] = info;
-  }
-
-  // Derive the set of all known categories (from rules + manual assignments)
-  const allCategories = Array.from(
-    new Set([
-      ...settingsSnapshot.categoryRules.map((r) => r.category),
-      ...allTransactions
-        .map((tx) => tx.category ?? resolveCategory(tx, settingsSnapshot.categoryRules) ?? "")
-        .filter(Boolean),
-    ]),
-  ).sort();
+  // Derive all categories from rules
+  const allCategories = settingsSnapshot.categoryRules.map((r) => r.category).sort();
 
   const pickerCategoryRules = [...settingsSnapshot.categoryRules].sort(
     (a, b) =>
@@ -109,27 +40,6 @@ export default async function BookkeepingTransactionsPage() {
       a.category.localeCompare(b.category),
   );
 
-  const totalCount = allTransactions.length;
-  const categorisedCount = allTransactions.filter(
-    (tx) => tx.category || resolveCategory(tx, settingsSnapshot.categoryRules),
-  ).length;
-  const classifiedTransactions = allTransactions.map((tx) => {
-    try {
-      const resolvedCategoryName = tx.category ?? resolveCategory(tx, settingsSnapshot.categoryRules);
-      const resolvedCategory = resolvedCategoryName
-        ? categoryRuleMap.get(resolvedCategoryName)
-        : undefined;
-      return classifyTransaction(tx, resolvedCategory, settingsSnapshot.workspace.vatRegistered);
-    } catch {
-      return classifyTransaction(tx, undefined, settingsSnapshot.workspace.vatRegistered);
-    }
-  });
-  const statementCounts = {
-    pnl: classifiedTransactions.filter((tx) => tx.statementType === "p_and_l").length,
-    balanceSheet: classifiedTransactions.filter((tx) => tx.statementType === "balance_sheet").length,
-    equity: classifiedTransactions.filter((tx) => tx.statementType === "equity_movement").length,
-  };
-
   return (
     <>
       <PageHeader
@@ -138,54 +48,120 @@ export default async function BookkeepingTransactionsPage() {
         description="All imported transactions across every run. Assign categories to build a clear picture of spending."
       />
 
-      {/* Summary strip */}
+      {/* Summary strip - Loaded instantly from DB aggregates */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-7">
         <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Total transactions</p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">{totalCount}</p>
+          <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">{stats.totalCount}</p>
         </div>
         <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Categorised</p>
-          <p className="mt-1 text-2xl font-bold text-emerald-600">{categorisedCount}</p>
+          <p className="mt-1 text-2xl font-bold text-emerald-600">{stats.categorisedCount}</p>
         </div>
         <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Uncategorised</p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">{totalCount - categorisedCount}</p>
+          <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">{stats.uncategorisedCount}</p>
         </div>
         <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Categories</p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">{allCategories.length}</p>
+          <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">{stats.categoryCount}</p>
         </div>
         <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">P&amp;L items</p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">{statementCounts.pnl}</p>
-        </div>
-        <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Balance Sheet</p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">{statementCounts.balanceSheet}</p>
-        </div>
-        <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Equity items</p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">{statementCounts.equity}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Load Balanced</p>
+          <p className="mt-1 text-sm text-[var(--color-muted-foreground)] italic">Paging enabled for performance</p>
         </div>
       </div>
 
-      {totalCount === 0 ? (
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-10 text-center">
-          <p className="text-sm text-[var(--color-muted-foreground)]">
-            No transactions yet. Create a run and import a bank or card statement to get started.
-          </p>
-        </div>
-      ) : (
-        <TransactionsTable
-          transactions={allTransactions}
+      <Suspense fallback={<TableSkeleton />}>
+        <TransactionListWrapper
+          skip={skip}
+          pageSize={pageSize}
+          currentPage={currentPage}
+          totalCount={stats.totalCount}
           categoryRules={settingsSnapshot.categoryRules}
           pickerCategoryRules={pickerCategoryRules}
           vatRegistered={settingsSnapshot.workspace.vatRegistered}
           canUseAi={canUseAi}
-          anomalies={anomalies}
         />
-      )}
+      </Suspense>
     </>
+  );
+}
+
+async function TransactionListWrapper({
+  skip,
+  pageSize,
+  currentPage,
+  totalCount,
+  categoryRules,
+  pickerCategoryRules,
+  vatRegistered,
+  canUseAi,
+}: {
+  skip: number;
+  pageSize: number;
+  currentPage: number;
+  totalCount: number;
+  categoryRules: any[];
+  pickerCategoryRules: any[];
+  vatRegistered: boolean;
+  canUseAi: boolean;
+}) {
+  const repository = await getRepository();
+  const allTransactions = await repository.getPaginatedTransactions(skip, pageSize);
+
+  if (totalCount === 0) {
+    return (
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-10 text-center">
+        <p className="text-sm text-[var(--color-muted-foreground)]">
+          No transactions yet. Create a run and import a bank or card statement to get started.
+        </p>
+      </div>
+    );
+  }
+
+  // Compute per-merchant anomaly data server-side
+  const anomalyMap = detectAnomalies(allTransactions);
+  const anomalies: Record<string, AnomalyInfo> = {};
+  for (const [id, info] of anomalyMap) {
+    anomalies[id] = info;
+  }
+
+  return (
+    <TransactionsTable
+      transactions={allTransactions}
+      categoryRules={categoryRules}
+      pickerCategoryRules={pickerCategoryRules}
+      vatRegistered={vatRegistered}
+      canUseAi={canUseAi}
+      anomalies={anomalies}
+      pagination={{
+        currentPage,
+        pageSize,
+        totalCount,
+      }}
+    />
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-10 w-[250px]" />
+        <Skeleton className="h-10 w-[100px]" />
+      </div>
+      <div className="rounded-2xl border border-[var(--color-border)] bg-white overflow-hidden">
+        <div className="h-12 border-b bg-[var(--color-panel)]" />
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="h-16 border-b p-4 flex items-center gap-4">
+            <Skeleton className="h-4 w-4" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-4 w-24 ml-auto" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

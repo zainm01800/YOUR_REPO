@@ -221,6 +221,15 @@ export interface TransactionRecord {
   taxRate?: number;
   noReceiptRequired?: boolean;
   excludedFromExport?: boolean;
+  runId?: string;
+  runName?: string;
+  period?: string;
+  resolvedCategory?: string;
+  allowableForTax?: boolean;
+  accountType?: string;
+  statementType?: string;
+  supportsAllowability?: boolean;
+  categoryConfidence?: string;
 }
 
 export interface BankTransaction extends TransactionRecord {
@@ -595,6 +604,16 @@ export interface DashboardSnapshot {
   vatRules: VatRule[];
   glRules: GlCodeRule[];
   categoryRules: CategoryRule[];
+}
+
+export interface TransactionStats {
+  totalCount: number;
+  categorisedCount: number;
+  uncategorisedCount: number;
+  categoryCount: number;
+  pnlCount: number;
+  balanceSheetCount: number;
+  equityCount: number;
 }
 
 export type WorkspaceRole = "owner" | "admin" | "accountant" | "viewer";

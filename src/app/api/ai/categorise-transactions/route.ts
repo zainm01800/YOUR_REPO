@@ -2,29 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import { getRepository } from "@/lib/data";
 
-const SYSTEM_PROMPT = `You are an AI bookkeeping categorization assistant.
-Your job is to map a list of transactions to the best-fitting category from a provided set of valid categories.
+const SYSTEM_PROMPT = `You are a high-performance AI bookkeeping assistant.
+Your goal is to map transactions to the most appropriate category from the provided list.
 
-Here are the valid categories and what they typically include:
+Context:
+- Today's date: {CURRENT_DATE}
+- Available Categories:
 {CATEGORIES_CONTEXT}
 
-Input format:
-You will receive a JSON list of transactions.
-[{ "id": "tx-1", "merchant": "Tesco", "description": "Fuel" }, ...]
+Input:
+A JSON list of transactions with unique IDs.
 
-Output format:
-You MUST return ONLY valid JSON in the exact structure below. Do not add markdown or explanations outside the JSON.
+Rules:
+1. MANDATORY CATEGORIZATION: You must look for the "Best Fit" category for every transaction. 
+2. MERCHANT SIGNAL: The "merchant" name is your primary signal. Recognizable brands should be mapped to their logical category (e.g., Starbucks is usually "Food & Drink" or "Travel/Subsistence").
+3. FUZZY MATCHING: Descriptions can be messy. If a merchant name is recognized but the description is generic (e.g. "VISA"), categorize based on the merchant.
+4. REASONING: For every item, provide a brief "reason" explaining your choice (e.g. "Matched as fuel merchant").
+5. STRICT JSON: You must return valid JSON in the exact structure below. No markdown. No headers.
+
+Output Structure:
 {
   "results": [
-    { "id": "tx-1", "category": "Fuel", "reason": "Matched Tesco Fuel via known patterns" }
+    { "id": "tx-1", "category": "Fuel", "reason": "Consistent with fuel supplier keyword" },
+    { "id": "tx-2", "category": null, "reason": "Truly zero signal in data" }
   ]
 }
 
-Rules:
-1. ONLY use category names exactly as they appear in the provided "name" fields.
-2. Use the provided "description", "supplierPattern", and "keywordPattern" as strong hints for what belongs in each category.
-3. If you are not confident, return null for the category: { "id": "tx-2", "category": null, "reason": "Ambiguous merchant" }
-4. Return the array exactly matching the length of the input transactions.
+Only return null if the data has absolutely zero signal (e.g. just numbers or symbols). If there is any plausible match, choose it.
 `;
 
 export async function POST(req: NextRequest) {
@@ -74,7 +78,9 @@ export async function POST(req: NextRequest) {
       return ctx;
     }).join("\n\n");
 
-    const systemPrompt = SYSTEM_PROMPT.replace("{CATEGORIES_CONTEXT}", categoriesContext);
+    const systemPrompt = SYSTEM_PROMPT
+      .replace("{CATEGORIES_CONTEXT}", categoriesContext)
+      .replace("{CURRENT_DATE}", new Date().toISOString().split("T")[0]);
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
@@ -82,7 +88,7 @@ export async function POST(req: NextRequest) {
         { role: "system", content: systemPrompt },
         { role: "user", content: JSON.stringify(transactions, null, 2) },
       ],
-      temperature: 0.1,
+      temperature: 0.2,
       // Increase max tokens since we are passing a list of transactions
       max_tokens: 2000,
       response_format: { type: "json_object" },
@@ -100,14 +106,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Best-effort extraction of the array
-    let resultsArray = [];
-    if (Array.isArray(parsed)) {
-      resultsArray = parsed;
-    } else if (parsed && typeof parsed === "object") {
-      // Find the first array property
-      const arrayKey = Object.keys(parsed).find(key => Array.isArray(parsed[key]));
-      if (arrayKey) {
-        resultsArray = parsed[arrayKey];
+    let resultsArray: any[] = [];
+    if (parsed) {
+      if (Array.isArray(parsed)) {
+        resultsArray = parsed;
+      } else if (typeof parsed === "object") {
+        // Find results key or any array key
+        if (Array.isArray(parsed.results)) {
+          resultsArray = parsed.results;
+        } else if (Array.isArray(parsed.transactions)) {
+          resultsArray = parsed.transactions;
+        } else {
+          const firstArrayKey = Object.keys(parsed).find(k => Array.isArray(parsed[k]));
+          if (firstArrayKey) resultsArray = parsed[firstArrayKey];
+        }
       }
     }
 

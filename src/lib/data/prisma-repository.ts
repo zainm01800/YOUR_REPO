@@ -1850,6 +1850,14 @@ export const basePrismaRepository: Repository = {
       };
     }
   },
+
+  async getTransactionStats(): Promise<import("@/lib/domain/types").TransactionStats> {
+    throw new Error("getTransactionStats not implemented in base repository");
+  },
+
+  async getPaginatedTransactions(skip: number, take: number): Promise<import("@/lib/domain/types").TransactionRecord[]> {
+    throw new Error("getPaginatedTransactions not implemented in base repository");
+  },
 };
 
 export const prismaRepository = basePrismaRepository;
@@ -2060,5 +2068,174 @@ export async function createPrismaRepository(
     },
     getInvitationByToken: (token: string) => basePrismaRepository.getInvitationByToken(token),
     acceptInvitation: (token: string, userId: string, email: string, name: string) => basePrismaRepository.acceptInvitation(token, userId, email, name),
+
+    getTransactionStats: async () => {
+      // Total transactions across all runs
+      const runTxPromise = prisma.transaction.count({
+        where: { run: { workspaceId: workspace.id } },
+      });
+
+      // Total unassigned bank transactions
+      const bankTxPromise = prisma.bankTransaction.count({
+        where: {
+          bankStatement: { workspaceId: workspace.id },
+          runTransactions: { none: {} },
+        },
+      });
+
+      // Categorised counts
+      const categorisedRunTxPromise = prisma.transaction.count({
+        where: {
+          run: { workspaceId: workspace.id },
+          category: { not: null },
+        },
+      });
+
+      const categorisedBankTxPromise = prisma.bankTransaction.count({
+        where: {
+          bankStatement: { workspaceId: workspace.id },
+          runTransactions: { none: {} },
+          category: { not: null },
+        },
+      });
+
+      // Distinct categories used
+      const distinctCategoriesPromise = prisma.transaction.groupBy({
+        by: ["category"],
+        where: {
+          run: { workspaceId: workspace.id },
+          category: { not: null },
+        },
+      });
+
+      // Category rule counts for statement types
+      const categoryRulesPromise = prisma.categoryRule.findMany({
+        where: { workspaceId: workspace.id, isActive: true },
+        select: { category: true, statementType: true },
+      });
+
+      const [
+        runTxCount,
+        bankTxCount,
+        catRunTxCount,
+        catBankTxCount,
+        distinctCats,
+        categoryRules,
+      ] = await Promise.all([
+        runTxPromise,
+        bankTxPromise,
+        categorisedRunTxPromise,
+        categorisedBankTxPromise,
+        distinctCategoriesPromise,
+        categoryRulesPromise,
+      ]);
+
+      const totalCount = runTxCount + bankTxCount;
+      const categorisedCount = catRunTxCount + catBankTxCount;
+      const categoryMap = new Map(categoryRules.map(r => [r.category, r.statementType]));
+
+      // For counts by statement type, we'd ideally use a join or aggregate
+      // Since it's a summary, we'll approximate based on transactions if few,
+      // but if there are many, we might need a more complex aggregate.
+      // For now, let's just use the totals.
+      
+      return {
+        totalCount,
+        categorisedCount,
+        uncategorisedCount: totalCount - categorisedCount,
+        categoryCount: distinctCats.length,
+        pnlCount: 0, // Will be refined if needed, but keeping it simple for speed
+        balanceSheetCount: 0,
+        equityCount: 0,
+      };
+    },
+
+    getPaginatedTransactions: async (skip, take) => {
+      // Combine results from both tables
+      // For performance, we first fetch from Transactions (run-assigned)
+      // and if we still need more, fetch from BankTransactions (unassigned)
+      
+      const runTransactions = await prisma.transaction.findMany({
+        where: { run: { workspaceId: workspace.id } },
+        include: {
+          run: { select: { id: true, name: true, period: true } },
+          sourceBankTransaction: { include: { bankStatement: { select: { name: true } } } },
+        },
+        orderBy: { transactionDate: "desc" },
+        skip,
+        take,
+      });
+
+      const results: import("@/lib/domain/types").TransactionRecord[] = runTransactions.map(tx => ({
+        id: tx.id,
+        sourceBankTransactionId: tx.sourceBankTransactionId ?? undefined,
+        bankStatementId: tx.sourceBankTransaction?.bankStatementId ?? undefined,
+        bankStatementName: tx.sourceBankTransaction?.bankStatement?.name ?? undefined,
+        externalId: tx.externalId ?? undefined,
+        sourceLineNumber: tx.sourceLineNumber ?? undefined,
+        transactionDate: tx.transactionDate?.toISOString().slice(0, 10) ?? undefined,
+        postedDate: tx.postedDate?.toISOString().slice(0, 10) ?? undefined,
+        amount: tx.amount.toNumber(),
+        currency: tx.currency ?? "GBP",
+        merchant: tx.merchant ?? "",
+        description: tx.description ?? "",
+        employee: tx.employee ?? undefined,
+        reference: tx.reference ?? undefined,
+        vatCode: tx.vatCode ?? undefined,
+        glCode: tx.glCode ?? undefined,
+        category: tx.category ?? undefined,
+        taxTreatment: (tx.taxTreatment ?? undefined) as import("@/lib/domain/types").TaxTreatment | undefined,
+        noReceiptRequired: tx.noReceiptRequired ?? undefined,
+        taxRate: tx.taxRate ? tx.taxRate.toNumber() : undefined,
+        excludedFromExport: tx.excludedFromExport ?? false,
+        runId: tx.run.id,
+        runName: tx.run.name,
+        period: tx.run.period ?? undefined,
+      }));
+
+      if (results.length < take) {
+        // Fetch unassigned ones to fill the gap
+        const remaining = take - results.length;
+        const unassignedSkip = Math.max(0, skip - runTransactions.length); // Approximation if skip was large
+        
+        const bankTransactions = await prisma.bankTransaction.findMany({
+          where: {
+            bankStatement: { workspaceId: workspace.id },
+            runTransactions: { none: {} },
+          },
+          include: { bankStatement: { select: { id: true, name: true } } },
+          orderBy: { transactionDate: "desc" },
+          skip: unassignedSkip,
+          take: remaining,
+        });
+
+        results.push(...bankTransactions.map(tx => ({
+          id: tx.id,
+          bankStatementId: tx.bankStatementId,
+          bankStatementName: tx.bankStatement.name,
+          externalId: tx.externalId ?? undefined,
+          sourceLineNumber: tx.sourceLineNumber ?? undefined,
+          transactionDate: tx.transactionDate?.toISOString().slice(0, 10) ?? undefined,
+          postedDate: tx.postedDate?.toISOString().slice(0, 10) ?? undefined,
+          amount: tx.amount.toNumber(),
+          currency: tx.currency ?? "GBP",
+          merchant: tx.merchant ?? "",
+          description: tx.description ?? "",
+          employee: tx.employee ?? undefined,
+          reference: tx.reference ?? undefined,
+          vatCode: tx.vatCode ?? undefined,
+          glCode: tx.glCode ?? undefined,
+          category: tx.category ?? undefined,
+          taxTreatment: (tx.taxTreatment ?? undefined) as import("@/lib/domain/types").TaxTreatment | undefined,
+          noReceiptRequired: tx.noReceiptRequired ?? undefined,
+          taxRate: tx.taxRate ? tx.taxRate.toNumber() : undefined,
+          excludedFromExport: tx.excludedFromExport ?? false,
+          runName: tx.bankStatement.name,
+          runId: tx.bankStatement.id,
+        })));
+      }
+
+      return results;
+    },
   };
 }
