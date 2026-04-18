@@ -19,12 +19,9 @@ export default async function BookkeepingTransactionsPage() {
     }),
   ]);
 
-  // AI categorisation is restricted to owner / admin only
-  const currentMembership = settingsSnapshot.memberships.find(
-    (m) => m.userId === currentUser.id,
-  );
-  const canUseAi =
-    currentMembership?.role === "owner" || currentMembership?.role === "admin";
+  // AI categorisation is restricted to the account set in AI_OWNER_EMAIL
+  const aiOwnerEmail = process.env.AI_OWNER_EMAIL?.trim().toLowerCase();
+  const canUseAi = Boolean(aiOwnerEmail && currentUser.email.toLowerCase() === aiOwnerEmail);
   const runs = runsResult;
   const unassignedBankTransactions = unassignedBankTransactionsResult;
   const categoryRuleMap = buildCategoryRuleMap(settingsSnapshot.categoryRules);

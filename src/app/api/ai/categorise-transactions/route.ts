@@ -43,22 +43,19 @@ export async function POST(req: NextRequest) {
 
     const repository = await getRepository();
 
-    // AI categorisation is restricted to owner / admin roles
-    const [settings, currentUser] = await Promise.all([
-      repository.getSettingsSnapshot(),
-      repository.getCurrentUser(),
-    ]);
-    const currentMembership = settings.memberships.find((m) => m.userId === currentUser.id);
-    const isOwnerOrAdmin =
-      currentMembership?.role === "owner" || currentMembership?.role === "admin";
-    if (!isOwnerOrAdmin) {
+    // AI categorisation is restricted to the account set in AI_OWNER_EMAIL
+    const currentUser = await repository.getCurrentUser();
+    const aiOwnerEmail = process.env.AI_OWNER_EMAIL?.trim().toLowerCase();
+    const isAllowed = Boolean(aiOwnerEmail && currentUser.email.toLowerCase() === aiOwnerEmail);
+    if (!isAllowed) {
       return NextResponse.json(
-        { error: "AI categorisation is only available to workspace owners and admins." },
+        { error: "AI categorisation is not available for your account." },
         { status: 403 },
       );
     }
     
     // Get visible categories
+    const settings = await repository.getSettingsSnapshot();
     const validCategories = settings.categoryRules
       .filter((r) => r.isActive && r.isVisible)
       .map((r) => r.category)
