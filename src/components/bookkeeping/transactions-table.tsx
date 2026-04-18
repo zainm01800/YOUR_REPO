@@ -144,10 +144,32 @@ export function TransactionsTable({
     merchantDesc: string;
     matches: TransactionRecord[];
   } | null>(null);
-  const [aiPreviewResults, setAiPreviewResults] = useState<{
-    newCategorisations: { id: string; category: string; reason: string; merchant: string; amount: number; currency: string }[];
-    replacements: { id: string; oldCategory: string; newCategory: string; reason: string; merchant: string; amount: number; currency: string }[];
-  } | null>(null);
+  
+  interface AiNewEntry {
+    id: string;
+    category: string;
+    reason: string;
+    merchant: string;
+    amount: number;
+    currency: string;
+  }
+  
+  interface AiReplacementEntry {
+    id: string;
+    oldCategory: string;
+    newCategory: string;
+    reason: string;
+    merchant: string;
+    amount: number;
+    currency: string;
+  }
+  
+  interface AiPreviewData {
+    newCategorisations: AiNewEntry[];
+    replacements: AiReplacementEntry[];
+  }
+
+  const [aiPreviewResults, setAiPreviewResults] = useState<AiPreviewData | null>(null);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [bulkApplying, setBulkApplying] = useState(false);
   const [rememberRule, setRememberRule] = useState(true);
@@ -421,8 +443,8 @@ export function TransactionsTable({
       }
 
       // Group results for overview
-      const newCategorisations: typeof aiPreviewResults.newCategorisations = [];
-      const replacements: typeof aiPreviewResults.replacements = [];
+      const newCategorisations: AiNewEntry[] = [];
+      const replacements: AiReplacementEntry[] = [];
 
       for (const r of results) {
         if (!r.category || !r.id) continue;
