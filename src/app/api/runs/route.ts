@@ -10,6 +10,7 @@ import {
   extractDocumentFromBuffer,
   extractDocumentFromTextWithAI,
 } from "@/lib/uploads/extractor";
+import { uploadFile } from "@/lib/storage";
 import type { ClientExtractedDocumentInput, ExtractedDocument, TransactionRecord } from "@/lib/domain/types";
 
 /** Quick check: does this OCR text contain any money-like numbers? */
@@ -114,8 +115,10 @@ async function handlePost(request: Request) {
   const selectedTemplate = templates.find((template) => template.id === templateId);
 
   if (transactionFile instanceof File && transactionFile.size > 0) {
-    try {
-      const parsed = parseTransactionFile(await transactionFile.arrayBuffer());
+      const buffer = await transactionFile.arrayBuffer();
+      const storageKey = await uploadFile(`runs/${run.id}/${transactionFile.name}`, buffer, transactionFile.type);
+      
+      const parsed = parseTransactionFile(buffer);
       const mapping = selectedTemplate?.columnMappings || detectDefaultMapping(parsed.headers);
       run.previewHeaders = parsed.headers;
       run.savedColumnMappings = mapping;
@@ -126,6 +129,7 @@ async function handlePost(request: Request) {
         originalName: transactionFile.name,
         mimeType: transactionFile.type || "application/octet-stream",
         sizeBytes: transactionFile.size,
+        storageKey,
         fileKind: "transaction_file",
       });
     } catch {
@@ -151,12 +155,16 @@ async function handlePost(request: Request) {
       continue;
     }
 
+    const buffer = await entry.arrayBuffer();
+    const storageKey = await uploadFile(`runs/${run.id}/docs/${entry.name}`, buffer, entry.type);
+
     run.uploadedFiles.push({
       id: `file_${Date.now()}_${entry.name}`,
       fileName: entry.name,
       originalName: entry.name,
       mimeType: entry.type || "application/octet-stream",
       sizeBytes: entry.size,
+      storageKey,
       fileKind: entry.name.toLowerCase().endsWith(".zip") ? "archive" : "document",
     });
 

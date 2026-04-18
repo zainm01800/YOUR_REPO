@@ -5,6 +5,8 @@ import {
   FileSpreadsheet,
   PlusCircle,
   TrendingUp,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,12 @@ import { RunStatusPill } from "@/components/ui/status-pill";
 import { getRepository } from "@/lib/data";
 import { buildReviewRows } from "@/lib/reconciliation/review-rows";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description: "Track reconciliation runs, review exceptions, and monitor spend analytics.",
+};
 
 function KpiCard({
   label,
@@ -172,41 +180,75 @@ export default async function DashboardPage() {
       />
 
       {!hasRuns ? (
-        <Card className="hover-lift border-[var(--color-accent)] bg-linear-to-br from-[var(--color-accent-soft)] to-white glass-panel lg:flex-row lg:items-center lg:justify-between flex flex-col gap-6">
-          <div className="flex items-start gap-5">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-linear-to-tr from-[var(--color-accent)] to-[var(--color-accent-strong)] text-white premium-shadow">
-              <FileSpreadsheet className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold tracking-tight">
-                Welcome to ClearMatch. Let&apos;s run your first reconciliation.
-              </h2>
-              <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-                The reconciliation control room is your command center for finance operations. 
-              </p>
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                {[
-                  "Upload transactions",
-                  "Review auto-matches",
-                  "Export posting file",
-                ].map((step, index) => (
-                  <div key={step} className="flex items-center gap-3 rounded-2xl bg-white/50 px-4 py-2 text-sm font-medium">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-accent)] text-[10px] text-white">
-                      {index + 1}
-                    </span>
-                    {step}
-                  </div>
-                ))}
+        <div className="space-y-6">
+          <Card className="hover-lift border-[var(--color-accent)] bg-linear-to-br from-[var(--color-accent-soft)] to-white glass-panel lg:flex-row lg:items-center lg:justify-between flex flex-col gap-8 p-8 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-accent)] opacity-[0.03] rounded-full -translate-y-1/2 translate-x-1/2" />
+            
+            <div className="flex items-start gap-6 relative z-10">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-tr from-[var(--color-accent)] to-[var(--color-accent-strong)] text-white premium-shadow">
+                <ShieldCheck className="h-7 w-7" />
+              </div>
+              <div className="max-w-2xl">
+                <h2 className="text-2xl font-bold tracking-tight text-[var(--color-foreground)]">
+                  Welcome to ClearMatch. Let&apos;s run your first reconciliation.
+                </h2>
+                <p className="mt-2 text-base text-[var(--color-muted-foreground)] leading-relaxed">
+                  Your workspace is ready. The reconciliation control room helps you match transactions to internal records, detect VAT discrepancies, and export audit-ready reports.
+                </p>
+                <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {[
+                    { label: "Upload transactions", desc: "CSVs or bank exports", icon: FileSpreadsheet },
+                    { label: "Review auto-matches", desc: "AI-powered detection", icon: Zap },
+                    { label: "Export posting file", desc: "Ready for ERP/Bank", icon: ArrowRight },
+                  ].map((step, index) => (
+                    <div key={step.label} className="group relative rounded-2xl border border-[var(--color-border)] bg-white/40 p-4 transition-all hover:bg-white hover:shadow-md">
+                      <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-[var(--color-accent)] group-hover:bg-[var(--color-accent)] group-hover:text-white transition-colors">
+                        <step.icon className="h-4 w-4" />
+                      </div>
+                      <div className="text-xs font-bold text-[var(--color-foreground)] uppercase tracking-wider">{step.label}</div>
+                      <div className="mt-1 text-[11px] text-[var(--color-muted-foreground)]">{step.desc}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
+            
+            <Link href="/runs/new" className="shrink-0 relative z-10">
+              <Button className="h-12 px-8 text-base hover-lift shadow-lg shadow-[var(--color-accent-soft)]">
+                Start first run
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="hover-lift p-5 space-y-3 cursor-pointer group" href="/bank-statements">
+               <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                 <FileSpreadsheet className="h-5 w-5" />
+               </div>
+               <h3 className="font-bold text-sm">Import Statements</h3>
+               <p className="text-xs text-[var(--color-muted-foreground)] leading-snug">Prepare your source data from bank exports or card statements.</p>
+            </Card>
+            <Card className="hover-lift p-5 space-y-3 cursor-pointer group" href="/settings">
+               <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                 <ShieldCheck className="h-5 w-5" />
+               </div>
+               <h3 className="font-bold text-sm">Review VAT Rules</h3>
+               <p className="text-xs text-[var(--color-muted-foreground)] leading-snug">Configure how the system calculates reclaimable tax for your entity.</p>
+            </Card>
+            <Card className="hover-lift p-5 space-y-3 cursor-pointer group" href="/settings?tab=members">
+               <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                 <TrendingUp className="h-5 w-5" />
+               </div>
+               <h3 className="font-bold text-sm">Invite Team</h3>
+               <p className="text-xs text-[var(--color-muted-foreground)] leading-snug">Give your accountant or finance team access to specific tools.</p>
+            </Card>
+            <Card className="hover-lift p-5 bg-linear-to-br from-[var(--color-panel)] to-white border-dashed border-2 flex flex-col items-center justify-center text-center">
+               <p className="text-xs font-medium text-[var(--color-muted-foreground)]">Need help setting up?</p>
+               <Button variant="ghost" className="mt-2 text-xs h-8">View documentation</Button>
+            </Card>
           </div>
-          <Link href="/runs/new" className="shrink-0">
-            <Button className="hover-lift gap-2 rounded-2xl">
-              Start first run
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </Card>
+        </div>
       ) : (
         <>
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">

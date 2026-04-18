@@ -1,6 +1,11 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { SettingsTabs } from "@/components/settings/settings-tabs";
 import { getRepository } from "@/lib/data";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Settings",
+};
 
 export default async function SettingsPage() {
   const repository = await getRepository();

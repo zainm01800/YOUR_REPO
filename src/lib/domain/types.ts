@@ -166,6 +166,7 @@ export interface UploadedFileMeta {
   originalName: string;
   mimeType: string;
   sizeBytes: number;
+  storageKey?: string;
   fileKind: "transaction_file" | "document" | "archive" | "export_file";
 }
 
@@ -321,7 +322,9 @@ export interface DocumentTaxLine {
 
 export interface ExtractedDocument {
   id: string;
+  runId: string;
   fileName: string;
+  storageKey?: string;
   supplier?: string;
   issueDate?: string;
   gross?: number;

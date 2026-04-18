@@ -16,7 +16,10 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: `${appConfig.name} | Reconciliation workflow for finance teams`,
+  title: {
+    template: `%s | ${appConfig.name}`,
+    default: `${appConfig.name} | Reconciliation for finance teams`,
+  },
   description:
     "Upload transactions and receipts, reconcile them, review exceptions, and export finance-ready outputs.",
 };

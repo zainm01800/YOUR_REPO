@@ -3,6 +3,11 @@ import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
 import { RunsTable } from "@/components/runs/runs-table";
 import { getRepository } from "@/lib/data";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Reconciliation Runs",
+};
 
 export default async function RunsPage() {
   const repository = await getRepository();

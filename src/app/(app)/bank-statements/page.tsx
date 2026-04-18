@@ -1,6 +1,11 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { BankStatementsTable } from "@/components/bank-statements/bank-statements-table";
 import { getRepository } from "@/lib/data";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Bank Statements",
+};
 
 export default async function BankStatementsPage() {
   const repository = await getRepository();

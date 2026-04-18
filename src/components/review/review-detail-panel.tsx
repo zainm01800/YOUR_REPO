@@ -10,6 +10,8 @@ import type { ReconciliationRun, ReviewRow } from "@/lib/domain/types";
 import { europeanCountryOptions } from "@/lib/run-config";
 import { isVatClaimableForRun } from "@/lib/tax/rules-engine";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getFileUrl } from "@/lib/storage";
+import { ExternalLink, FileText } from "lucide-react";
 
 const reviewCountryOptions = [
   ...europeanCountryOptions,
@@ -371,7 +373,22 @@ export function ReviewDetailPanel({
               {document?.fileName || "Missing receipt"}
             </h3>
           </div>
-          {document ? <Badge tone="info">{Math.round(document.confidence * 100)}% OCR</Badge> : null}
+          {document ? (
+            <div className="flex items-center gap-2">
+              <Badge tone="info">{Math.round(document.confidence * 100)}% OCR</Badge>
+              {document.storageKey && (
+                <a
+                  href={getFileUrl(document.storageKey)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 rounded-lg bg-white border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold hover:bg-slate-50 transition premium-shadow"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  View Original
+                </a>
+              )}
+            </div>
+          ) : null}
         </div>
         {document ? (
           <>

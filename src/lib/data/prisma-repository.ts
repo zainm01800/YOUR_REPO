@@ -378,20 +378,14 @@ function toTemplate(template: {
   };
 }
 
-function toUploadedFile(file: {
-  id: string;
-  fileName: string;
-  originalName: string;
-  mimeType: string;
-  sizeBytes: number;
-  fileKind: string;
-}): UploadedFileMeta {
+function toUploadedFile(file: any): UploadedFileMeta {
   return {
     id: file.id,
     fileName: file.fileName,
     originalName: file.originalName,
     mimeType: file.mimeType,
     sizeBytes: file.sizeBytes,
+    storageKey: file.storageKey || undefined,
     fileKind: file.fileKind as UploadedFileMeta["fileKind"],
   };
 }
@@ -526,6 +520,7 @@ function toDocument(
     countryCode: document.countryCode || undefined,
     currency: document.currency || undefined,
     rawExtractedText: document.rawExtractedText || undefined,
+    storageKey: (document as any).storageKey || undefined,
     confidence: toNumber(document.extractionConfidence) ?? 0,
     duplicateFingerprint: document.duplicateFingerprint || undefined,
     taxLines: document.taxLines.map((taxLine) => ({
