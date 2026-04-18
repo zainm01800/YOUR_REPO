@@ -993,8 +993,6 @@ export function TransactionsTable({
               </div>
             </div>
           </div>
-            </div>
-          </div>
         </div>
       )}
 
