@@ -71,7 +71,7 @@ export interface TaxSummaryReport {
     totalExpenses: number;
     /** Income minus all expenses — the accounting P&L figure */
     accountingProfit: number;
-    /** Sum of all adjustments to be ADDED BACK to profit (disallowed + uncategorized expenses - uncategorized income) */
+    /** Sum of all adjustments to be ADDED BACK to profit (disallowed + uncategorised expenses - uncategorised income) */
     totalTaxAdjustments: number;
     /** Portion of expenses successfully claimed */
     totalClaimableExpenses: number;
@@ -89,6 +89,13 @@ export interface TaxSummaryReport {
     nonRecoverableVat: number;
     netVatPosition: number;
   };
+  mtdCompliance: {
+    requiresQuarterlyReporting: boolean;
+    grossTurnover: number;
+    threshold: number;
+    estimatedQuarterlyTax: number;
+    hasReachedThreshold: boolean;
+  };
   /** Per-category breakdown of disallowed add-backs, sorted by disallowedAmount desc */
   taxAdjustments: TaxAdjustment[];
   /** Fully claimable expense categories */
@@ -100,6 +107,8 @@ export interface TaxSummaryReport {
   estimatedTax: EstimatedTaxSummary | null;
   assumptions: string[];
 }
+
+const MTD_ITSA_THRESHOLD = 50000;
 
 function estimateSoleTraderIncomeTax(taxableProfitAfterAllowance: number) {
   const breakdown: TaxBandBreakdown[] = [];
@@ -344,6 +353,19 @@ export function buildTaxSummaryReport({
 
   const totalExpenses = round2(pnl.expenseSection.netTotal);
 
+  // MTD ITSA Compliance Logic
+  // Turnover is gross income before expenses/VAT.
+  const grossTurnover = round2(
+    allPnLTxs
+      .filter(tx => tx.accountType === "income")
+      .reduce((s, tx) => s + tx.grossAmount, 0)
+  );
+  const requiresQuarterlyReporting = businessType === "sole_trader" && grossTurnover >= MTD_ITSA_THRESHOLD;
+  
+  const estimatedQuarterlyTax = estimatedTax 
+    ? round2(estimatedTax.totalEstimatedTax / 4)
+    : 0;
+
   return {
     businessType,
     currency,
@@ -364,6 +386,13 @@ export function buildTaxSummaryReport({
       inputVat: round2(vatReport.inputTaxRecoverable),
       nonRecoverableVat: round2(vatReport.inputTaxNonRecoverable),
       netVatPosition: round2(vatReport.netVatPosition),
+    },
+    mtdCompliance: {
+      requiresQuarterlyReporting,
+      grossTurnover,
+      threshold: MTD_ITSA_THRESHOLD,
+      estimatedQuarterlyTax,
+      hasReachedThreshold: grossTurnover >= MTD_ITSA_THRESHOLD,
     },
     taxAdjustments,
     fullyClaimableCategories,

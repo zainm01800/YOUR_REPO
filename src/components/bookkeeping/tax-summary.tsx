@@ -89,28 +89,69 @@ function MetricCard({
   value,
   help,
   tone = "default",
+  accent = false,
 }: {
   label: string;
   value: string;
   help: string;
-  tone?: "default" | "positive" | "warning" | "muted";
+  tone?: "default" | "positive" | "warning" | "muted" | "info";
+  accent?: boolean;
 }) {
   const className =
     tone === "positive"
       ? "border-emerald-200 bg-emerald-50"
       : tone === "warning"
         ? "border-amber-200 bg-amber-50"
-        : tone === "muted"
-          ? "border-[var(--color-border)] bg-[var(--color-panel)]"
-          : "border-[var(--color-border)] bg-white";
+        : tone === "info"
+          ? "border-indigo-200 bg-indigo-50"
+          : tone === "muted"
+            ? "border-[var(--color-border)] bg-[var(--color-panel)]"
+            : "border-[var(--color-border)] bg-white";
 
   return (
-    <Card className={`space-y-2 rounded-3xl border p-5 ${className}`}>
+    <Card className={`space-y-2 rounded-3xl border p-5 ${className} ${accent ? "ring-2 ring-indigo-600/10 ring-offset-0" : ""}`}>
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
         {label}
       </p>
       <p className="font-mono text-3xl font-bold text-[var(--color-foreground)]">{value}</p>
       <p className="text-sm text-[var(--color-muted-foreground)]">{help}</p>
+    </Card>
+  );
+}
+
+function MTDComplianceAlert({ 
+  grossTurnover, 
+  threshold, 
+  currency,
+  quarterlyEstimate
+}: { 
+  grossTurnover: number; 
+  threshold: number; 
+  currency: string;
+  quarterlyEstimate: number;
+}) {
+  return (
+    <Card className="rounded-3xl border-indigo-200 bg-indigo-50 p-6 shadow-sm">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex gap-4">
+          <div className="rounded-2xl bg-indigo-100 p-3 text-indigo-600">
+            <Calculator className="h-6 w-6" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold text-indigo-900">MTD ITSA Compliance Required</h3>
+            <p className="max-w-xl text-sm leading-relaxed text-indigo-800">
+              Your gross income ({formatAmount(grossTurnover, currency)}) has exceeded the <strong>{formatAmount(threshold, currency)}</strong> HMRC threshold. 
+              Starting from April 2026, you may be required to submit <strong>quarterly tax updates</strong> to HMRC every 3 months instead of once a year.
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex flex-col gap-2 rounded-2xl bg-white/60 p-4 border border-indigo-100 min-w-[240px]">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Estimated 3-Month Exposure</p>
+          <p className="font-mono text-2xl font-bold text-indigo-900">{formatAmount(quarterlyEstimate, currency)}</p>
+          <p className="text-xs text-indigo-700/70 italic">Approximate liability for each quarterly filing.</p>
+        </div>
+      </div>
     </Card>
   );
 }
@@ -339,6 +380,15 @@ export function TaxSummary({
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          {taxSummary.mtdCompliance.requiresQuarterlyReporting && (
+            <MTDComplianceAlert 
+              grossTurnover={taxSummary.mtdCompliance.grossTurnover}
+              threshold={taxSummary.mtdCompliance.threshold}
+              currency={taxSummary.currency}
+              quarterlyEstimate={taxSummary.mtdCompliance.estimatedQuarterlyTax}
+            />
+          )}
+
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               label="Accounting profit"

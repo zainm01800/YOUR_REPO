@@ -5,8 +5,8 @@ import { getRepository } from "@/lib/data";
 const SYSTEM_PROMPT = `You are an AI bookkeeping categorization assistant.
 Your job is to map a list of transactions to the best-fitting category from a provided set of valid categories.
 
-Here are the ONLY valid Category Names you may choose from:
-{CATEGORIES}
+Here are the valid categories and what they typically include:
+{CATEGORIES_CONTEXT}
 
 Input format:
 You will receive a JSON list of transactions.
@@ -16,14 +16,15 @@ Output format:
 You MUST return ONLY valid JSON in the exact structure below. Do not add markdown or explanations outside the JSON.
 {
   "results": [
-    { "id": "tx-1", "category": "Fuel", "reason": "Petrol station" }
+    { "id": "tx-1", "category": "Fuel", "reason": "Matched Tesco Fuel via known patterns" }
   ]
 }
 
 Rules:
-1. ONLY use categories exactly as they appear in the provided list.
-2. If you are not confident, return null for the category: { "id": "tx-2", "category": null, "reason": "Ambiguous" }
-3. Return the array exactly matching the length of the input transactions.
+1. ONLY use category names exactly as they appear in the provided "name" fields.
+2. Use the provided "description", "supplierPattern", and "keywordPattern" as strong hints for what belongs in each category.
+3. If you are not confident, return null for the category: { "id": "tx-2", "category": null, "reason": "Ambiguous merchant" }
+4. Return the array exactly matching the length of the input transactions.
 `;
 
 export async function POST(req: NextRequest) {
@@ -54,23 +55,26 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Get visible categories
+    // Get visible categories with their context
     const settings = await repository.getSettingsSnapshot();
-    const validCategories = settings.categoryRules
+    const activeCategories = settings.categoryRules
       .filter((r) => r.isActive && r.isVisible)
-      .map((r) => r.category)
-      .sort();
+      .sort((a, b) => a.category.localeCompare(b.category));
 
-    if (validCategories.length === 0) {
+    if (activeCategories.length === 0) {
       return NextResponse.json({ error: "No active categories found in workspace." }, { status: 400 });
     }
 
     const groq = new Groq({ apiKey });
 
-    const systemPrompt = SYSTEM_PROMPT.replace(
-      "{CATEGORIES}", 
-      validCategories.map((c) => `- ${c}`).join("\n")
-    );
+    const categoriesContext = activeCategories.map((c) => {
+      let ctx = `- Name: "${c.category}"\n  Description: ${c.description || "No description"}`;
+      if (c.supplierPattern) ctx += `\n  Supplier Hints: ${c.supplierPattern}`;
+      if (c.keywordPattern) ctx += `\n  Keyword Hints: ${c.keywordPattern}`;
+      return ctx;
+    }).join("\n\n");
+
+    const systemPrompt = SYSTEM_PROMPT.replace("{CATEGORIES_CONTEXT}", categoriesContext);
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
