@@ -231,15 +231,16 @@ export function buildTaxSummaryReport({
 
   const categoryMap = new Map<string, CategoryAgg>();
   for (const tx of expensePnLTxs) {
-    const existing = categoryMap.get(tx.category);
+    const catName = tx.category.trim();
+    const existing = categoryMap.get(catName);
     if (existing) {
       existing.accountingAmount = round2(existing.accountingAmount + tx.netAmount);
       existing.claimableAmount = round2(existing.claimableAmount + tx.allowableAmount);
       existing.nonClaimableAmount = round2(existing.nonClaimableAmount + tx.disallowedAmount);
       existing.transactionCount += 1;
     } else {
-      categoryMap.set(tx.category, {
-        category: tx.category,
+      categoryMap.set(catName, {
+        category: catName,
         reportingBucket: tx.reportingBucket,
         accountingAmount: tx.netAmount,
         claimableAmount: tx.allowableAmount,
@@ -275,13 +276,14 @@ export function buildTaxSummaryReport({
   const adjustmentMap = new Map<string, TaxAdjustment>();
   for (const tx of expensePnLTxs) {
     if (tx.disallowedAmount <= 0) continue;
-    const existing = adjustmentMap.get(tx.category);
+    const catName = tx.category.trim();
+    const existing = adjustmentMap.get(catName);
     if (existing) {
       existing.disallowedAmount = round2(existing.disallowedAmount + tx.disallowedAmount);
       existing.transactionCount += 1;
     } else {
-      adjustmentMap.set(tx.category, {
-        category: tx.category,
+      adjustmentMap.set(catName, {
+        category: catName,
         reportingBucket: tx.reportingBucket,
         disallowedAmount: tx.disallowedAmount,
         transactionCount: 1,

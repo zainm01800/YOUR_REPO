@@ -133,7 +133,7 @@ export function classifyTransaction(
   const accountType: AccountType = resolvedCategory?.accountType ?? (tx.amount >= 0 ? "income" : "expense");
   const statementType: StatementType = resolvedCategory?.statementType ?? "p_and_l";
   const reportingBucket = resolvedCategory?.reportingBucket ?? "Uncategorised";
-  const categoryName = resolvedCategory?.category ?? tx.category ?? "Uncategorised";
+  const categoryName = (resolvedCategory?.category ?? tx.category ?? "Uncategorised").trim();
   const glCode = tx.glCode || resolvedCategory?.glCode;
 
   // Tax allowability — only meaningful for P&L expenses.
@@ -209,7 +209,7 @@ export function classifyTransactions(
 ): ClassifiedTransaction[] {
   const ruleMap = buildCategoryRuleMap(categoryRules);
   return transactions.map((tx) => {
-    const cat = tx.category ?? "";
+    const cat = (tx.category ?? "").trim().toLowerCase();
     const rule = ruleMap.get(cat);
     return classifyTransaction(tx, rule, vatRegistered);
   });
@@ -222,7 +222,8 @@ export function classifyTransactions(
 export function buildCategoryRuleMap(categoryRules: CategoryRule[]): Map<string, CategoryRule> {
   const map = new Map<string, CategoryRule>();
   for (const rule of categoryRules) {
-    map.set(rule.category, rule);
+    // Standardize keys to lowercase trimmed strings for robust matching
+    map.set(rule.category.trim().toLowerCase(), rule);
   }
   return map;
 }

@@ -71,7 +71,12 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Invalid body", details: parsed.error.flatten() }, { status: 400 });
     }
     const repository = await getRepository();
-    const rules = await repository.replaceAllCategoryRules({ rules: parsed.data.rules });
+    const normalizedRules = parsed.data.rules.map(r => ({
+      ...r,
+      category: r.category.trim(),
+      slug: r.slug.trim(),
+    }));
+    const rules = await repository.replaceAllCategoryRules({ rules: normalizedRules });
     return NextResponse.json({ rules });
   } catch (error) {
     console.error("[category-rules PUT]", error);

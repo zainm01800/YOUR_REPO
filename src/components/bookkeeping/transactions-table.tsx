@@ -234,23 +234,28 @@ export function TransactionsTable({
     return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
   }, [filtered]);
 
-  // Expand latest month by default if not manually toggled yet
-  useEffect(() => {
-    if (monthGroups.length > 0 && collapsedMonths.size === 0) {
-      // If we have groups, collapse all EXCEPT the first one (latest)
-      const toCollapse = new Set<string>();
-      monthGroups.slice(1).forEach(([key]) => toCollapse.add(key));
-      setCollapsedMonths(toCollapse);
-    }
-  }, [monthGroups.length > 0]); // only run once when data loads
+  // Keep all months expanded by default to show as much data as possible per page
+  // (removed the auto-collapse latest month logic per user feedback)
 
   const uniqueCategories = useMemo(() => {
     const set = new Set<string>();
     for (const tx of rowsWithCategory) {
-      set.add(tx.resolvedCategory || "Uncategorised");
+      // Normalize to prevent "service income" vs "Service Income" duplicates
+      const cat = (tx.resolvedCategory || "Uncategorised").trim();
+      set.add(cat);
     }
-    return Array.from(set).sort();
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [rowsWithCategory]);
+
+  const uniquePickerRules = useMemo(() => {
+    const seen = new Set<string>();
+    return pickerCategoryRules.filter((rule) => {
+      const name = rule.category.trim();
+      if (seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    });
+  }, [pickerCategoryRules]);
 
   const handleSaveCategory = useCallback(async (txId: string, newCategory: string) => {
     if (!newCategory) {
@@ -618,7 +623,7 @@ export function TransactionsTable({
               className="h-8 rounded-lg border border-indigo-200 bg-white px-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Choose category…</option>
-              {pickerCategoryRules.map((rule) => (
+              {uniquePickerRules.map((rule) => (
                 <option key={rule.slug} value={rule.category}>{rule.category}</option>
               ))}
             </select>

@@ -18,7 +18,8 @@ export async function PUT(
       return NextResponse.json({ error: "Invalid body" }, { status: 400 });
     }
     const repository = await getRepository();
-    await repository.setTransactionCategory(transactionId, parsed.data.category);
+    const normalizedCategory = parsed.data.category?.trim() ?? null;
+    await repository.setTransactionCategory(transactionId, normalizedCategory);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[category PUT]", error);

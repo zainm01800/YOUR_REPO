@@ -129,7 +129,7 @@ function buildSection(
   const buckets: ReportBucket[] = Array.from(byBucket.entries())
     .map(([bucket, txs]) => {
       // Group by category within each bucket
-      const byCategory = groupBy(txs, (t) => t.category);
+      const byCategory = groupBy(txs, (t) => t.category.trim());
       const lines: ReportLineItem[] = Array.from(byCategory.entries()).map(
         ([category, catTxs]) => ({
           category,
@@ -289,7 +289,7 @@ export function buildVatReport(
   );
 
   function buildVatLines(txs: ClassifiedTransaction[], isOutput: boolean): VatReportLine[] {
-    const byCatRate = groupBy(txs, (t) => `${t.category}::${t.effectiveVatRate}`);
+    const byCatRate = groupBy(txs, (t) => `${t.category.trim()}::${t.effectiveVatRate}`);
     return Array.from(byCatRate.entries())
       .map(([key, items]) => {
         const [category] = key.split("::");

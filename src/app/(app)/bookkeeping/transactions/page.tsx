@@ -15,7 +15,7 @@ export default async function BookkeepingTransactionsPage({
 }) {
   const { page } = await searchParams;
   const currentPage = Number(page || "1");
-  const pageSize = 50;
+  const pageSize = 100;
   const skip = (currentPage - 1) * pageSize;
 
   const repository = await getRepository();
