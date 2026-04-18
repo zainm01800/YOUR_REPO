@@ -39,6 +39,8 @@ interface TransactionRowProps {
   handleSaveCategory: (id: string, newCategory: string) => void;
   handleToggleAllowable: (category: string, currentVal: boolean) => void;
   categoryOptions: CategoryRule[];
+  anomaly?: { reason: string; severity: "warning" | "info"; expectedAvg: number; currency: string };
+  confidence?: "manual" | "learned" | "ai" | "auto";
 }
 
 export const TransactionRowComponent = memo(function TransactionRowComponent({
@@ -54,6 +56,8 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
   handleSaveCategory,
   handleToggleAllowable,
   categoryOptions,
+  anomaly,
+  confidence,
 }: TransactionRowProps) {
   const optionSections = new Map<string, CategoryRule[]>();
   for (const rule of categoryOptions) {
@@ -110,11 +114,27 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
       <td className="hidden max-w-[220px] px-4 py-3 text-[var(--color-muted-foreground)] sm:table-cell border-t border-[var(--color-border)]">
         <span className="line-clamp-1">{tx.description}</span>
       </td>
-      <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-semibold text-[var(--color-foreground)] border-t border-[var(--color-border)]">
-        {fmtAmount(tx.amount, tx.currency)}
-        {tx.currency !== "GBP" && (
-          <span className="ml-1 text-xs font-normal text-[var(--color-muted-foreground)]">{tx.currency}</span>
-        )}
+      <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-semibold border-t border-[var(--color-border)]">
+        <div className="flex items-center justify-end gap-1.5">
+          {anomaly && (
+            <span
+              title={`${anomaly.reason} (avg: ${fmtAmount(anomaly.expectedAvg, anomaly.currency)})`}
+              className={`flex h-5 w-5 cursor-help items-center justify-center rounded-full text-[10px] font-bold ${
+                anomaly.severity === "warning"
+                  ? "bg-amber-100 text-amber-600 ring-1 ring-amber-300"
+                  : "bg-yellow-50 text-yellow-500 ring-1 ring-yellow-200"
+              }`}
+            >
+              !
+            </span>
+          )}
+          <span className={anomaly ? (anomaly.severity === "warning" ? "text-amber-600" : "text-yellow-600") : "text-[var(--color-foreground)]"}>
+            {fmtAmount(tx.amount, tx.currency)}
+          </span>
+          {tx.currency !== "GBP" && (
+            <span className="text-xs font-normal text-[var(--color-muted-foreground)]">{tx.currency}</span>
+          )}
+        </div>
       </td>
       <td className="px-4 py-3 border-t border-[var(--color-border)]">
         {isEditing ? (
@@ -171,15 +191,25 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
             ) : (
               <Tag className="h-3.5 w-3.5 text-[var(--color-muted-foreground)] group-hover:text-[var(--color-accent)]" />
             )}
-            {tx.category ? (
-               <span className="font-medium text-[var(--color-foreground)]">{tx.resolvedCategory}</span>
-            ) : tx.resolvedCategory ? (
-               <div className="flex items-center gap-1.5">
-                  <span className="font-medium text-[var(--color-foreground)]">{tx.resolvedCategory}</span>
-                  <span className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-violet-50 text-[9px] font-bold text-violet-600 ring-1 ring-violet-200 uppercase tracking-tighter">
-                    <Sparkles className="h-2 w-2" /> Auto
+            {tx.resolvedCategory ? (
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium text-[var(--color-foreground)]">{tx.resolvedCategory}</span>
+                {confidence === "learned" && (
+                  <span className="rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-tighter bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+                    Learned
                   </span>
-               </div>
+                )}
+                {confidence === "ai" && (
+                  <span className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-tighter bg-violet-50 text-violet-600 ring-1 ring-violet-200">
+                    <Sparkles className="h-2 w-2" /> AI
+                  </span>
+                )}
+                {confidence === "auto" && (
+                  <span className="rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-tighter bg-slate-100 text-slate-500 ring-1 ring-slate-200">
+                    Auto
+                  </span>
+                )}
+              </div>
             ) : (
               <span className="italic text-[var(--color-muted-foreground)]">Uncategorised</span>
             )}

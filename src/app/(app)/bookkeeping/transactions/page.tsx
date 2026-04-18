@@ -3,6 +3,8 @@ import { getRepository } from "@/lib/data";
 import { buildCategoryRuleMap, classifyTransaction } from "@/lib/accounting/classifier";
 import { resolveCategory } from "@/lib/categories/suggester";
 import { TransactionsTable } from "@/components/bookkeeping/transactions-table";
+import { detectAnomalies } from "@/lib/analytics/anomaly-detector";
+import type { AnomalyInfo } from "@/lib/analytics/anomaly-detector";
 
 export default async function BookkeepingTransactionsPage() {
   const repository = await getRepository();
@@ -80,6 +82,14 @@ export default async function BookkeepingTransactionsPage() {
     const db = b.transactionDate ?? "";
     return db.localeCompare(da);
   });
+
+  // Compute per-merchant anomaly data server-side
+  const anomalyMap = detectAnomalies(allTransactions);
+  // Serialise Map → plain Record so it can be passed as a prop
+  const anomalies: Record<string, AnomalyInfo> = {};
+  for (const [id, info] of anomalyMap) {
+    anomalies[id] = info;
+  }
 
   // Derive the set of all known categories (from rules + manual assignments)
   const allCategories = Array.from(
@@ -173,6 +183,7 @@ export default async function BookkeepingTransactionsPage() {
           pickerCategoryRules={pickerCategoryRules}
           vatRegistered={settingsSnapshot.workspace.vatRegistered}
           canUseAi={canUseAi}
+          anomalies={anomalies}
         />
       )}
     </>

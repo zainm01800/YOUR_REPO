@@ -128,19 +128,28 @@ export async function createMerchantRuleAction(
   const baseRule = rules.find((r) => r.category === category);
   if (!baseRule) throw new Error(`Category "${category}" not found`);
 
-  const tokens = extractTokens(`${merchantName} ${description}`);
+  let tokens = extractTokens(`${merchantName} ${description}`);
+  // If merchant alone gives nothing useful, try description tokens as keywordPattern
+  const useKeyword = tokens.length === 0 || extractTokens(merchantName).length === 0;
+  if (tokens.length === 0) {
+    tokens = extractTokens(description);
+  }
   if (tokens.length === 0) return; // nothing meaningful to learn
 
   const pattern = buildSupplierPattern(tokens);
 
   // Don't create a duplicate pattern for the same category
   const alreadyExists = rules.some((r) => {
-    if (!r.supplierPattern) return false;
+    if (!r.supplierPattern && !r.keywordPattern) return false;
     try {
       return (
-        r.supplierPattern === pattern ||
+        (r.supplierPattern === pattern || r.keywordPattern === pattern) ||
         (r.category === category &&
-          new RegExp(r.supplierPattern, "i").test(merchantName))
+          (r.supplierPattern
+            ? new RegExp(r.supplierPattern, "i").test(merchantName)
+            : r.keywordPattern
+              ? new RegExp(r.keywordPattern, "i").test(`${merchantName} ${description}`)
+              : false))
       );
     } catch {
       return false;
@@ -154,8 +163,8 @@ export async function createMerchantRuleAction(
     ...baseRule,
     id: randomUUID(),
     slug,
-    supplierPattern: pattern,
-    keywordPattern: undefined,
+    supplierPattern: useKeyword ? undefined : pattern,
+    keywordPattern: useKeyword ? pattern : undefined,
     priority: 5,
     isSystemDefault: false,
     isActive: true,
@@ -196,16 +205,25 @@ export async function saveAiLearnedRulesAction(
     const baseRule = rules.find((r) => r.category === result.category);
     if (!baseRule) continue;
 
-    const tokens = extractTokens(`${result.merchant} ${result.description ?? ""}`);
+    let tokens = extractTokens(`${result.merchant} ${result.description ?? ""}`);
+    // If merchant alone gives nothing useful, try description tokens as keywordPattern
+    const useKeyword = tokens.length === 0 || extractTokens(result.merchant).length === 0;
+    if (tokens.length === 0) {
+      tokens = extractTokens(result.description ?? "");
+    }
     if (tokens.length === 0) continue;
 
     const pattern = buildSupplierPattern(tokens);
 
     // Skip if a pattern already covers this merchant+category combination
     const alreadyCovered = [...rules, ...newRules.slice(rules.length)].some((r) => {
-      if (!r.supplierPattern) return false;
+      if (!r.supplierPattern && !r.keywordPattern) return false;
       try {
-        return new RegExp(r.supplierPattern, "i").test(result.merchant);
+        return r.supplierPattern
+          ? new RegExp(r.supplierPattern, "i").test(result.merchant)
+          : r.keywordPattern
+            ? new RegExp(r.keywordPattern, "i").test(`${result.merchant} ${result.description ?? ""}`)
+            : false;
       } catch {
         return false;
       }
@@ -218,8 +236,8 @@ export async function saveAiLearnedRulesAction(
       ...baseRule,
       id: randomUUID(),
       slug,
-      supplierPattern: pattern,
-      keywordPattern: undefined,
+      supplierPattern: useKeyword ? undefined : pattern,
+      keywordPattern: useKeyword ? pattern : undefined,
       priority: 20, // AI-learned: lower urgency than manual rules
       isSystemDefault: false,
       isActive: true,

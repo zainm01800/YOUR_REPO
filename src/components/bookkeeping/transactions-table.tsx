@@ -2,7 +2,7 @@
 import { Fragment, useEffect, useMemo, useState, useTransition, useCallback } from "react";
 import { CheckCircle2, Search, Trash2, Sparkles, Loader2, X, ChevronDown, ChevronRight, ListCollapse, ListFilter } from "lucide-react";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
-import { resolveCategory } from "@/lib/categories/suggester";
+import { resolveCategoryWithConfidence } from "@/lib/categories/suggester";
 import { TransactionRowComponent, fmtAmount, fmtDate } from "./transaction-row";
 import {
   updateTransactionCategoryAction,
@@ -103,6 +103,7 @@ interface Props {
   pickerCategoryRules: CategoryRule[];
   vatRegistered: boolean;
   canUseAi?: boolean;
+  anomalies?: Record<string, { reason: string; severity: "warning" | "info"; expectedAvg: number; currency: string }>;
 }
 
 export function TransactionsTable({
@@ -111,6 +112,7 @@ export function TransactionsTable({
   pickerCategoryRules,
   vatRegistered,
   canUseAi = false,
+  anomalies = {},
 }: Props) {
   const [localTransactions, setLocalTransactions] = useState(transactions);
   const [search, setSearch] = useState("");
@@ -150,11 +152,15 @@ export function TransactionsTable({
   const rowsWithCategory = useMemo(
     () =>
       localTransactions.map((tx) => {
-        const resolvedCategory =
-          categoryOverrides[tx.id] ??
-          tx.category ??
-          resolveCategory(tx, categoryRules) ??
-          "";
+        const override = categoryOverrides[tx.id];
+        const { category: resolved, confidence } = resolveCategoryWithConfidence(
+          { ...tx, category: override ?? tx.category },
+          categoryRules,
+        );
+        const resolvedCategory = resolved ?? "";
+        const categoryConfidence = override
+          ? "manual"
+          : confidence;
         const resolvedRule = resolvedCategory ? categoryRuleMap.get(resolvedCategory) : undefined;
         // Optimistically apply override, fall back to rule, default to true
         const isAllowable = resolvedCategory 
@@ -171,6 +177,7 @@ export function TransactionsTable({
           statementType: classification.statementType,
           supportsAllowability: classification.supportsAllowability,
           taxTreatment: classification.effectiveTaxTreatment,
+          categoryConfidence,
         };
       }),
     [localTransactions, categoryRules, categoryOverrides, allowabilityOverrides, categoryRuleMap, vatRegistered],
@@ -257,6 +264,13 @@ export function TransactionsTable({
       // "JOHN SMITH PAYMENT" all match each other via shared tokens ["john","smith"].
       const sourceTx = rowsWithCategory.find((t) => t.id === txId);
       if (sourceTx) {
+        // Silently learn from this categorisation in the background — fire-and-forget
+        // so every user's manual categorisations feed the shared rule library,
+        // making future imports smarter without any AI credit spend.
+        createMerchantRuleAction(sourceTx.merchant, newCategory, sourceTx.description).catch(
+          () => {},
+        );
+
         // Combine merchant + description for richer token extraction
         const sourceText = `${sourceTx.merchant} ${sourceTx.description}`;
 
@@ -719,7 +733,7 @@ export function TransactionsTable({
                       </tr>
 
                       {/* Transaction Rows */}
-                      {!isCollapsed && group.rows.map((tx, i) => (
+                      {!isCollapsed && group.rows.map((tx) => (
                         <TransactionRowComponent
                           key={tx.id}
                           tx={tx}
@@ -734,6 +748,8 @@ export function TransactionsTable({
                           handleSaveCategory={handleSaveCategory}
                           handleToggleAllowable={handleToggleAllowable}
                           categoryOptions={pickerCategoryRules}
+                          anomaly={anomalies[tx.id]}
+                          confidence={tx.categoryConfidence}
                         />
                       ))}
                     </Fragment>
