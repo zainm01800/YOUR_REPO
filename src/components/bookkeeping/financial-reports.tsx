@@ -35,9 +35,6 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 
 const STATEMENT_COMPARATIVE_HEADERS = [
   "Current period",
-  "Prior period",
-  "Comparative 2",
-  "Comparative 3",
 ] as const;
 
 type Tab = "pnl" | "balance" | "vat" | "uncategorised";
@@ -73,8 +70,7 @@ function StatementCover({
           <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[color:rgba(246,247,243,0.72)]">{meta}</p>
         </div>
         <p className="max-w-sm text-right text-xs leading-5 text-[color:rgba(246,247,243,0.84)]">
-          Management-format statement built from categorised bookkeeping data. Comparative columns
-          are included for recognisable presentation and will populate as comparative-period support grows.
+          Management-format statement built from categorised bookkeeping data.
         </p>
       </div>
     </div>
@@ -302,7 +298,7 @@ function PnLCreditDebitStatement({ report }: { report: PnLReport }) {
       title="Profit and Loss"
       subtitle="Nominal-style management profit and loss"
       meta={`${report.currency} / debit / credit presentation`}
-      footnote="Debit and credit columns are shown for recognisable bookkeeping presentation. Comparative columns will populate as period comparison support is expanded."
+      footnote="Debit and credit columns are shown for recognisable bookkeeping presentation."
     >
       <div className="overflow-x-auto">
         <table className="min-w-full border-separate border-spacing-0">

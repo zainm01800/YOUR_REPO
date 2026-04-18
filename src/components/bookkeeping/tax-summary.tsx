@@ -409,6 +409,27 @@ export function TaxSummary({
                   tone="positive"
                   strong
                 />
+                {hasEstimatedTax && (
+                  <>
+                    <SummaryLine
+                      label="Less: Personal allowance"
+                      value={formatSignedAmount(-taxSummary.estimatedTax!.personalAllowanceUsed, taxSummary.currency)}
+                      tone="positive"
+                    />
+                    <SummaryLine
+                      label="Taxable income after allowances"
+                      value={formatAmount(taxSummary.estimatedTax!.taxableIncomeAfterAllowance, taxSummary.currency)}
+                      strong
+                      tone={taxSummary.estimatedTax!.taxableIncomeAfterAllowance > 0 ? "positive" : "default"}
+                    />
+                    <SummaryLine
+                      label="Estimated total tax"
+                      value={formatAmount(taxSummary.estimatedTax!.totalEstimatedTax, taxSummary.currency)}
+                      strong
+                      tone={taxSummary.estimatedTax!.totalEstimatedTax > 0 ? "warning" : "default"}
+                    />
+                  </>
+                )}
               </div>
             </Card>
 

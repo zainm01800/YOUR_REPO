@@ -44,54 +44,91 @@ type NavigationSection = {
 };
 
 function buildNavigation(businessType: Workspace["businessType"]): NavigationSection[] {
-  const reportsLabel = businessType === "sole_trader" ? "Business Summary" : "Financial Reports";
+  // Sole trader: stripped-down tax-first flow
+  if (businessType === "sole_trader") {
+    return [
+      {
+        label: "Import",
+        items: [
+          { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
+        ],
+      },
+      {
+        label: "Review",
+        items: [
+          { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
+          { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
+        ],
+      },
+      {
+        label: "Report",
+        items: [
+          { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
+          { href: "/bookkeeping/reports", label: "Profit & Loss", icon: BarChart3 },
+        ],
+      },
+      {
+        label: "Download",
+        items: [
+          { href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen },
+        ],
+      },
+      {
+        label: "Configure",
+        items: [
+          { href: "/settings", label: "Settings & Members", icon: Settings2 },
+        ],
+      },
+    ];
+  }
 
+  // General business: full nav
   return [
-  {
-    label: "Ingest",
-    items: [
-      { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
-      { href: "/ocr-extraction", label: "OCR Extraction", icon: PackageOpen },
-    ],
-  },
-  {
-    label: "Process",
-    items: [
-      { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
-      { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
-      { href: "/templates", label: "Mapping Templates", icon: LayoutTemplate },
-    ],
-  },
-  {
-    label: "Reconcile",
-    items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/runs", label: "Reconciliation Runs", icon: FolderOpen },
-      { href: "/runs/new", label: "New Recon Run", icon: PlusSquare },
-    ],
-  },
-  {
-    label: "Report",
-    items: [
-      { href: "/bookkeeping/reports", label: reportsLabel, icon: BarChart3 },
-      { href: "/bookkeeping/tax-summary", label: "VAT & Tax Summary", icon: Calculator },
-    ],
-  },
-  {
-    label: "Deliver",
-    items: [
-      { href: "/posting-file-builder", label: "Posting File Builder", icon: FileOutput },
-      { href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen },
-    ],
-  },
-  {
-    label: "Configure",
-    items: [
-      { href: "/settings", label: "Settings & Members", icon: Settings2 },
-      { href: "/suppliers", label: "Suppliers", icon: Table2 },
-    ],
-  },
-];
+    {
+      label: "Ingest",
+      items: [
+        { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
+        { href: "/ocr-extraction", label: "OCR Extraction", icon: PackageOpen },
+      ],
+    },
+    {
+      label: "Process",
+      items: [
+        { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
+        { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
+        { href: "/templates", label: "Mapping Templates", icon: LayoutTemplate },
+      ],
+    },
+    {
+      label: "Reconcile",
+      items: [
+        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/runs", label: "Reconciliation Runs", icon: FolderOpen },
+        { href: "/runs/new", label: "New Recon Run", icon: PlusSquare },
+      ],
+    },
+    {
+      label: "Report",
+      items: [
+        { href: "/bookkeeping/reports", label: "Financial Reports", icon: BarChart3 },
+        { href: "/bookkeeping/tax-summary", label: "VAT & Tax Summary", icon: Calculator },
+      ],
+    },
+    {
+      label: "Deliver",
+      items: [
+        { href: "/posting-file-builder", label: "Posting File Builder", icon: FileOutput },
+        { href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen },
+      ],
+    },
+    {
+      label: "Configure",
+      items: [
+        { href: "/settings", label: "Settings & Members", icon: Settings2 },
+        { href: "/suppliers", label: "Suppliers", icon: Table2 },
+      ],
+    },
+  ];
 }
 
 function NavItems({
