@@ -144,6 +144,10 @@ export function TransactionsTable({
     merchantDesc: string;
     matches: TransactionRecord[];
   } | null>(null);
+  const [aiPreviewResults, setAiPreviewResults] = useState<{
+    newCategorisations: { id: string; category: string; reason: string; merchant: string; amount: number; currency: string }[];
+    replacements: { id: string; oldCategory: string; newCategory: string; reason: string; merchant: string; amount: number; currency: string }[];
+  } | null>(null);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [bulkApplying, setBulkApplying] = useState(false);
   const [rememberRule, setRememberRule] = useState(true);
@@ -380,11 +384,12 @@ export function TransactionsTable({
     });
   }
 
-  async function handleAiCategorise() {
-    // Find visibly uncategorised transactions
-    const targets = filtered.filter(
-      (tx) => !tx.resolvedCategory || tx.resolvedCategory === "Uncategorised"
-    );
+  async function handleAiScan() {
+    // Determine targeting: Selected items first, otherwise all filtered results
+    const selectedTxs = filtered.filter(tx => selected.has(tx.id));
+    const targets = selectedTxs.length > 0 
+      ? selectedTxs 
+      : filtered.filter(tx => !tx.resolvedCategory || tx.resolvedCategory === "Uncategorised");
 
     if (targets.length === 0) return;
 
@@ -415,50 +420,84 @@ export function TransactionsTable({
         throw new Error("Invalid response from AI");
       }
 
-      // Filter to only those where AI provided a valid mapped category
-      const validResults = results.filter((r) => r.category && r.id);
+      // Group results for overview
+      const newCategorisations: typeof aiPreviewResults.newCategorisations = [];
+      const replacements: typeof aiPreviewResults.replacements = [];
 
-      if (validResults.length === 0) {
-        setAiSuccessMsg("AI could not confidently categorise any items.");
+      for (const r of results) {
+        if (!r.category || !r.id) continue;
+        const tx = targets.find(t => t.id === r.id);
+        if (!tx) continue;
+
+        const isNew = !tx.resolvedCategory || tx.resolvedCategory === "Uncategorised";
+        
+        if (isNew) {
+          newCategorisations.push({
+            id: r.id,
+            category: r.category,
+            reason: r.reason,
+            merchant: tx.merchant,
+            amount: tx.amount,
+            currency: tx.currency
+          });
+        } else if (tx.resolvedCategory !== r.category) {
+          replacements.push({
+            id: r.id,
+            oldCategory: tx.resolvedCategory,
+            newCategory: r.category,
+            reason: r.reason,
+            merchant: tx.merchant,
+            amount: tx.amount,
+            currency: tx.currency
+          });
+        }
+      }
+
+      if (newCategorisations.length === 0 && replacements.length === 0) {
+        setAiSuccessMsg("AI could not confidently suggest any changes for these items.");
         setTimeout(() => setAiSuccessMsg(null), 4000);
         return;
       }
 
-      // Log reasons for debugging
-      console.log("[AI Scan Results]", results.map(r => `${r.id}: ${r.category ?? "NONE"} - ${r.reason}`));
-
-      // Apply categories + save learned rules in parallel
-      const payloadById = new Map(payload.map((p) => [p.id, p]));
-
-      await Promise.allSettled([
-        // Persist each category to the DB
-        ...validResults.map((r) => updateTransactionCategoryAction(r.id, r.category!)),
-        // Save AI results as learned rules so future imports skip the AI entirely
-        saveAiLearnedRulesAction(
-          validResults.map((r) => ({
-            merchant: payloadById.get(r.id)?.merchant ?? "",
-            description: payloadById.get(r.id)?.description ?? "",
-            category: r.category!,
-          })),
-        ),
-      ]);
-
-      // Update UI optimistically
-      const newOverrides = { ...categoryOverrides };
-      for (const r of validResults) {
-        newOverrides[r.id] = r.category!;
-      }
-      setCategoryOverrides(newOverrides);
-
-      if (validResults.length < payload.length) {
-        setAiSuccessMsg(`AI mapped ${validResults.length} of ${payload.length} items. Check console for details on skipped items.`);
-      } else {
-        setAiSuccessMsg(`Successfully categorised all ${validResults.length} items.`);
-      }
-      setTimeout(() => setAiSuccessMsg(null), 6000);
+      setAiPreviewResults({ newCategorisations, replacements });
 
     } catch (err) {
       setAiError(err instanceof Error ? err.message : "AI auto-categorisation failed.");
+    } finally {
+      setAiCategorising(false);
+    }
+  }
+
+  async function handleAiApply() {
+    if (!aiPreviewResults) return;
+    setAiCategorising(true);
+    
+    try {
+      const allResults = [
+        ...aiPreviewResults.newCategorisations.map(r => ({ id: r.id, category: r.category, merchant: r.merchant })),
+        ...aiPreviewResults.replacements.map(r => ({ id: r.id, category: r.newCategory, merchant: r.merchant }))
+      ];
+
+      await Promise.allSettled([
+        ...allResults.map(r => updateTransactionCategoryAction(r.id, r.category)),
+        saveAiLearnedRulesAction(allResults.map(r => ({
+          merchant: r.merchant,
+          description: "", // We don't need full description for learned rules if merchant is strong
+          category: r.category
+        })))
+      ]);
+
+      const newOverrides = { ...categoryOverrides };
+      for (const r of allResults) {
+        newOverrides[r.id] = r.category;
+      }
+      setCategoryOverrides(newOverrides);
+      setAiSuccessMsg(`Successfully applied AI suggestions to ${allResults.length} items.`);
+      setAiPreviewResults(null);
+      setSelected(new Set()); // Clear selection after apply
+      setTimeout(() => setAiSuccessMsg(null), 6000);
+    } catch (err) {
+      setAiError("Failed to apply AI suggestions.");
     } finally {
       setAiCategorising(false);
     }
@@ -557,10 +596,10 @@ export function TransactionsTable({
 
         {/* AI Categorise Button — owner/admin only */}
         <div className="ml-auto">
-          {canUseAi && filtered.some((tx) => !tx.resolvedCategory || tx.resolvedCategory === "Uncategorised") && (
+          {canUseAi && (
             <button
               type="button"
-              onClick={handleAiCategorise}
+              onClick={handleAiScan}
               disabled={aiCategorising}
               className="group flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
             >
@@ -572,7 +611,7 @@ export function TransactionsTable({
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 text-violet-200 transition group-hover:scale-110" />
-                  Auto-categorise with AI
+                  {selected.size > 0 ? `Scan ${selected.size} selected` : "Auto-categorise with AI"}
                 </>
               )}
             </button>
@@ -949,6 +988,149 @@ export function TransactionsTable({
                     </>
                   ) : (
                     `Apply to ${bulkSelectedIds.size}`
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Preview Overview Modal */}
+      {aiPreviewResults && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="flex flex-col w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl bg-white shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 px-8 py-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-violet-600" />
+                  AI Categorisation Overview
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Review the suggested changes before applying them to your transactions.
+                </p>
+              </div>
+              <button
+                onClick={() => setAiPreviewResults(null)}
+                className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto p-8 space-y-8">
+              {/* Bucket 1: New Categorisations */}
+              {aiPreviewResults.newCategorisations.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">
+                      {aiPreviewResults.newCategorisations.length}
+                    </span>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-700">New Categorisations</h3>
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-emerald-50/30">
+                    <table className="w-full text-sm">
+                      <thead className="border-b border-emerald-100 bg-emerald-50/50 text-emerald-800">
+                        <tr>
+                          <th className="px-5 py-3 text-left font-semibold">Transaction</th>
+                          <th className="px-5 py-3 text-right font-semibold">Amount</th>
+                          <th className="px-5 py-3 text-left font-semibold">Suggested Category</th>
+                          <th className="px-5 py-3 text-left font-semibold">AI Reasoning</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-emerald-100">
+                        {aiPreviewResults.newCategorisations.map((r) => (
+                          <tr key={r.id} className="hover:bg-emerald-50/50 transition">
+                            <td className="px-5 py-4 font-medium text-gray-900">{r.merchant}</td>
+                            <td className="px-5 py-4 text-right font-mono font-medium text-gray-900">{fmtAmount(r.amount, r.currency)}</td>
+                            <td className="px-5 py-4">
+                              <span className="inline-flex rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                                {r.category}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-xs text-gray-500 italic leading-relaxed">{r.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Bucket 2: Category Replacements */}
+              {aiPreviewResults.replacements.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-[10px] font-bold text-amber-700">
+                      {aiPreviewResults.replacements.length}
+                    </span>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-amber-700">Category Replacements</h3>
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-amber-100 bg-amber-50/30">
+                    <table className="w-full text-sm">
+                      <thead className="border-b border-amber-100 bg-amber-50/50 text-amber-800">
+                        <tr>
+                          <th className="px-5 py-3 text-left font-semibold">Transaction</th>
+                          <th className="px-5 py-3 text-left font-semibold">Current</th>
+                          <th className="px-5 py-3 text-left font-semibold">AI Suggested</th>
+                          <th className="px-5 py-3 text-left font-semibold">AI Reasoning</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-amber-100">
+                        {aiPreviewResults.replacements.map((r) => (
+                          <tr key={r.id} className="hover:bg-amber-50/50 transition">
+                            <td className="px-5 py-4 font-medium text-gray-900">{r.merchant}</td>
+                            <td className="px-5 py-4">
+                              <span className="inline-flex rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-500 line-through">
+                                {r.oldCategory}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              <span className="inline-flex rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">
+                                {r.newCategory}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-xs text-gray-500 italic leading-relaxed">{r.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-8 py-6">
+              <span className="text-sm text-gray-500">
+                Total suggestions: <span className="font-bold text-gray-900">{aiPreviewResults.newCategorisations.length + aiPreviewResults.replacements.length}</span>
+              </span>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setAiPreviewResults(null)}
+                  className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
+                >
+                  Discard Changes
+                </button>
+                <button
+                  onClick={handleAiApply}
+                  disabled={aiCategorising}
+                  className="flex items-center gap-2 rounded-xl bg-violet-600 px-8 py-2.5 text-sm font-bold text-white shadow-lg shadow-violet-200 hover:bg-violet-700 transition disabled:opacity-50"
+                >
+                  {aiCategorising ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      Confirm & Apply
+                    </>
                   )}
                 </button>
               </div>
