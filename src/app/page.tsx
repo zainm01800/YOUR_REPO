@@ -123,20 +123,20 @@ export default function Home() {
       <div className="hero-glow" />
       <LandingNav />
 
-      <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-16 px-4 py-10 sm:px-6 lg:px-10">
-        <section className="animate-in rounded-[48px] border border-[var(--color-border)] bg-white/40 shadow-[0_34px_120px_rgba(15,23,31,0.08)] backdrop-blur-sm transition-all duration-700 hover:shadow-[0_40px_140px_rgba(15,23,31,0.12)]">
-          <div className="grid gap-0 lg:grid-cols-[1fr_0.8fr]">
-            <div className="px-6 py-12 lg:px-12 lg:py-16">
+      <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-24 px-4 py-10 sm:px-6 lg:px-10">
+        <section className="animate-in overflow-hidden rounded-[48px] border border-[var(--color-border)] bg-white/40 shadow-[0_34px_120px_rgba(15,23,31,0.08)] backdrop-blur-sm transition-all duration-700 hover:shadow-[0_40px_140px_rgba(15,23,31,0.12)]">
+          <div className="grid gap-0 lg:grid-cols-2">
+            <div className="flex flex-col justify-center px-6 py-12 lg:px-12 lg:py-16">
               <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-white/60 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-muted-foreground)] shadow-sm backdrop-blur-md transition-transform hover:scale-105">
                 <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent)]" />
                 Reconciliation workflow for finance teams
               </div>
 
-              <h1 className="mt-8 max-w-4xl text-5xl font-semibold tracking-tight text-[var(--color-foreground)] lg:text-7xl">
+              <h1 className="mt-8 text-5xl font-semibold tracking-tight text-[var(--color-foreground)] lg:text-6xl">
                 Reconcile, <span className="text-[var(--color-accent)]">validate</span>, and export.
               </h1>
 
-              <p className="mt-8 max-w-2xl text-xl leading-8 text-[var(--color-muted-foreground)]">
+              <p className="mt-6 text-lg leading-8 text-[var(--color-muted-foreground)]">
                 {appConfig.name} is the opinionated workflow for finance teams who need something stronger than email folders
                 and stitched spreadsheets. Reconcile transaction exports at scale with absolute confidence.
               </p>
@@ -182,10 +182,10 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="mesh-gradient relative flex flex-col justify-center overflow-visible p-6 text-white lg:rounded-r-[48px] lg:p-10">
-              {/* Floating Decorative Elements */}
-              <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-white/5 blur-3xl animate-pulse" />
-              <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-[var(--color-accent)]/10 blur-3xl" />
+            <div className="mesh-gradient relative flex flex-col justify-center overflow-hidden p-6 text-white lg:rounded-r-[48px] lg:p-10">
+              {/* Decorative Elements */}
+              <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
+              <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-[var(--color-accent)]/10 blur-3xl" />
 
               <div className="relative z-10 space-y-8">
                 <div className="flex items-center justify-between">
@@ -216,8 +216,8 @@ export default function Home() {
 
                 {/* The Mockup - Aggressive Cutoff Fix */}
                 <div className="relative">
-                  <div className="hover-lift absolute -right-4 top-0 h-full w-full rounded-[40px] bg-[var(--color-accent)]/10 blur-2xl lg:-right-12" />
-                  <div className="hover-lift relative z-20 overflow-visible rounded-[32px] border border-white/20 bg-white/10 p-1.5 backdrop-blur-2xl shadow-[0_48px_100px_rgba(0,0,0,0.3)] lg:-mr-24">
+                  <div className="absolute inset-0 rounded-[40px] bg-[var(--color-accent)]/10 blur-2xl" />
+                  <div className="hover-lift relative z-20 overflow-hidden rounded-[32px] border border-white/20 bg-white/10 p-1.5 backdrop-blur-2xl shadow-[0_48px_100px_rgba(0,0,0,0.3)]">
                     <div className="overflow-hidden rounded-[28px] bg-[#f8f6f2]/95 backdrop-blur-sm">
                       <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-white/80 px-6 py-5 backdrop-blur-md">
                         <div className="flex gap-2">
