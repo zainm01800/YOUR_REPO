@@ -1,20 +1,17 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useState, useTransition, useCallback } from "react";
-import { CheckCircle2, Search, Tag, Trash2, Sparkles, Loader2, X, ChevronDown, ChevronRight, ListCollapse, ListFilter } from "lucide-react";
+import { CheckCircle2, Search, Trash2, Sparkles, Loader2, X, ChevronDown, ChevronRight, ListCollapse, ListFilter } from "lucide-react";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
 import { resolveCategory } from "@/lib/categories/suggester";
 import { TransactionRowComponent, fmtAmount, fmtDate } from "./transaction-row";
-import { 
-  updateTransactionCategoryAction, 
-  bulkUpdateTransactionCategoryAction, 
-  updateCategoryAllowabilityAction, 
-  deleteTransactionsAction 
+import {
+  updateTransactionCategoryAction,
+  bulkUpdateTransactionCategoryAction,
+  updateCategoryAllowabilityAction,
+  deleteTransactionsAction,
+  createMerchantRuleAction,
 } from "@/app/actions/bookkeeping";
 import {
-  ACCOUNT_TYPE_COLORS,
-  ACCOUNT_TYPE_LABELS,
-  TAX_TREATMENT_LABELS,
   buildCategoryRuleMap,
   classifyTransaction,
 } from "@/lib/accounting/classifier";
@@ -23,6 +20,22 @@ interface TransactionRow extends TransactionRecord {
   runName: string;
   runId: string;
   period?: string;
+}
+
+/**
+ * Strips trailing reference codes / payment-processor suffixes so that
+ * "PayPal *JANE DOE" and "PayPal *JOHN DOE" both normalise to "paypal",
+ * and "Uber Trip 123456" matches "Uber Trip 789012".
+ */
+function normalizeMerchant(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/\s*\*\s*.+$/, "")        // "PayPal *MERCHANT" → "paypal"
+    .replace(/\s+[a-z0-9]{6,}$/i, "") // trailing alphanumeric ref codes
+    .replace(/\s+#[\w-]+$/i, "")      // trailing #REF123
+    .replace(/\s+\d{4,}$/i, "")       // trailing 4+ digit numbers
+    .trim();
 }
 
 interface Props {
@@ -38,7 +51,6 @@ export function TransactionsTable({
   pickerCategoryRules,
   vatRegistered,
 }: Props) {
-  const router = useRouter();
   const [localTransactions, setLocalTransactions] = useState(transactions);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -59,10 +71,12 @@ export function TransactionsTable({
   const [bulkPrompt, setBulkPrompt] = useState<{
     originalTxId: string;
     category: string;
+    merchantName: string;
     matches: TransactionRow[];
   } | null>(null);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [bulkApplying, setBulkApplying] = useState(false);
+  const [rememberRule, setRememberRule] = useState(true);
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -176,29 +190,36 @@ export function TransactionsTable({
       setSavedId(txId);
       setTimeout(() => setSavedId((id) => (id === txId ? null : id)), 2000);
 
-      // Similarity check logic
+      // Similarity check logic — uses normalised merchant matching so that
+      // "PayPal *JANE DOE" correctly matches "PayPal *JOHN DOE" etc.
       const sourceTx = rowsWithCategory.find((t) => t.id === txId);
       if (sourceTx) {
-        const sourceMerchant = sourceTx.merchant.toLowerCase().trim();
+        const normalSource = normalizeMerchant(sourceTx.merchant);
         const sourceDesc = sourceTx.description.toLowerCase().trim();
 
         const similar = rowsWithCategory.filter((tx) => {
           if (tx.id === txId) return false;
           if (tx.resolvedCategory === newCategory) return false;
 
-          const tm = tx.merchant.toLowerCase().trim();
+          const normalTx = normalizeMerchant(tx.merchant);
           const td = tx.description.toLowerCase().trim();
 
-          return (tm && tm === sourceMerchant) || (td && td === sourceDesc);
+          // Match on normalised merchant name (primary) or exact description (fallback)
+          const merchantMatch = normalSource.length >= 2 && normalTx === normalSource;
+          const descMatch = sourceDesc.length >= 4 && td === sourceDesc;
+
+          return merchantMatch || descMatch;
         });
 
         if (similar.length > 0) {
           setBulkPrompt({
             originalTxId: txId,
             category: newCategory,
+            merchantName: sourceTx.merchant,
             matches: similar,
           });
           setBulkSelectedIds(new Set(similar.map((t) => t.id)));
+          setRememberRule(true);
           setEditingId(null);
           setSaving(null);
           return;
@@ -212,21 +233,37 @@ export function TransactionsTable({
         setEditingId(null);
       }
     }
-  }, [rowsWithCategory, bulkPrompt, router]);
+  }, [rowsWithCategory, bulkPrompt]);
 
   async function handleApplyBulk() {
     if (!bulkPrompt) return;
     setBulkApplying(true);
     try {
       const idsToUpdate = Array.from(bulkSelectedIds);
+      const tasks: Promise<unknown>[] = [];
+
       if (idsToUpdate.length > 0) {
-        await bulkUpdateTransactionCategoryAction(idsToUpdate, bulkPrompt.category);
+        tasks.push(bulkUpdateTransactionCategoryAction(idsToUpdate, bulkPrompt.category));
+      }
+
+      // Optionally save a merchant → category rule for future imports
+      if (rememberRule && bulkPrompt.merchantName) {
+        // Normalise so we store the clean root name (e.g. "PayPal" not "PayPal *JANE DOE")
+        const cleanMerchant =
+          normalizeMerchant(bulkPrompt.merchantName) || bulkPrompt.merchantName;
+        tasks.push(createMerchantRuleAction(cleanMerchant, bulkPrompt.category));
+      }
+
+      await Promise.all(tasks);
+
+      if (idsToUpdate.length > 0) {
         const nextOverrides = { ...categoryOverrides };
         for (const id of idsToUpdate) {
           nextOverrides[id] = bulkPrompt.category;
         }
         setCategoryOverrides(nextOverrides);
       }
+
       setBulkPrompt(null);
     } finally {
       setBulkApplying(false);
@@ -654,8 +691,10 @@ export function TransactionsTable({
             
             <div className="px-6 py-5">
               <p className="mb-4 text-sm text-[var(--color-muted-foreground)]">
-                You just categorised a transaction as <span className="font-semibold text-black">{bulkPrompt.category}</span>.
-                We found <span className="font-semibold text-black">{bulkPrompt.matches.length}</span> other transactions that look identical. Would you like to apply the same category to them?
+                You categorised a transaction as{" "}
+                <span className="font-semibold text-black">{bulkPrompt.category}</span>. We found{" "}
+                <span className="font-semibold text-black">{bulkPrompt.matches.length}</span> other
+                transactions from the same merchant. Apply the same category to them?
               </p>
 
               <div className="max-h-64 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)]">
@@ -712,29 +751,54 @@ export function TransactionsTable({
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-[var(--color-border)] bg-[var(--color-panel)] px-6 py-4">
-              <button
-                type="button"
-                onClick={handleCancelBulk}
-                className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-[var(--color-foreground)] transition hover:bg-gray-50 hover:text-black"
-              >
-                Skip 
-              </button>
-              <button
-                type="button"
-                onClick={handleApplyBulk}
-                disabled={bulkApplying || bulkSelectedIds.size === 0}
-                className="flex min-w-[140px] items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-              >
-                {bulkApplying ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Applying…
-                  </>
-                ) : (
-                  `Apply to ${bulkSelectedIds.size}`
-                )}
-              </button>
+            <div className="border-t border-[var(--color-border)] bg-[var(--color-panel)] px-6 py-4">
+              {/* Remember rule toggle */}
+              <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={rememberRule}
+                  onChange={(e) => setRememberRule(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded accent-indigo-600"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-indigo-800">
+                    Remember for future imports
+                  </p>
+                  <p className="text-xs text-indigo-600">
+                    Automatically categorise{" "}
+                    <span className="font-medium">
+                      {normalizeMerchant(bulkPrompt.merchantName) || bulkPrompt.merchantName}
+                    </span>{" "}
+                    as <span className="font-medium">{bulkPrompt.category}</span> whenever new bank
+                    statements are imported.
+                  </p>
+                </div>
+              </label>
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleCancelBulk}
+                  className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-[var(--color-foreground)] transition hover:bg-gray-50 hover:text-black"
+                >
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyBulk}
+                  disabled={bulkApplying || bulkSelectedIds.size === 0}
+                  className="flex min-w-[140px] items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {bulkApplying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Applying…
+                    </>
+                  ) : (
+                    `Apply to ${bulkSelectedIds.size}`
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
