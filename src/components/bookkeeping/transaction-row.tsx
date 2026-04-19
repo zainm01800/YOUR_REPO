@@ -29,7 +29,7 @@ export function fmtDate(dateStr?: string) {
 interface TransactionRowProps {
   tx: TransactionRecord;
   isSelected: boolean;
-  toggleRow: (id: string) => void;
+  toggleRow: (id: string, isShift?: boolean) => void;
   isEditing: boolean;
   isSaving: boolean;
   justSaved: boolean;
@@ -103,7 +103,10 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={() => toggleRow(tx.id)}
+          onChange={(e) => {
+            const isShift = (e.nativeEvent as MouseEvent).shiftKey;
+            toggleRow(tx.id, isShift);
+          }}
           className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
         />
       </td>
