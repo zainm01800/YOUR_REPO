@@ -382,6 +382,26 @@ export const mockRepository: Repository = {
     throw new Error(`Transaction ${transactionId} was not found.`);
   },
 
+  async setTransactionAllowable(transactionId: string, allowable: boolean): Promise<void> {
+    for (const run of store.runs) {
+      const tx = run.transactions.find((t) => t.id === transactionId);
+      if (tx) {
+        tx.noReceiptRequired = !allowable;
+        return;
+      }
+    }
+
+    for (const statement of store.bankStatements) {
+      const tx = statement.transactions.find((t) => t.id === transactionId);
+      if (tx) {
+        tx.noReceiptRequired = !allowable;
+        return;
+      }
+    }
+
+    throw new Error(`Transaction ${transactionId} was not found.`);
+  },
+
   async deleteTransactions(ids: string[]): Promise<void> {
     const idSet = new Set(ids);
     const sourceBankTransactionIds = new Set<string>();
