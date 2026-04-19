@@ -126,24 +126,41 @@ export async function upsertUserCompat(
   },
 ): Promise<CompatUser> {
   if (!(await hasUserAccountTypeColumn(prisma))) {
-    const legacyUser = await prisma.user.upsert({
+    const existingLegacyUser = await prisma.user.findUnique({
       where: input.where,
-      update: {
-        email: input.update.email,
-        name: input.update.name,
-      },
-      create: {
-        id: input.create.id,
-        email: input.create.email,
-        name: input.create.name,
-        passwordHash: input.create.passwordHash,
-      },
       select: {
         id: true,
         email: true,
         name: true,
       },
     });
+
+    const legacyUser = existingLegacyUser
+      ? await prisma.user.update({
+          where: { id: existingLegacyUser.id },
+          data: {
+            email: input.update.email,
+            name: input.update.name,
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        })
+      : await prisma.user.create({
+          data: {
+            id: input.create.id,
+            email: input.create.email,
+            name: input.create.name,
+            passwordHash: input.create.passwordHash,
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        });
 
     return {
       ...legacyUser,
@@ -185,24 +202,41 @@ export async function upsertUserCompat(
       throw error;
     }
 
-    const legacyUser = await prisma.user.upsert({
+    const existingLegacyUser = await prisma.user.findUnique({
       where: input.where,
-      update: {
-        email: input.update.email,
-        name: input.update.name,
-      },
-      create: {
-        id: input.create.id,
-        email: input.create.email,
-        name: input.create.name,
-        passwordHash: input.create.passwordHash,
-      },
       select: {
         id: true,
         email: true,
         name: true,
       },
     });
+
+    const legacyUser = existingLegacyUser
+      ? await prisma.user.update({
+          where: { id: existingLegacyUser.id },
+          data: {
+            email: input.update.email,
+            name: input.update.name,
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        })
+      : await prisma.user.create({
+          data: {
+            id: input.create.id,
+            email: input.create.email,
+            name: input.create.name,
+            passwordHash: input.create.passwordHash,
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        });
 
     return {
       ...legacyUser,
