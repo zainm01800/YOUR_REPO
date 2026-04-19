@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getRepository } from "@/lib/data";
+import type { TransactionRecord } from "@/lib/domain/types";
 import {
+  detectBankPreset,
   detectDefaultMapping,
   mapTransactions,
+  parseNativeFormat,
   parseTransactionFile,
 } from "@/lib/transactions/parser";
 
@@ -30,19 +33,41 @@ export async function POST(request: Request) {
     String(formData.get("columnMappings") || "{}"),
   ) as Record<string, string>;
 
-  const parsed = await parseTransactionFile(await statementFile.arrayBuffer());
-  const mappings =
-    Object.keys(columnMappings).length > 0
+  const buffer = await statementFile.arrayBuffer();
+  const fileName = statementFile.name;
+
+  // Try native format first (OFX, QIF)
+  const nativeTransactions = await parseNativeFormat(buffer, fileName, defaultCurrency);
+
+  let transactions: TransactionRecord[];
+  let headers: string[] = [];
+  let mappings: Record<string, string> = {};
+
+  if (nativeTransactions !== null) {
+    // OFX/QIF parsed directly — no column mapping needed
+    transactions = nativeTransactions;
+  } else {
+    // CSV/Excel flow
+    const parsed = await parseTransactionFile(buffer);
+    headers = parsed.headers;
+
+    // Detect bank preset from headers + filename
+    const detected = detectBankPreset(parsed.headers, fileName);
+    const presetMappings = detected?.preset.mappings ?? {};
+
+    mappings = Object.keys(columnMappings).length > 0
       ? columnMappings
-      : detectDefaultMapping(parsed.headers);
-  const transactions = mapTransactions(parsed, mappings, defaultCurrency);
+      : { ...detectDefaultMapping(parsed.headers), ...presetMappings };
+
+    transactions = mapTransactions(parsed, mappings, defaultCurrency, detected?.preset);
+  }
 
   const statement = await repository.importBankStatement({
     name: customName || statementFile.name.replace(/\.[^.]+$/, ""),
     fileName: statementFile.name,
     mimeType: statementFile.type || "application/octet-stream",
     sizeBytes: statementFile.size,
-    headers: parsed.headers,
+    headers,
     columnMappings: mappings,
     defaultCurrency,
     transactions,

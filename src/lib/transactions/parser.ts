@@ -2,6 +2,130 @@ import ExcelJS from "exceljs";
 import type { TransactionRecord } from "@/lib/domain/types";
 import { slugify } from "@/lib/utils";
 
+export interface BankPreset {
+  name: string;
+  /** Maps our internal field names to exact column headers this bank uses */
+  mappings: Record<string, string>;
+  /** Some banks export separate debit/credit columns instead of a signed amount */
+  debitColumn?: string;
+  creditColumn?: string;
+  /** Filter rows: only import rows where this column equals this value */
+  statusFilter?: { column: string; value: string };
+}
+
+/** Known column layouts for popular UK banks. Keys are lowercase identifiers. */
+export const BANK_PRESETS: Record<string, BankPreset> = {
+  monzo: {
+    name: "Monzo",
+    mappings: { date: "Date", merchant: "Name", description: "Notes and #tags", amount: "Amount", currency: "Currency", reference: "Type" },
+  },
+  starling: {
+    name: "Starling",
+    mappings: { date: "Date", merchant: "Counter Party", description: "Reference", amount: "Amount (GBP)", reference: "Type" },
+  },
+  revolut: {
+    name: "Revolut",
+    mappings: { date: "Completed Date", merchant: "Description", description: "Description", amount: "Amount", currency: "Currency", reference: "Type" },
+  },
+  barclays: {
+    name: "Barclays",
+    mappings: { date: "Date", merchant: "Memo", description: "Memo", amount: "Amount", reference: "Number" },
+  },
+  hsbc: {
+    name: "HSBC",
+    mappings: { date: "Date", merchant: "Description", description: "Description", reference: "Reference" },
+    debitColumn: "Debit",
+    creditColumn: "Credit",
+  },
+  natwest: {
+    name: "NatWest",
+    mappings: { date: "Date", merchant: "Description", description: "Description", amount: "Value", reference: "Type" },
+  },
+  rbs: {
+    name: "RBS",
+    mappings: { date: "Date", merchant: "Description", description: "Description", amount: "Value", reference: "Type" },
+  },
+  lloyds: {
+    name: "Lloyds",
+    mappings: { date: "Transaction Date", merchant: "Transaction Description", description: "Transaction Description", reference: "Transaction Type" },
+    debitColumn: "Debit Amount",
+    creditColumn: "Credit Amount",
+  },
+  halifax: {
+    name: "Halifax",
+    mappings: { date: "Date", merchant: "Transaction Description", description: "Transaction Description" },
+    debitColumn: "Debit Amount",
+    creditColumn: "Credit Amount",
+  },
+  santander: {
+    name: "Santander",
+    mappings: { date: "Date", merchant: "Description", description: "Description", amount: "Amount" },
+  },
+  paypal: {
+    name: "PayPal",
+    mappings: { date: "Date", merchant: "Name", description: "Type", amount: "Net", currency: "Currency", reference: "Transaction ID" },
+    statusFilter: { column: "Status", value: "Completed" },
+  },
+  amex: {
+    name: "American Express",
+    mappings: { date: "Date", merchant: "Description", description: "Description", amount: "Amount", reference: "Reference" },
+  },
+};
+
+/**
+ * Detects the bank preset from column headers and/or a filename hint.
+ * Returns the preset key (e.g. "monzo") and the preset itself, or undefined.
+ */
+export function detectBankPreset(
+  headers: string[],
+  fileNameHint = "",
+): { key: string; preset: BankPreset } | undefined {
+  const lowerFileName = fileNameHint.toLowerCase();
+
+  // Header fingerprints: unique columns that identify each bank
+  const HEADER_FINGERPRINTS: Array<{ key: string; uniqueHeaders: string[] }> = [
+    { key: "monzo",     uniqueHeaders: ["Name", "Notes and #tags"] },
+    { key: "starling",  uniqueHeaders: ["Counter Party", "Spending Category"] },
+    { key: "revolut",   uniqueHeaders: ["Started Date", "Completed Date", "State"] },
+    { key: "lloyds",    uniqueHeaders: ["Transaction Date", "Debit Amount", "Credit Amount"] },
+    { key: "halifax",   uniqueHeaders: ["Transaction Date", "Debit Amount", "Credit Amount"] },
+    { key: "hsbc",      uniqueHeaders: ["Debit", "Credit", "Balance"] },
+    { key: "natwest",   uniqueHeaders: ["Value", "Account Name", "Account Number"] },
+    { key: "rbs",       uniqueHeaders: ["Value", "Account Name", "Account Number"] },
+    { key: "paypal",    uniqueHeaders: ["TimeZone", "Gross", "Net", "From Email Address"] },
+    { key: "amex",      uniqueHeaders: ["Reference", "Amount", "Description"] },
+    { key: "barclays",  uniqueHeaders: ["Subcategory", "Memo"] },
+    { key: "santander", uniqueHeaders: ["Description", "Amount", "Balance"] },
+  ];
+
+  const headerSet = new Set(headers);
+
+  // 1. Try header fingerprint matching (most reliable)
+  for (const { key, uniqueHeaders } of HEADER_FINGERPRINTS) {
+    const matchCount = uniqueHeaders.filter((h) => headerSet.has(h)).length;
+    if (matchCount >= Math.ceil(uniqueHeaders.length * 0.6)) {
+      const preset = BANK_PRESETS[key];
+      if (preset) return { key, preset };
+    }
+  }
+
+  // 2. Fall back to filename hint
+  const fileNameMap: Record<string, string> = {
+    monzo: "monzo", starling: "starling", revolut: "revolut",
+    barclays: "barclays", lloyds: "lloyds", hsbc: "hsbc",
+    natwest: "natwest", halifax: "halifax", santander: "santander",
+    paypal: "paypal", amex: "amex", "american express": "amex", rbs: "rbs",
+  };
+  for (const [keyword, key] of Object.entries(fileNameMap)) {
+    if (lowerFileName.includes(keyword)) {
+      const preset = BANK_PRESETS[key];
+      if (preset) return { key, preset };
+    }
+  }
+
+  return undefined;
+}
+
 export interface ParsedTransactionFile {
   headers: string[];
   records: Record<string, string | number | undefined>[];
@@ -105,8 +229,17 @@ export function mapTransactions(
   parsed: ParsedTransactionFile,
   columnMappings: Record<string, string>,
   fallbackCurrency = "GBP",
+  preset?: BankPreset,
 ) {
-  return parsed.records.map<TransactionRecord>((record, index) => {
+  // Apply preset status filter if specified (e.g. PayPal: only "Completed" rows)
+  const filteredRecords = preset?.statusFilter
+    ? parsed.records.filter((r) => {
+        const val = String(r[preset.statusFilter!.column] ?? "").trim();
+        return val === preset.statusFilter!.value;
+      })
+    : parsed.records;
+
+  return filteredRecords.map<TransactionRecord>((record, index) => {
     const dateValue = pickFirstRecordValue(record, [
       columnMappings.date,
       columnMappings.postedDate,
@@ -141,11 +274,21 @@ export function mapTransactions(
       columnMappings.ccy,
     ]);
 
+    // Debit/credit split: credit is positive (money in), debit is negative (money out)
+    let resolvedAmount: number;
+    if (preset?.debitColumn || preset?.creditColumn) {
+      const debit = toNumber(record[preset?.debitColumn ?? ""] ?? 0);
+      const credit = toNumber(record[preset?.creditColumn ?? ""] ?? 0);
+      resolvedAmount = credit - debit; // positive = money in, negative = money out
+    } else {
+      resolvedAmount = toNumber(amountValue);
+    }
+
     return {
       id: `txn_import_${index + 1}_${slugify(String(referenceValue || descriptionValue || merchantValue || index))}`,
       sourceLineNumber: index + 2,
       transactionDate: toDateString(dateValue),
-      amount: toNumber(amountValue),
+      amount: resolvedAmount,
       merchant: String(merchantValue || "Unknown merchant"),
       description: String(descriptionValue || merchantValue || ""),
       employee: toOptionalString(record[columnMappings.employee]),
@@ -194,4 +337,30 @@ export function detectDefaultMapping(headers: string[]) {
   return Object.fromEntries(
     Object.entries(mapping).filter(([, value]) => typeof value === "string"),
   ) as Record<string, string>;
+}
+
+/**
+ * Detects file type by extension/content and routes to the correct parser.
+ * Returns parsed transactions directly (no column mapping needed for OFX/QIF).
+ * Returns null for CSV/Excel (use parseTransactionFile + mapTransactions instead).
+ */
+export async function parseNativeFormat(
+  buffer: ArrayBuffer,
+  fileName: string,
+  fallbackCurrency = "GBP",
+): Promise<TransactionRecord[] | null> {
+  const lower = fileName.toLowerCase();
+  const text = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+
+  if (lower.endsWith(".ofx") || lower.endsWith(".qfx") || text.includes("<OFX>") || text.includes("<ofx>")) {
+    const { parseOFX } = await import("./ofx-parser");
+    return parseOFX(text, fallbackCurrency);
+  }
+
+  if (lower.endsWith(".qif") || text.startsWith("!Type:")) {
+    const { parseQIF } = await import("./qif-parser");
+    return parseQIF(text, fallbackCurrency);
+  }
+
+  return null; // CSV/Excel — use the existing flow
 }
