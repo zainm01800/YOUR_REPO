@@ -20,10 +20,15 @@ async function requireAuthenticatedUser() {
 /**
  * Updates a transaction's category directly.
  */
-export async function updateTransactionCategoryAction(transactionId: string, category: string | null) {
+export async function updateTransactionCategoryAction(
+  transactionId: string, 
+  category: string | null,
+  reason?: string,
+  confidenceScore?: number
+) {
   await requireAuthenticatedUser();
   const repository = await getRepository();
-  await repository.setTransactionCategory(transactionId, category);
+  await repository.setTransactionCategory(transactionId, category, reason, confidenceScore);
 
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/bookkeeping/tax-summary");
@@ -32,11 +37,30 @@ export async function updateTransactionCategoryAction(transactionId: string, cat
 /**
  * Updates multiple transactions' category directly.
  */
-export async function bulkUpdateTransactionCategoryAction(transactionIds: string[], category: string | null) {
+export async function bulkUpdateTransactionCategoryAction(
+  transactionIds: string[], 
+  category: string | null,
+  reason?: string,
+  confidenceScore?: number
+) {
   await requireAuthenticatedUser();
   const repository = await getRepository();
   await Promise.all(
-    transactionIds.map(id => repository.setTransactionCategory(id, category))
+    transactionIds.map(id => repository.setTransactionCategory(id, category, reason, confidenceScore))
+  );
+
+  revalidatePath("/bookkeeping/transactions");
+  revalidatePath("/bookkeeping/tax-summary");
+}
+
+/**
+ * Updates multiple transactions' tax altowable status.
+ */
+export async function bulkUpdateTransactionAllowableAction(transactionIds: string[], allowableForTax: boolean) {
+  await requireAuthenticatedUser();
+  const repository = await getRepository();
+  await Promise.all(
+    transactionIds.map(id => repository.setTransactionAllowable(id, allowableForTax))
   );
 
   revalidatePath("/bookkeeping/transactions");

@@ -230,6 +230,8 @@ export interface TransactionRecord {
   statementType?: string;
   supportsAllowability?: boolean;
   categoryConfidence?: string;
+  categoryReason?: string;
+  confidenceScore?: number;
 }
 
 export interface BankTransaction extends TransactionRecord {

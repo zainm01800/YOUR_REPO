@@ -15,20 +15,20 @@ A JSON list of transactions with unique IDs.
 
 Rules:
 1. MANDATORY CATEGORIZATION: You must look for the "Best Fit" category for every transaction. 
-2. MERCHANT SIGNAL: The "merchant" name is your primary signal. Recognizable brands should be mapped to their logical category (e.g., Starbucks is usually "Food & Drink" or "Travel/Subsistence").
-3. FUZZY MATCHING: Descriptions can be messy. If a merchant name is recognized but the description is generic (e.g. "VISA"), categorize based on the merchant.
-4. REASONING: For every item, provide a brief "reason" explaining your choice (e.g. "Matched as fuel merchant").
-5. STRICT JSON: You must return valid JSON in the exact structure below. No markdown. No headers.
+2. MERCHANT SIGNAL: The "merchant" name is your primary signal. Recognizable brands should be mapped to their logical category.
+3. FUZZY MATCHING: Descriptions can be messy. If a merchant name is recognized but the description is generic, categorize based on the merchant.
+4. REASONING: For every item, provide a brief "reason" explaining your choice.
+5. CONFIDENCE: Provide a "confidence_score" between 0.0 and 1.0 (0.9+ for strong brand matches, 0.5 for guesses).
+6. INTRA-BATCH CONSISTENCY: You must analyze the patterns in the provided list. Identical or highly similar merchants (e.g., 'Payment from John' and 'BACS: Pay from John') should almost always be categorized identically within the same batch.
+7. STRICT JSON: You must return valid JSON in the exact structure below.
 
 Output Structure:
 {
   "results": [
-    { "id": "tx-1", "category": "Fuel", "reason": "Consistent with fuel supplier keyword" },
-    { "id": "tx-2", "category": null, "reason": "Truly zero signal in data" }
+    { "id": "tx-1", "category": "Fuel", "reason": "Matched as known fuel supplier Shell", "confidence_score": 0.98 },
+    { "id": "tx-2", "category": null, "reason": "Zero signal in string '123456'", "confidence_score": 0.0 }
   ]
 }
-
-Only return null if the data has absolutely zero signal (e.g. just numbers or symbols). If there is any plausible match, choose it.
 `;
 
 export async function POST(req: NextRequest) {

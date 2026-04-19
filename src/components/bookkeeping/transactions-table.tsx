@@ -8,6 +8,7 @@ import { TransactionRowComponent, fmtAmount, fmtDate } from "./transaction-row";
 import {
   updateTransactionCategoryAction,
   bulkUpdateTransactionCategoryAction,
+  bulkUpdateTransactionAllowableAction,
   updateCategoryAllowabilityAction,
   deleteTransactionsAction,
   createMerchantRuleAction,
@@ -149,6 +150,7 @@ export function TransactionsTable({
     id: string;
     category: string;
     reason: string;
+    confidence: number;
     merchant: string;
     amount: number;
     currency: string;
@@ -159,6 +161,7 @@ export function TransactionsTable({
     oldCategory: string;
     newCategory: string;
     reason: string;
+    confidence: number;
     merchant: string;
     amount: number;
     currency: string;
@@ -170,10 +173,12 @@ export function TransactionsTable({
   }
 
   const [aiPreviewResults, setAiPreviewResults] = useState<AiPreviewData | null>(null);
+  const [selectedAiIds, setSelectedAiIds] = useState<Set<string>>(new Set());
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [bulkApplying, setBulkApplying] = useState(false);
   const [rememberRule, setRememberRule] = useState(true);
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalTransactions(transactions);
@@ -264,21 +269,26 @@ export function TransactionsTable({
   // (removed the auto-collapse latest month logic per user feedback)
 
   const uniqueCategories = useMemo(() => {
-    const set = new Set<string>();
+    const seen = new Set<string>();
+    const result: string[] = [];
     for (const tx of rowsWithCategory) {
-      // Normalize to prevent "service income" vs "Service Income" duplicates
       const cat = (tx.resolvedCategory || "Uncategorised").trim();
-      set.add(cat);
+      const lower = cat.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        result.push(cat);
+      }
     }
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    return result.sort((a, b) => a.localeCompare(b));
   }, [rowsWithCategory]);
 
   const uniquePickerRules = useMemo(() => {
     const seen = new Set<string>();
     return pickerCategoryRules.filter((rule) => {
       const name = rule.category.trim();
-      if (seen.has(name)) return false;
-      seen.add(name);
+      const lower = name.toLowerCase();
+      if (seen.has(lower)) return false;
+      seen.add(lower);
       return true;
     });
   }, [pickerCategoryRules]);
@@ -413,7 +423,14 @@ export function TransactionsTable({
       ? selectedTxs 
       : filtered.filter(tx => !tx.resolvedCategory || tx.resolvedCategory === "Uncategorised");
 
-    if (targets.length === 0) return;
+    if (targets.length === 0) {
+      if (filtered.length > 0) {
+        setAiError("All currently visible items are already categorised. Select specific items if you want to re-scan them with AI.");
+      } else {
+        setAiError("No transactions found to categorise. Try adjusting your search or filters.");
+      }
+      return;
+    }
 
     setAiCategorising(true);
     setAiError(null);
@@ -437,7 +454,9 @@ export function TransactionsTable({
         throw new Error(data?.error ?? "AI service failed");
       }
 
-      const { results } = await res.json() as { results?: { id: string; category: string | null; reason: string }[] };
+      const { results } = (await res.json()) as {
+        results?: { id: string; category: string | null; reason: string; confidence_score?: number }[];
+      };
       if (!results || !Array.isArray(results)) {
         throw new Error("Invalid response from AI");
       }
@@ -448,19 +467,20 @@ export function TransactionsTable({
 
       for (const r of results) {
         if (!r.category || !r.id) continue;
-        const tx = targets.find(t => t.id === r.id);
+        const tx = targets.find((t) => t.id === r.id);
         if (!tx) continue;
 
         const isNew = !tx.resolvedCategory || tx.resolvedCategory === "Uncategorised";
-        
+
         if (isNew) {
           newCategorisations.push({
             id: r.id,
             category: r.category,
             reason: r.reason,
+            confidence: r.confidence_score ?? 1,
             merchant: tx.merchant,
             amount: tx.amount,
-            currency: tx.currency
+            currency: tx.currency,
           });
         } else if (tx.resolvedCategory !== r.category) {
           replacements.push({
@@ -468,9 +488,10 @@ export function TransactionsTable({
             oldCategory: tx.resolvedCategory,
             newCategory: r.category,
             reason: r.reason,
+            confidence: r.confidence_score ?? 1,
             merchant: tx.merchant,
             amount: tx.amount,
-            currency: tx.currency
+            currency: tx.currency,
           });
         }
       }
@@ -482,6 +503,13 @@ export function TransactionsTable({
       }
 
       setAiPreviewResults({ newCategorisations, replacements });
+      // Select all by default in preview
+      setSelectedAiIds(
+        new Set([
+          ...newCategorisations.map((c) => c.id),
+          ...replacements.map((r) => r.id),
+        ]),
+      );
 
     } catch (err) {
       setAiError(err instanceof Error ? err.message : "AI auto-categorisation failed.");
@@ -491,31 +519,43 @@ export function TransactionsTable({
   }
 
   async function handleAiApply() {
-    if (!aiPreviewResults) return;
+    if (!aiPreviewResults || selectedAiIds.size === 0) return;
     setAiCategorising(true);
-    
+
     try {
-      const allResults = [
-        ...aiPreviewResults.newCategorisations.map(r => ({ id: r.id, category: r.category, merchant: r.merchant })),
-        ...aiPreviewResults.replacements.map(r => ({ id: r.id, category: r.newCategory, merchant: r.merchant }))
+      const allSuggestions = [
+        ...aiPreviewResults.newCategorisations,
+        ...aiPreviewResults.replacements,
       ];
+      
+      const targets = allSuggestions.filter((r) => selectedAiIds.has(r.id));
 
       await Promise.allSettled([
-        ...allResults.map(r => updateTransactionCategoryAction(r.id, r.category)),
-        saveAiLearnedRulesAction(allResults.map(r => ({
-          merchant: r.merchant,
-          description: "", // We don't need full description for learned rules if merchant is strong
-          category: r.category
-        })))
+        ...targets.map((r) =>
+          updateTransactionCategoryAction(
+            r.id,
+            "category" in r ? r.category : r.newCategory,
+            r.reason,
+            r.confidence
+          ),
+        ),
+        saveAiLearnedRulesAction(
+          targets.map((r) => ({
+            merchant: r.merchant,
+            description: "",
+            category: "category" in r ? r.category : r.newCategory,
+          })),
+        ),
       ]);
 
       const newOverrides = { ...categoryOverrides };
-      for (const r of allResults) {
-        newOverrides[r.id] = r.category;
+      for (const r of targets) {
+        newOverrides[r.id] = "category" in r ? r.category : r.newCategory;
       }
       setCategoryOverrides(newOverrides);
-      setAiSuccessMsg(`Successfully applied AI suggestions to ${allResults.length} items.`);
+      setAiSuccessMsg(`Successfully applied AI suggestions to ${targets.length} items.`);
       setAiPreviewResults(null);
+      setSelectedAiIds(new Set());
       setSelected(new Set()); // Clear selection after apply
       setTimeout(() => setAiSuccessMsg(null), 6000);
     } catch (err) {
@@ -555,14 +595,34 @@ export function TransactionsTable({
     }
   }
 
-  const toggleRow = useCallback((id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const toggleRow = useCallback(
+    (id: string, isShift?: boolean) => {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (isShift && lastSelectedId) {
+          const allIds = filtered.map((tx) => tx.id);
+          const startIdx = allIds.indexOf(lastSelectedId);
+          const endIdx = allIds.indexOf(id);
+          const range = allIds.slice(
+            Math.min(startIdx, endIdx),
+            Math.max(startIdx, endIdx) + 1,
+          );
+
+          const isSelecting = !prev.has(id);
+          range.forEach((rid) => {
+            if (isSelecting) next.add(rid);
+            else next.delete(rid);
+          });
+        } else {
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+        }
+        return next;
+      });
+      setLastSelectedId(id);
+    },
+    [filtered, lastSelectedId],
+  );
 
   return (
     <div className="space-y-4">
@@ -690,6 +750,47 @@ export function TransactionsTable({
             </select>
           </div>
 
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Bulk Tax:</span>
+            <button
+              type="button"
+              disabled={bulkApplying}
+              onClick={async () => {
+                const ids = Array.from(selected);
+                setBulkApplying(true);
+                try {
+                  // Heuristic: if any selected is NOT allowable, make them all allowable.
+                  // Otherwise, make them all NOT allowable.
+                  const anyNotAllowable = ids.some(id => {
+                    const row = filtered.find(r => r.id === id);
+                    return row && !row.allowableForTax;
+                  });
+                  const newVal = anyNotAllowable;
+                  
+                  await bulkUpdateTransactionAllowableAction(ids, newVal);
+                  
+                  // Update local state is complex because allowable is derived from category by default,
+                  // but we are overriding it per-transaction here by changing 'noReceiptRequired'.
+                  // We'll update the allowabilityOverrides map which the component uses.
+                  // Wait, allowabilityOverrides is per-category in this component usually.
+                  // Let's check how tx-row uses it.
+                  
+                  // Actually, it's simpler to just let revalidatePath handle it, 
+                  // but for immediate feedback we can update localTransactions.
+                  setLocalTransactions(prev => prev.map(tx => 
+                    ids.includes(tx.id) ? { ...tx, noReceiptRequired: !newVal } : tx
+                  ));
+                  setSelected(new Set());
+                } finally {
+                  setBulkApplying(false);
+                }
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-white/80 transition shadow-sm"
+            >
+              Toggle Allowable
+            </button>
+          </div>
+
           <div className="flex items-center gap-2 ml-auto">
             {bulkApplying && <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />}
             <button
@@ -800,13 +901,41 @@ export function TransactionsTable({
                           </button>
                         </td>
                         <td colSpan={10} className="px-2 py-2.5">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs font-bold uppercase tracking-widest text-[var(--color-foreground)]">
-                              {group.label}
-                            </span>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-[var(--color-muted-foreground)] shadow-sm border border-[var(--color-border)]">
-                              {group.rows.length} items
-                            </span>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs font-bold uppercase tracking-widest text-[var(--color-foreground)]">
+                                {group.label}
+                              </span>
+                              <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-[var(--color-muted-foreground)] shadow-sm border border-[var(--color-border)]">
+                                {group.rows.length} items
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 opacity-0 group-hover/header:opacity-100 transition-opacity pr-4">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const ids = group.rows.map(r => r.id);
+                                  setSelected(prev => new Set([...prev, ...ids]));
+                                }}
+                                className="text-[10px] font-bold uppercase tracking-tighter text-indigo-600 hover:text-indigo-800"
+                              >
+                                Select All
+                              </button>
+                              <div className="h-3 w-px bg-gray-300" />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const ids = group.rows
+                                    .filter(r => !r.resolvedCategory || r.resolvedCategory === "Uncategorised")
+                                    .map(r => r.id);
+                                  setSelected(prev => new Set([...prev, ...ids]));
+                                }}
+                                className="text-[10px] font-bold uppercase tracking-tighter text-amber-600 hover:text-amber-800"
+                              >
+                                Select Uncategorised
+                              </button>
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -817,7 +946,7 @@ export function TransactionsTable({
                           key={tx.id}
                           tx={tx}
                           isSelected={selected.has(tx.id)}
-                          toggleRow={toggleRow}
+                          toggleRow={(id, isShift) => toggleRow(id, isShift)}
                           isEditing={editingId === tx.id}
                           isSaving={saving === tx.id}
                           justSaved={savedId === tx.id}
@@ -826,7 +955,7 @@ export function TransactionsTable({
                           setEditValue={setEditValue}
                           handleSaveCategory={handleSaveCategory}
                           handleToggleAllowable={handleToggleAllowable}
-                          categoryOptions={pickerCategoryRules}
+                          categoryOptions={uniquePickerRules}
                           anomaly={anomalies[tx.id]}
                           confidence={tx.categoryConfidence}
                         />
@@ -1056,6 +1185,21 @@ export function TransactionsTable({
                     <table className="w-full text-sm">
                       <thead className="border-b border-emerald-100 bg-emerald-50/50 text-emerald-800">
                         <tr>
+                          <th className="w-10 px-5 py-3">
+                            <input
+                              type="checkbox"
+                              checked={aiPreviewResults.newCategorisations.every(r => selectedAiIds.has(r.id))}
+                              onChange={(e) => {
+                                const ids = new Set(selectedAiIds);
+                                aiPreviewResults.newCategorisations.forEach(r => {
+                                  if (e.target.checked) ids.add(r.id);
+                                  else ids.delete(r.id);
+                                });
+                                setSelectedAiIds(ids);
+                              }}
+                              className="h-4 w-4 rounded border-emerald-300 accent-emerald-600"
+                            />
+                          </th>
                           <th className="px-5 py-3 text-left font-semibold">Transaction</th>
                           <th className="px-5 py-3 text-right font-semibold">Amount</th>
                           <th className="px-5 py-3 text-left font-semibold">Suggested Category</th>
@@ -1065,6 +1209,21 @@ export function TransactionsTable({
                       <tbody className="divide-y divide-emerald-100">
                         {aiPreviewResults.newCategorisations.map((r) => (
                           <tr key={r.id} className="hover:bg-emerald-50/50 transition">
+                            <td className="px-5 py-4">
+                              <input
+                                type="checkbox"
+                                checked={selectedAiIds.has(r.id)}
+                                onChange={(e) => {
+                                  setSelectedAiIds(prev => {
+                                    const next = new Set(prev);
+                                    if (e.target.checked) next.add(r.id);
+                                    else next.delete(r.id);
+                                    return next;
+                                  });
+                                }}
+                                className="h-4 w-4 rounded border-emerald-200 accent-emerald-600"
+                              />
+                            </td>
                             <td className="px-5 py-4 font-medium text-gray-900">{r.merchant}</td>
                             <td className="px-5 py-4 text-right font-mono font-medium text-gray-900">{fmtAmount(r.amount, r.currency)}</td>
                             <td className="px-5 py-4">
@@ -1094,6 +1253,21 @@ export function TransactionsTable({
                     <table className="w-full text-sm">
                       <thead className="border-b border-amber-100 bg-amber-50/50 text-amber-800">
                         <tr>
+                          <th className="w-10 px-5 py-3">
+                            <input
+                              type="checkbox"
+                              checked={aiPreviewResults.replacements.every(r => selectedAiIds.has(r.id))}
+                              onChange={(e) => {
+                                const ids = new Set(selectedAiIds);
+                                aiPreviewResults.replacements.forEach(r => {
+                                  if (e.target.checked) ids.add(r.id);
+                                  else ids.delete(r.id);
+                                });
+                                setSelectedAiIds(ids);
+                              }}
+                              className="h-4 w-4 rounded border-amber-300 accent-amber-600"
+                            />
+                          </th>
                           <th className="px-5 py-3 text-left font-semibold">Transaction</th>
                           <th className="px-5 py-3 text-left font-semibold">Current</th>
                           <th className="px-5 py-3 text-left font-semibold">AI Suggested</th>
@@ -1103,6 +1277,21 @@ export function TransactionsTable({
                       <tbody className="divide-y divide-amber-100">
                         {aiPreviewResults.replacements.map((r) => (
                           <tr key={r.id} className="hover:bg-amber-50/50 transition">
+                            <td className="px-5 py-4">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedAiIds.has(r.id)}
+                                  onChange={(e) => {
+                                    setSelectedAiIds(prev => {
+                                      const next = new Set(prev);
+                                      if (e.target.checked) next.add(r.id);
+                                      else next.delete(r.id);
+                                      return next;
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-amber-200 accent-amber-600"
+                                />
+                            </td>
                             <td className="px-5 py-4 font-medium text-gray-900">{r.merchant}</td>
                             <td className="px-5 py-4">
                               <span className="inline-flex rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-500 line-through">
@@ -1127,7 +1316,7 @@ export function TransactionsTable({
             {/* Footer */}
             <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-8 py-6">
               <span className="text-sm text-gray-500">
-                Total suggestions: <span className="font-bold text-gray-900">{aiPreviewResults.newCategorisations.length + aiPreviewResults.replacements.length}</span>
+                Selected: <span className="font-bold text-gray-900">{selectedAiIds.size}</span> / {aiPreviewResults.newCategorisations.length + aiPreviewResults.replacements.length}
               </span>
               <div className="flex gap-3">
                 <button
@@ -1138,7 +1327,7 @@ export function TransactionsTable({
                 </button>
                 <button
                   onClick={handleAiApply}
-                  disabled={aiCategorising}
+                  disabled={aiCategorising || selectedAiIds.size === 0}
                   className="flex items-center gap-2 rounded-xl bg-violet-600 px-8 py-2.5 text-sm font-bold text-white shadow-lg shadow-violet-200 hover:bg-violet-700 transition disabled:opacity-50"
                 >
                   {aiCategorising ? (
@@ -1149,7 +1338,7 @@ export function TransactionsTable({
                   ) : (
                     <>
                       <CheckCircle2 className="h-4 w-4" />
-                      Confirm & Apply
+                      Apply {selectedAiIds.size > 0 ? `${selectedAiIds.size} ` : ""}Suggestions
                     </>
                   )}
                 </button>

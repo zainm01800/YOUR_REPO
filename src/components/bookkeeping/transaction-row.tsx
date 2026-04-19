@@ -66,7 +66,9 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
     optionSections.set(rule.section, existing);
   }
 
-  const currentCategoryExists = categoryOptions.some((rule) => rule.category === tx.resolvedCategory);
+  const currentCategoryExists = categoryOptions.some(
+    (rule) => rule.category.trim().toLowerCase() === tx.resolvedCategory?.trim().toLowerCase()
+  );
   if (tx.resolvedCategory && !currentCategoryExists) {
     const existing = optionSections.get("Current selection") ?? [];
     existing.push({
@@ -201,10 +203,13 @@ export const TransactionRowComponent = memo(function TransactionRowComponent({
                     Learned
                   </span>
                 )}
-                {confidence === "ai" && (
-                  <span className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-tighter bg-violet-50 text-violet-600 ring-1 ring-violet-200">
+                {(confidence === "ai" || tx.categoryConfidence === "ai") && (
+                  <div 
+                    className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-tighter bg-violet-50 text-violet-600 ring-1 ring-violet-200 cursor-help"
+                    title={tx.categoryReason ? `AI Logic: ${tx.categoryReason}${tx.confidenceScore ? ` (Confidence: ${Math.round(tx.confidenceScore * 100)}%)` : ""}` : "Categorised by AI"}
+                  >
                     <Sparkles className="h-2 w-2" /> AI
-                  </span>
+                  </div>
                 )}
               </div>
             ) : (

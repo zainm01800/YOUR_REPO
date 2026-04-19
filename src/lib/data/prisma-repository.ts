@@ -108,6 +108,9 @@ const transactionOnlyRunInclude = {
       taxRate: true,
       noReceiptRequired: true,
       excludedFromExport: true,
+      categoryConfidence: true,
+      categoryReason: true,
+      confidenceScore: true,
       sourceBankTransaction: {
         select: { id: true, bankStatementId: true, bankStatement: { select: { name: true } } },
       },
@@ -191,6 +194,9 @@ const unassignedBankTransactionSelect = {
   taxRate: true,
   noReceiptRequired: true,
   excludedFromExport: true,
+  categoryConfidence: true,
+  categoryReason: true,
+  confidenceScore: true,
   bankStatement: {
     select: {
       name: true,
@@ -415,6 +421,9 @@ function toTransaction(
     taxRate: transaction.taxRate !== null && transaction.taxRate !== undefined ? Number(transaction.taxRate) : undefined,
     noReceiptRequired: transaction.noReceiptRequired || undefined,
     excludedFromExport: transaction.excludedFromExport || undefined,
+    categoryConfidence: (transaction as any).categoryConfidence || undefined,
+    categoryReason: (transaction as any).categoryReason || undefined,
+    confidenceScore: (transaction as any).confidenceScore ? Number((transaction as any).confidenceScore) : undefined,
   };
 }
 
@@ -440,6 +449,9 @@ function toBankTransaction(transaction: DbBankStatement["transactions"][number])
     taxRate: transaction.taxRate !== null && transaction.taxRate !== undefined ? Number(transaction.taxRate) : undefined,
     noReceiptRequired: transaction.noReceiptRequired || undefined,
     excludedFromExport: transaction.excludedFromExport || undefined,
+    categoryConfidence: transaction.categoryConfidence || undefined,
+    categoryReason: transaction.categoryReason || undefined,
+    confidenceScore: transaction.confidenceScore ? Number(transaction.confidenceScore) : undefined,
   };
 }
 
@@ -501,6 +513,9 @@ function toUnassignedBankTransaction(transaction: DbUnassignedBankTransaction): 
     taxRate: transaction.taxRate !== null && transaction.taxRate !== undefined ? Number(transaction.taxRate) : undefined,
     noReceiptRequired: transaction.noReceiptRequired || undefined,
     excludedFromExport: transaction.excludedFromExport || undefined,
+    categoryConfidence: transaction.categoryConfidence || undefined,
+    categoryReason: transaction.categoryReason || undefined,
+    confidenceScore: transaction.confidenceScore ? Number(transaction.confidenceScore) : undefined,
   };
 }
 
@@ -1619,20 +1634,35 @@ export const basePrismaRepository: Repository = {
     return updated.map(toCategoryRule);
   },
 
-  async setTransactionCategory(transactionId: string, category: string | null): Promise<void> {
+  async setTransactionCategory(
+    transactionId: string, 
+    category: string | null,
+    reason?: string,
+    confidenceScore?: number
+  ): Promise<void> {
     const prisma = requirePrisma();
     
     // Try updating assigned transaction first
     try {
       await prisma.transaction.update({
         where: { id: transactionId },
-        data: { category: category ?? null },
+        data: { 
+          category: category ?? null,
+          categoryReason: reason ?? null,
+          confidenceScore: confidenceScore ?? null,
+          categoryConfidence: reason ? "ai" : undefined // Basic heuristic for now
+        },
       });
     } catch {
       // Fallback to updating unassigned bank transaction
       await prisma.bankTransaction.update({
         where: { id: transactionId },
-        data: { category: category ?? null },
+        data: { 
+          category: category ?? null,
+          categoryReason: reason ?? null,
+          confidenceScore: confidenceScore ?? null,
+          categoryConfidence: reason ? "ai" : undefined
+        },
       }).catch(() => {
         // If both fail, ignore or handle accordingly
         console.warn(`[setTransactionCategory] Failed to update transaction ${transactionId} in both tables.`);
@@ -1640,6 +1670,24 @@ export const basePrismaRepository: Repository = {
     }
   },
 
+  async setTransactionAllowable(transactionId: string, allowable: boolean): Promise<void> {
+    const prisma = requirePrisma();
+    
+    // Try updating assigned transaction first
+    try {
+      await prisma.transaction.update({
+        where: { id: transactionId },
+        data: { noReceiptRequired: !allowable }, // Mapping "Allowable" to the inverse of "No Receipt Required" field which is used for tax-readiness in this schema
+      });
+    } catch {
+      await prisma.bankTransaction.update({
+        where: { id: transactionId },
+        data: { noReceiptRequired: !allowable },
+      }).catch(() => {
+        console.warn(`[setTransactionAllowable] Failed to update transaction ${transactionId}`);
+      });
+    }
+  },
   async deleteTransactions(ids: string[]): Promise<void> {
     const prisma = requirePrisma();
     await prisma.$transaction(async (tx) => {
