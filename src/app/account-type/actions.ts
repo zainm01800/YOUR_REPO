@@ -50,34 +50,46 @@ export async function lockAccountTypeChoice(_prevState: State, formData: FormDat
   }
 
   if (!existingChoice) {
-    const client = await clerkClient();
-    await client.users.updateUserMetadata(userId, {
-      publicMetadata: {
-        accountType: selectedAccountType,
-      },
-    });
+    try {
+      const client = await clerkClient();
+      await client.users.updateUserMetadata(userId, {
+        publicMetadata: {
+          accountType: selectedAccountType,
+        },
+      });
+    } catch (err) {
+      console.error("[AccountType] Failed to update Clerk metadata:", err);
+      return { error: "Could not save your account type. Please try again." };
+    }
   }
 
-  const prisma = getPrismaClient();
-  if (prisma) {
-    const fullName =
-      `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || email;
+  // Best-effort: sync to our own DB. The layout's resolveUserWorkspace will also
+  // upsert on first load, so this failing is non-fatal.
+  try {
+    const prisma = getPrismaClient();
+    if (prisma) {
+      const fullName =
+        `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || email;
 
-    await upsertUserCompat(prisma, {
-      where: { email },
-      update: {
-        email,
-        name: fullName,
-        accountType: selectedAccountType,
-      },
-      create: {
-        id: userId,
-        email,
-        name: fullName,
-        passwordHash: "",
-        accountType: selectedAccountType,
-      },
-    });
+      await upsertUserCompat(prisma, {
+        where: { email },
+        update: {
+          email,
+          name: fullName,
+          accountType: selectedAccountType,
+        },
+        create: {
+          id: userId,
+          email,
+          name: fullName,
+          passwordHash: "",
+          accountType: selectedAccountType,
+        },
+      });
+    }
+  } catch (err) {
+    // Non-fatal — workspace will be created on first dashboard load
+    console.error("[AccountType] DB pre-sync failed (non-fatal):", err);
   }
 
   const cookieStore = await cookies();

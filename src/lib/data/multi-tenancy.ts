@@ -2,6 +2,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { type PrismaClient } from "@prisma/client";
 import { demoStore } from "@/lib/demo/demo-store";
+import { buildMasterCategoryLibrary } from "@/lib/accounting/default-categories";
 import { getLockedAccountTypeFromClerkUser } from "@/lib/auth/account-type";
 import {
   normalizePendingAccountType,
@@ -176,6 +177,35 @@ async function seedDefaultRules(prisma: PrismaClient, workspaceId: string) {
       supplierPattern: rule.supplierPattern,
       keywordPattern: rule.keywordPattern,
       priority: rule.priority,
+    })),
+    skipDuplicates: true,
+  });
+
+  // Seed the master category library so new workspaces have a full category set
+  const categories = buildMasterCategoryLibrary();
+  await prisma.categoryRule.createMany({
+    data: categories.map((cat) => ({
+      workspaceId,
+      category: cat.category,
+      slug: cat.slug,
+      description: cat.description ?? null,
+      section: cat.section,
+      supplierPattern: cat.supplierPattern ?? null,
+      keywordPattern: cat.keywordPattern ?? null,
+      priority: cat.priority,
+      accountType: cat.accountType,
+      statementType: cat.statementType,
+      reportingBucket: cat.reportingBucket,
+      defaultTaxTreatment: cat.defaultTaxTreatment,
+      defaultVatRate: cat.defaultVatRate ?? 20,
+      defaultVatRecoverable: cat.defaultVatRecoverable ?? true,
+      glCode: cat.glCode ?? null,
+      isSystemDefault: true,
+      isActive: true,
+      isVisible: cat.isVisible ?? true,
+      allowableForTax: cat.allowableForTax ?? true,
+      allowablePercentage: cat.allowablePercentage ?? 100,
+      sortOrder: cat.sortOrder ?? cat.priority,
     })),
     skipDuplicates: true,
   });
