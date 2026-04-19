@@ -34,7 +34,7 @@ export async function POST(
   run.fxRates = fxRates;
 
   const workspace = snapshot.workspace;
-  const output = processRun(run, run.documents, vatRules, snapshot.glRules, {
+  const output = processRun(run, run.documents, vatRules, snapshot.glRules, snapshot.categoryRules, {
     amountTolerance: workspace.amountTolerance,
     dateToleranceDays: workspace.dateToleranceDays,
   });

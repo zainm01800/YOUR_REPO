@@ -33,7 +33,7 @@ export async function POST(
   const snapshot = await repository.getDashboardSnapshot();
 
   attached.fxRates = await getFxRates(attached.defaultCurrency ?? snapshot.workspace.defaultCurrency);
-  const output = processRun(attached, attached.documents, vatRules, snapshot.glRules, {
+  const output = processRun(attached, attached.documents, vatRules, snapshot.glRules, snapshot.categoryRules, {
     amountTolerance: snapshot.workspace.amountTolerance,
     dateToleranceDays: snapshot.workspace.dateToleranceDays,
   });

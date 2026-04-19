@@ -1,5 +1,6 @@
 import { runMatchingEngine, type MatchOptions } from "@/lib/matching/engine";
 import type {
+  CategoryRule,
   ExtractedDocument,
   GlCodeRule,
   ReconciliationRun,
@@ -13,6 +14,7 @@ export function processRun(
   documents: ExtractedDocument[],
   vatRules: VatRule[],
   glRules: GlCodeRule[],
+  categoryRules: CategoryRule[] = [],
   matchOptions?: MatchOptions,
 ) {
   const matches = runMatchingEngine(run.transactions, documents, matchOptions);
@@ -23,7 +25,7 @@ export function processRun(
     documents,
     matches,
   };
-  const rows = buildReviewRows(processedRun, vatRules, glRules);
+  const rows = buildReviewRows(processedRun, vatRules, glRules, categoryRules);
 
   return {
     run: processedRun,

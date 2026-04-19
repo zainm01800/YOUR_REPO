@@ -5,12 +5,26 @@ import { getRepository } from "@/lib/data";
 import { revalidatePath } from "next/cache";
 
 /**
+ * Verifies the current user is authenticated.
+ * Throws if there is no authenticated session.
+ */
+async function requireAuthenticatedUser() {
+  const repository = await getRepository();
+  const user = await repository.getCurrentUser();
+  if (!user?.id) {
+    throw new Error("Unauthenticated: you must be signed in to perform this action.");
+  }
+  return user;
+}
+
+/**
  * Updates a transaction's category directly.
  */
 export async function updateTransactionCategoryAction(transactionId: string, category: string | null) {
+  await requireAuthenticatedUser();
   const repository = await getRepository();
   await repository.setTransactionCategory(transactionId, category);
-  
+
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/bookkeeping/tax-summary");
 }
@@ -19,11 +33,12 @@ export async function updateTransactionCategoryAction(transactionId: string, cat
  * Updates multiple transactions' category directly.
  */
 export async function bulkUpdateTransactionCategoryAction(transactionIds: string[], category: string | null) {
+  await requireAuthenticatedUser();
   const repository = await getRepository();
   await Promise.all(
     transactionIds.map(id => repository.setTransactionCategory(id, category))
   );
-  
+
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/bookkeeping/tax-summary");
 }
@@ -32,6 +47,7 @@ export async function bulkUpdateTransactionCategoryAction(transactionIds: string
  * Toggles whether a particular category is tax-allowable.
  */
 export async function updateCategoryAllowabilityAction(category: string, allowableForTax: boolean) {
+  await requireAuthenticatedUser();
   const repository = await getRepository();
   const rules = await repository.getCategoryRules();
   
@@ -59,6 +75,7 @@ export async function updateCategoryAllowabilityAction(category: string, allowab
  * Deletes multiple transactions.
  */
 export async function deleteTransactionsAction(ids: string[]) {
+  await requireAuthenticatedUser();
   const repository = await getRepository();
   await repository.deleteTransactions(ids);
 
@@ -120,6 +137,7 @@ export async function createMerchantRuleAction(
   description = "",
 ) {
   if (!merchantName.trim() || !category.trim()) return;
+  await requireAuthenticatedUser();
 
   const repository = await getRepository();
   const rules = await repository.getCategoryRules();
@@ -192,6 +210,7 @@ export async function saveAiLearnedRulesAction(
   results: { merchant: string; description: string; category: string }[],
 ) {
   if (results.length === 0) return;
+  await requireAuthenticatedUser();
 
   const repository = await getRepository();
   const rules = await repository.getCategoryRules();

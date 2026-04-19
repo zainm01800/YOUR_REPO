@@ -178,8 +178,10 @@ export function buildPnL(
   const netProfit = round2(incomeSection.netTotal - expenseSection.netTotal);
 
   // Gross profit = income net - cost of sales net
+  // Match the canonical bucket names used in default-categories ("Cost of Sales")
+  const COST_OF_SALES_BUCKETS = new Set(["Cost of Sales", "Cost of Goods Sold", "Direct Costs"]);
   const costOfSales = expenseSection.buckets
-    .filter((b) => b.bucket.toLowerCase().includes("cost of sales") || b.bucket.toLowerCase().includes("cost of goods"))
+    .filter((b) => COST_OF_SALES_BUCKETS.has(b.bucket))
     .reduce((s, b) => s + b.netSubtotal, 0);
   const grossProfit = round2(incomeSection.netTotal - costOfSales);
 

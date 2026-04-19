@@ -270,53 +270,12 @@ export interface BankStatementSummary {
   transactionCount: number;
 }
 
-/**
- * A bookkeeping category with full accounting metadata.
- * Also carries optional pattern-matching rules for auto-assigning
- * incoming transactions (supplier regex, keyword regex).
- */
-export interface CategoryRule {
-  id: string;
-  /** Display name of this category, e.g. "Fuel", "Lesson Income" */
-  category: string;
-  /** Regex pattern matched against merchant/supplier name (case-insensitive) */
-  supplierPattern?: string;
-  /** Regex pattern matched against transaction description (case-insensitive) */
-  keywordPattern?: string;
-  priority: number;
-
-  // ── Accounting metadata ──────────────────────────────────────────────────
-  /** Fundamental accounting type: income, expense, asset, liability, equity */
-  accountType: AccountType;
-  /** Which financial statement this flows into */
-  statementType: StatementType;
-  /** Sub-grouping within the statement, e.g. "Motor Expenses", "Fixed Assets" */
-  reportingBucket: string;
-  /** Default VAT/tax treatment for transactions in this category */
-  defaultTaxTreatment: TaxTreatment;
-  /** Default VAT rate as a percentage, e.g. 20, 5, 0 */
-  defaultVatRate: number;
-  /** Whether input VAT on purchases in this category is recoverable */
-  defaultVatRecoverable: boolean;
-  /** Optional nominal/GL code to associate with this category */
-  glCode?: string;
-  /** Whether this category is currently active */
-  isActive: boolean;
-
-  // ── Tax allowability (HMRC / self-assessment logic) ──────────────────────
-  /**
-   * Whether expenses in this category are allowable for tax purposes.
-   * Allowable expenses reduce taxable profit. Non-allowable expenses appear
-   * in the P&L but are added back in the tax calculation.
-   * Defaults to true. Only meaningful for accountType = "expense".
-   */
-  allowableForTax: boolean;
-  /**
-   * What percentage of the expense is allowable (0–100). Used for partial
-   * allowances (e.g. 50% private use). Default 100.
-   */
-  allowablePercentage: number;
-}
+// Note: CategoryRule is defined above (search for the first declaration).
+// The full interface includes: id, category, slug, section, description,
+// supplierPattern, keywordPattern, priority, accountType, statementType,
+// reportingBucket, defaultTaxTreatment, defaultVatRate, defaultVatRecoverable,
+// glCode, isSystemDefault, isActive, isVisible, allowableForTax,
+// allowablePercentage, sortOrder.
 
 export interface DocumentTaxLine {
   id: string;
