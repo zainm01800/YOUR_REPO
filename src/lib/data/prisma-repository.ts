@@ -192,8 +192,19 @@ type DbSummaryRun = Prisma.ReconciliationRunGetPayload<{ include: typeof summary
 type DbBankStatusRun = Prisma.ReconciliationRunGetPayload<{ include: typeof bankStatusRunInclude }>;
 
 const invitationInclude = {
-  invitedBy: true,
-  workspace: true,
+  invitedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  workspace: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
 } satisfies Prisma.InvitationInclude;
 
 const bankStatementInclude = {
@@ -1198,16 +1209,24 @@ export const basePrismaRepository: Repository = {
         orderBy: { priority: "asc" },
         select: categoryRuleLegacySafeSelect,
       }),
-      prisma.membership.findMany({
-        where: { workspaceId: workspace.id },
-        include: { user: true },
-        orderBy: { createdAt: "asc" },
-      }),
-      prisma.invitation.findMany({
-        where: { workspaceId: workspace.id, status: "PENDING" },
-        include: { invitedBy: true },
-        orderBy: { createdAt: "desc" },
-      }),
+        prisma.membership.findMany({
+          where: { workspaceId: workspace.id },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        }),
+        prisma.invitation.findMany({
+          where: { workspaceId: workspace.id, status: "PENDING" },
+          include: invitationInclude,
+          orderBy: { createdAt: "desc" },
+        }),
     ]);
 
     return {
