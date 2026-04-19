@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -309,6 +310,7 @@ export function VatReconciliation({
     );
   }
 
+  const router = useRouter();
   const boxes = buildReturnBoxes(vatReport, currency);
   const netVat = vatReport.netVatPosition;
   const hasTransactions =
@@ -327,8 +329,8 @@ export function VatReconciliation({
             value={selectedPeriod ?? ""}
             onChange={(e) => {
               const p = e.target.value;
-              const url = p ? `?period=${p}` : "?";
-              window.location.href = url;
+              const url = p ? `?period=${encodeURIComponent(p)}` : "?";
+              router.push(url);
             }}
           >
             <option value="">All periods</option>
@@ -342,7 +344,53 @@ export function VatReconciliation({
 
         <button
           className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-white px-4 py-1.5 text-sm font-medium text-[var(--color-foreground)] transition-all hover:bg-[var(--color-panel)]"
-          onClick={() => alert("CSV export coming soon")}
+          onClick={() => {
+            const rows: string[][] = [
+              ["Type", "Category", "Reporting Bucket", "Tax Treatment", "VAT Rate %", "Transactions", "Net Amount", "VAT Amount", "VAT Recoverable"],
+            ];
+            for (const line of vatReport.outputLines) {
+              rows.push([
+                "Output (Sales)",
+                line.category,
+                line.reportingBucket,
+                line.taxTreatment,
+                String(Math.round(line.vatRate * 100)),
+                String(line.transactionCount),
+                line.netAmount.toFixed(2),
+                line.taxAmount.toFixed(2),
+                "Yes",
+              ]);
+            }
+            for (const line of vatReport.inputLines) {
+              rows.push([
+                "Input (Purchases)",
+                line.category,
+                line.reportingBucket,
+                line.taxTreatment,
+                String(Math.round(line.vatRate * 100)),
+                String(line.transactionCount),
+                line.netAmount.toFixed(2),
+                line.taxAmount.toFixed(2),
+                line.vatRecoverable ? "Yes" : "No",
+              ]);
+            }
+            rows.push(
+              [],
+              ["Summary"],
+              ["Output VAT", "", "", "", "", "", "", vatReport.outputTax.toFixed(2), ""],
+              ["Input VAT (Recoverable)", "", "", "", "", "", "", vatReport.inputTaxRecoverable.toFixed(2), ""],
+              ["Input VAT (Non-Recoverable)", "", "", "", "", "", "", vatReport.inputTaxNonRecoverable.toFixed(2), ""],
+              ["Net VAT Position (payable)", "", "", "", "", "", "", vatReport.netVatPosition.toFixed(2), ""],
+            );
+            const csv = rows.map(r => r.map(c => /[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c).join(",")).join("\n");
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `vat-return${selectedPeriod ? `-${selectedPeriod}` : ""}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
         >
           <Download className="h-4 w-4" />
           Export CSV

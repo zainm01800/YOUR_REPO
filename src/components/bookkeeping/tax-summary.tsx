@@ -66,8 +66,11 @@ function buildCsv({
       ["Taxable profit starting point", taxSummary.estimatedTax.taxableProfitStartingPoint.toFixed(2)],
       ["Personal allowance used", taxSummary.estimatedTax.personalAllowanceUsed.toFixed(2)],
       ["Taxable income after allowance", taxSummary.estimatedTax.taxableIncomeAfterAllowance.toFixed(2)],
+      ["Effective personal allowance", taxSummary.estimatedTax.effectivePersonalAllowance.toFixed(2)],
       ["Estimated income tax", taxSummary.estimatedTax.estimatedIncomeTax.toFixed(2)],
-      ["Estimated national insurance", taxSummary.estimatedTax.estimatedNationalInsurance.toFixed(2)],
+      ["Estimated Class 2 NI", taxSummary.estimatedTax.estimatedClass2Ni.toFixed(2)],
+      ["Estimated Class 4 NI", taxSummary.estimatedTax.estimatedClass4Ni.toFixed(2)],
+      ["Total national insurance", taxSummary.estimatedTax.estimatedNationalInsurance.toFixed(2)],
       ["Total estimated tax", taxSummary.estimatedTax.totalEstimatedTax.toFixed(2)],
     );
   }
@@ -119,16 +122,16 @@ function MetricCard({
   );
 }
 
-function MTDComplianceAlert({ 
-  grossTurnover, 
-  threshold, 
+function MTDComplianceAlert({
+  grossTurnover,
+  threshold,
   currency,
-  quarterlyEstimate
-}: { 
-  grossTurnover: number; 
-  threshold: number; 
+  suggestedQuarterlySaving,
+}: {
+  grossTurnover: number;
+  threshold: number;
   currency: string;
-  quarterlyEstimate: number;
+  suggestedQuarterlySaving: number;
 }) {
   return (
     <Card className="rounded-3xl border-indigo-200 bg-indigo-50 p-6 shadow-sm">
@@ -140,16 +143,17 @@ function MTDComplianceAlert({
           <div className="space-y-1">
             <h3 className="text-lg font-bold text-indigo-900">MTD ITSA Compliance Required</h3>
             <p className="max-w-xl text-sm leading-relaxed text-indigo-800">
-              Your gross income ({formatAmount(grossTurnover, currency)}) has exceeded the <strong>{formatAmount(threshold, currency)}</strong> HMRC threshold. 
-              Starting from April 2026, you may be required to submit <strong>quarterly tax updates</strong> to HMRC every 3 months instead of once a year.
+              Your gross income ({formatAmount(grossTurnover, currency)}) has exceeded the <strong>{formatAmount(threshold, currency)}</strong> HMRC threshold.
+              Starting from April 2026, you may be required to submit <strong>quarterly updates</strong> to HMRC.
+              Note: your actual tax is due via <strong>Payments on Account</strong> (31 Jan &amp; 31 Jul), not quarterly.
             </p>
           </div>
         </div>
-        
+
         <div className="flex flex-col gap-2 rounded-2xl bg-white/60 p-4 border border-indigo-100 min-w-[240px]">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Estimated 3-Month Exposure</p>
-          <p className="font-mono text-2xl font-bold text-indigo-900">{formatAmount(quarterlyEstimate, currency)}</p>
-          <p className="text-xs text-indigo-700/70 italic">Approximate liability for each quarterly filing.</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Suggested Quarterly Saving</p>
+          <p className="font-mono text-2xl font-bold text-indigo-900">{formatAmount(suggestedQuarterlySaving, currency)}</p>
+          <p className="text-xs text-indigo-700/70 italic">Set aside each quarter for cash-flow planning.</p>
         </div>
       </div>
     </Card>
@@ -381,11 +385,11 @@ export function TaxSummary({
 
         <TabsContent value="overview" className="space-y-6">
           {taxSummary.mtdCompliance.requiresQuarterlyReporting && (
-            <MTDComplianceAlert 
+            <MTDComplianceAlert
               grossTurnover={taxSummary.mtdCompliance.grossTurnover}
               threshold={taxSummary.mtdCompliance.threshold}
               currency={taxSummary.currency}
-              quarterlyEstimate={taxSummary.mtdCompliance.estimatedQuarterlyTax}
+              suggestedQuarterlySaving={taxSummary.mtdCompliance.suggestedQuarterlySaving}
             />
           )}
 
@@ -604,15 +608,23 @@ export function TaxSummary({
                 help="The profit figure used before any personal allowance."
               />
               <MetricCard
-                label="Personal allowance used"
+                label={
+                  taxSummary.estimatedTax!.effectivePersonalAllowance < 12_570
+                    ? "Personal allowance (tapered)"
+                    : "Personal allowance used"
+                }
                 value={formatAmount(taxSummary.estimatedTax!.personalAllowanceUsed, taxSummary.currency)}
-                help="The amount treated as tax-free in this estimate."
-                tone="muted"
+                help={
+                  taxSummary.estimatedTax!.effectivePersonalAllowance < 12_570
+                    ? `Reduced from £12,570 because income exceeds £100,000. Effective allowance: £${taxSummary.estimatedTax!.effectivePersonalAllowance.toLocaleString("en-GB")}.`
+                    : "The amount treated as tax-free in this estimate."
+                }
+                tone={taxSummary.estimatedTax!.effectivePersonalAllowance < 12_570 ? "warning" : "muted"}
               />
               <MetricCard
                 label="Taxable income after allowance"
                 value={formatAmount(taxSummary.estimatedTax!.taxableIncomeAfterAllowance, taxSummary.currency)}
-                help="The amount the estimate actually taxes."
+                help="The amount the income tax estimate is actually applied to."
                 tone="positive"
               />
             </div>
@@ -621,11 +633,11 @@ export function TaxSummary({
               <Card className="rounded-3xl border border-[var(--color-border)] p-6">
                 <h3 className="text-lg font-semibold text-[var(--color-foreground)]">Income tax breakdown</h3>
                 <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-                  The estimate split across the active tax bands.
+                  Estimate split across the active tax bands (2026/27).
                 </p>
                 <div className="mt-6 space-y-3">
                   {taxSummary.estimatedTax!.incomeTaxBreakdown.length === 0 ? (
-                    <p className="text-sm text-[var(--color-muted-foreground)]">No income tax is estimated at this level.</p>
+                    <p className="text-sm text-[var(--color-muted-foreground)]">No income tax estimated at this profit level.</p>
                   ) : (
                     taxSummary.estimatedTax!.incomeTaxBreakdown.map((band) => (
                       <SummaryLine
@@ -644,24 +656,24 @@ export function TaxSummary({
               </Card>
 
               <Card className="rounded-3xl border border-[var(--color-border)] p-6">
-                <h3 className="text-lg font-semibold text-[var(--color-foreground)]">National insurance breakdown</h3>
+                <h3 className="text-lg font-semibold text-[var(--color-foreground)]">National Insurance breakdown</h3>
                 <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-                  The estimated NI component based on the current sole trader rules in the app.
+                  Class 2 (flat rate) + Class 4 (profit-linked) for sole traders.
                 </p>
                 <div className="mt-6 space-y-3">
                   {taxSummary.estimatedTax!.niBreakdown.length === 0 ? (
-                    <p className="text-sm text-[var(--color-muted-foreground)]">No national insurance is estimated at this level.</p>
+                    <p className="text-sm text-[var(--color-muted-foreground)]">No National Insurance estimated at this profit level.</p>
                   ) : (
                     taxSummary.estimatedTax!.niBreakdown.map((band) => (
                       <SummaryLine
                         key={band.band}
-                        label={`${band.band} (${Math.round(band.rate * 100)}%)`}
+                        label={band.band}
                         value={formatAmount(band.amount, taxSummary.currency)}
                       />
                     ))
                   )}
                   <SummaryLine
-                    label="Estimated national insurance"
+                    label="Total National Insurance"
                     value={formatAmount(taxSummary.estimatedTax!.estimatedNationalInsurance, taxSummary.currency)}
                     strong
                   />
@@ -669,13 +681,34 @@ export function TaxSummary({
               </Card>
             </div>
 
-            <Card className="rounded-3xl border border-[var(--color-border)] p-6">
+            <Card className="rounded-3xl border border-[var(--color-border)] p-6 space-y-4">
               <SummaryLine
-                label="Total estimated tax"
+                label="Total estimated tax (income tax + NI)"
                 value={formatAmount(taxSummary.estimatedTax!.totalEstimatedTax, taxSummary.currency)}
                 tone="warning"
                 strong
               />
+              {taxSummary.estimatedTax!.paymentsOnAccount.length > 0 && (
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-bold text-amber-900 mb-3">HMRC Payment Schedule</p>
+                  <p className="text-xs text-amber-700 mb-4">
+                    Sole traders pay tax via <strong>Payments on Account</strong> — two instalments of 50% each, not quarterly.
+                  </p>
+                  <div className="space-y-2">
+                    {taxSummary.estimatedTax!.paymentsOnAccount.map((poa) => (
+                      <div key={poa.dueDate} className="flex items-center justify-between gap-4 rounded-xl bg-white/70 px-4 py-2.5">
+                        <div>
+                          <p className="text-xs font-semibold text-amber-900">{poa.dueDate}</p>
+                          <p className="text-[11px] text-amber-700">{poa.description}</p>
+                        </div>
+                        <p className="font-mono text-sm font-bold text-amber-900 shrink-0">
+                          {poa.amount > 0 ? formatAmount(poa.amount, taxSummary.currency) : "TBC after filing"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </Card>
           </TabsContent>
         ) : null}

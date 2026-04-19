@@ -25,11 +25,11 @@ import type { Workspace } from "@/lib/domain/types";
 import { TAX_TREATMENT_LABELS } from "@/lib/accounting/classifier";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
-  GBP: "GBP ",
-  USD: "USD ",
-  EUR: "EUR ",
-  AUD: "AUD ",
-  CAD: "CAD ",
+  GBP: "£",
+  USD: "$",
+  EUR: "€",
+  AUD: "A$",
+  CAD: "C$",
   CHF: "CHF ",
 };
 
@@ -221,12 +221,12 @@ function BucketRows({
 
 function BalanceSheetStatement({
   report,
-  retainedProfit,
 }: {
   report: BalanceSheetReport;
-  retainedProfit: number;
 }) {
-  const totalEquityPosition = report.totalEquity + retainedProfit;
+  // retainedProfit is already baked into report.totalEquity by buildBalanceSheet
+  const retainedProfit = report.retainedProfit;
+  const totalEquityPosition = report.totalEquity;
 
   return (
     <FormalStatementShell
@@ -776,7 +776,7 @@ export function FinancialReports({
 
       {tab === "pnl" ? <PnLCreditDebitStatement report={pnl} /> : null}
       {tab === "balance" && !isSoleTrader ? (
-        <BalanceSheetStatement report={balanceSheet} retainedProfit={pnl.netProfit} />
+        <BalanceSheetStatement report={balanceSheet} />
       ) : null}
       {tab === "vat" ? <VatTab report={vatReport} /> : null}
       {tab === "uncategorised" ? (

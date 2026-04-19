@@ -32,6 +32,8 @@ export interface TaxCategoryLine {
 export const UK_SOLE_TRADER_ESTIMATE_2026_27 = {
   taxYearLabel: "2026/27",
   personalAllowance: 12_570,
+  /** Income above this starts tapering the personal allowance (£1 lost per £2 above) */
+  personalAllowanceTaperThreshold: 100_000,
   basicRateLimit: 50_270,
   higherRateLimit: 125_140,
   basicRate: 0.2,
@@ -41,6 +43,10 @@ export const UK_SOLE_TRADER_ESTIMATE_2026_27 = {
   class4UpperProfitsLimit: 50_270,
   class4MainRate: 0.06,
   class4AdditionalRate: 0.02,
+  /** Class 2 NI — flat weekly rate, paid if profit >= smallProfitsThreshold */
+  class2NiWeeklyRate: 3.45,
+  class2NiSmallProfitsThreshold: 12_570,
+  class2NiWeeksInYear: 52,
 };
 
 export interface TaxBandBreakdown {
@@ -49,16 +55,30 @@ export interface TaxBandBreakdown {
   amount: number;
 }
 
+export interface PaymentOnAccount {
+  description: string;
+  dueDate: string;
+  amount: number;
+}
+
 export interface EstimatedTaxSummary {
   taxYearLabel: string;
   taxableProfitStartingPoint: number;
+  /** Adjusted personal allowance after any taper (tapers for income > £100k) */
+  effectivePersonalAllowance: number;
   personalAllowanceUsed: number;
   taxableIncomeAfterAllowance: number;
   estimatedIncomeTax: number;
   incomeTaxBreakdown: TaxBandBreakdown[];
+  /** Class 2 NI (flat rate, if profit >= small profits threshold) */
+  estimatedClass2Ni: number;
+  /** Class 4 NI (profit-linked) */
+  estimatedClass4Ni: number;
   estimatedNationalInsurance: number;
   niBreakdown: TaxBandBreakdown[];
   totalEstimatedTax: number;
+  /** HMRC Payments on Account schedule (31 Jan / 31 Jul each year) */
+  paymentsOnAccount: PaymentOnAccount[];
   assumptions: string[];
 }
 
@@ -93,7 +113,8 @@ export interface TaxSummaryReport {
     requiresQuarterlyReporting: boolean;
     grossTurnover: number;
     threshold: number;
-    estimatedQuarterlyTax: number;
+    /** Amount to set aside each quarter (total tax / 4) — for cash-flow planning only */
+    suggestedQuarterlySaving: number;
     hasReachedThreshold: boolean;
   };
   /** Per-category breakdown of disallowed add-backs, sorted by disallowedAmount desc */
@@ -149,32 +170,37 @@ function estimateSoleTraderIncomeTax(taxableProfitAfterAllowance: number) {
 }
 
 function estimateSoleTraderNationalInsurance(taxableProfit: number) {
+  const c = UK_SOLE_TRADER_ESTIMATE_2026_27;
   const breakdown: TaxBandBreakdown[] = [];
-  if (taxableProfit <= UK_SOLE_TRADER_ESTIMATE_2026_27.class4LowerProfitsLimit) {
-    return { total: 0, breakdown };
+
+  // Class 2 NI — flat weekly rate if profit >= small profits threshold
+  let class2Ni = 0;
+  if (taxableProfit >= c.class2NiSmallProfitsThreshold) {
+    class2Ni = round2(c.class2NiWeeklyRate * c.class2NiWeeksInYear);
+    breakdown.push({ band: "Class 2 NI (flat rate)", rate: c.class2NiWeeklyRate, amount: class2Ni });
   }
 
-  const mainBand =
-    UK_SOLE_TRADER_ESTIMATE_2026_27.class4UpperProfitsLimit -
-    UK_SOLE_TRADER_ESTIMATE_2026_27.class4LowerProfitsLimit;
+  // Class 4 NI — profit-linked
+  let class4Ni = 0;
+  if (taxableProfit > c.class4LowerProfitsLimit) {
+    const mainBand = c.class4UpperProfitsLimit - c.class4LowerProfitsLimit;
+    let remaining = taxableProfit - c.class4LowerProfitsLimit;
 
-  let remaining =
-    taxableProfit - UK_SOLE_TRADER_ESTIMATE_2026_27.class4LowerProfitsLimit;
-  let total = 0;
+    const mainPortion = Math.min(remaining, mainBand);
+    const mainNi = round2(mainPortion * c.class4MainRate);
+    class4Ni += mainNi;
+    breakdown.push({ band: "Class 4 Main Rate (6%)", rate: c.class4MainRate, amount: mainNi });
+    remaining -= mainPortion;
 
-  const mainPortion = Math.min(remaining, mainBand);
-  const mainNi = round2(mainPortion * UK_SOLE_TRADER_ESTIMATE_2026_27.class4MainRate);
-  total += mainNi;
-  breakdown.push({ band: "Class 4 Main Rate", rate: UK_SOLE_TRADER_ESTIMATE_2026_27.class4MainRate, amount: mainNi });
-  remaining -= mainPortion;
-
-  if (remaining > 0) {
-    const additionalNi = round2(remaining * UK_SOLE_TRADER_ESTIMATE_2026_27.class4AdditionalRate);
-    total += additionalNi;
-    breakdown.push({ band: "Class 4 Additional Rate", rate: UK_SOLE_TRADER_ESTIMATE_2026_27.class4AdditionalRate, amount: additionalNi });
+    if (remaining > 0) {
+      const additionalNi = round2(remaining * c.class4AdditionalRate);
+      class4Ni += additionalNi;
+      breakdown.push({ band: "Class 4 Additional Rate (2%)", rate: c.class4AdditionalRate, amount: additionalNi });
+    }
+    class4Ni = round2(class4Ni);
   }
 
-  return { total: round2(total), breakdown };
+  return { total: round2(class2Ni + class4Ni), class2Ni, class4Ni, breakdown };
 }
 
 export function buildTaxSummaryReport({
@@ -323,33 +349,74 @@ export function buildTaxSummaryReport({
   let estimatedTax: EstimatedTaxSummary | null = null;
 
   if (businessType === "sole_trader") {
-    const personalAllowanceUsed = Math.min(
-      taxableProfit,
-      UK_SOLE_TRADER_ESTIMATE_2026_27.personalAllowance,
-    );
-    const taxableIncomeAfterAllowance = round2(
-      Math.max(
-        taxableProfit - UK_SOLE_TRADER_ESTIMATE_2026_27.personalAllowance,
-        0,
-      ),
-    );
-    const { total: estimatedIncomeTax, breakdown: incomeTaxBreakdown } = estimateSoleTraderIncomeTax(taxableIncomeAfterAllowance);
-    const { total: estimatedNationalInsurance, breakdown: niBreakdown } = estimateSoleTraderNationalInsurance(taxableProfit);
+    const c = UK_SOLE_TRADER_ESTIMATE_2026_27;
+
+    // Personal allowance taper: reduced by £1 for every £2 of income above £100k
+    // Fully tapered out at £125,140 (= 100,000 + 2 × 12,570)
+    const effectivePersonalAllowance = taxableProfit > c.personalAllowanceTaperThreshold
+      ? round2(Math.max(0, c.personalAllowance - Math.floor((taxableProfit - c.personalAllowanceTaperThreshold) / 2)))
+      : c.personalAllowance;
+
+    const personalAllowanceUsed = round2(Math.min(taxableProfit, effectivePersonalAllowance));
+    const taxableIncomeAfterAllowance = round2(Math.max(taxableProfit - effectivePersonalAllowance, 0));
+
+    const { total: estimatedIncomeTax, breakdown: incomeTaxBreakdown } =
+      estimateSoleTraderIncomeTax(taxableIncomeAfterAllowance);
+    const { total: estimatedNationalInsurance, class2Ni: estimatedClass2Ni, class4Ni: estimatedClass4Ni, breakdown: niBreakdown } =
+      estimateSoleTraderNationalInsurance(taxableProfit);
+
+    const totalEstimatedTax = round2(estimatedIncomeTax + estimatedNationalInsurance);
+
+    // HMRC Payments on Account: two instalments of 50% each
+    // 1st payment on account: 31 January of current tax year
+    // 2nd payment on account: 31 July following the tax year
+    // Balancing payment: 31 January following the tax year
+    // We approximate using the current total — real POA would use prior year's bill
+    const halfBill = round2(totalEstimatedTax / 2);
+    const paymentsOnAccount: PaymentOnAccount[] = totalEstimatedTax > 0 ? [
+      {
+        description: "1st Payment on Account (50% of estimated tax)",
+        dueDate: "31 January 2027",
+        amount: halfBill,
+      },
+      {
+        description: "2nd Payment on Account (50% of estimated tax)",
+        dueDate: "31 July 2027",
+        amount: halfBill,
+      },
+      {
+        description: "Balancing Payment (if actual tax > payments made)",
+        dueDate: "31 January 2028",
+        amount: 0, // Only known after filing
+      },
+    ] : [];
+
+    const taxAssumptions = [
+      "Sole trader estimate using 2026/27 UK tax bands.",
+      "Class 2 NI (£3.45/week) applied if profit ≥ £12,570.",
+      "Class 4 NI: 6% on profits £12,571–£50,270; 2% above £50,270.",
+    ];
+    if (taxableProfit > c.personalAllowanceTaperThreshold) {
+      taxAssumptions.push(
+        `Personal allowance tapered to £${effectivePersonalAllowance.toLocaleString("en-GB")} (income exceeds £100,000).`,
+      );
+    }
 
     estimatedTax = {
-      taxYearLabel: UK_SOLE_TRADER_ESTIMATE_2026_27.taxYearLabel,
+      taxYearLabel: c.taxYearLabel,
       taxableProfitStartingPoint: taxableProfit,
-      personalAllowanceUsed: round2(personalAllowanceUsed),
+      effectivePersonalAllowance,
+      personalAllowanceUsed,
       taxableIncomeAfterAllowance,
       estimatedIncomeTax,
       incomeTaxBreakdown,
+      estimatedClass2Ni,
+      estimatedClass4Ni,
       estimatedNationalInsurance,
       niBreakdown,
-      totalEstimatedTax: round2(estimatedIncomeTax + estimatedNationalInsurance),
-      assumptions: [
-        "Sole trader estimate using 2026/27 UK bands.",
-        "National Insurance Class 4 rates applied.",
-      ],
+      totalEstimatedTax,
+      paymentsOnAccount,
+      assumptions: taxAssumptions,
     };
   }
 
@@ -363,8 +430,9 @@ export function buildTaxSummaryReport({
       .reduce((s, tx) => s + tx.grossAmount, 0)
   );
   const requiresQuarterlyReporting = businessType === "sole_trader" && grossTurnover >= MTD_ITSA_THRESHOLD;
-  
-  const estimatedQuarterlyTax = estimatedTax 
+
+  // Suggested quarterly saving for cash-flow planning (not an HMRC payment date)
+  const suggestedQuarterlySaving = estimatedTax
     ? round2(estimatedTax.totalEstimatedTax / 4)
     : 0;
 
@@ -393,7 +461,7 @@ export function buildTaxSummaryReport({
       requiresQuarterlyReporting,
       grossTurnover,
       threshold: MTD_ITSA_THRESHOLD,
-      estimatedQuarterlyTax,
+      suggestedQuarterlySaving,
       hasReachedThreshold: grossTurnover >= MTD_ITSA_THRESHOLD,
     },
     taxAdjustments,

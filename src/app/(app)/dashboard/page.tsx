@@ -133,6 +133,30 @@ export default async function DashboardPage() {
 
   const maxTrendGross = Math.max(...spendTrend.map((entry) => entry.gross), 1);
 
+  // Real period-over-period trends (first half vs second half of the trend window)
+  function calcTrend(values: number[]): { value: string; positive: boolean } | undefined {
+    if (values.length < 2) return undefined;
+    const mid = Math.floor(values.length / 2);
+    const earlier = values.slice(0, mid).reduce((s, v) => s + v, 0);
+    const recent = values.slice(mid).reduce((s, v) => s + v, 0);
+    if (earlier === 0) return undefined;
+    const pct = ((recent - earlier) / earlier) * 100;
+    return { value: `${Math.abs(pct).toFixed(1)}%`, positive: pct >= 0 };
+  }
+
+  const spendTrendCalc = calcTrend(spendTrend.map((t) => t.gross));
+  const vatTrendCalc = calcTrend(spendTrend.map((t) => t.vat));
+  const matchRateTrendCalc = (() => {
+    const rates = spendTrend.map((t) => t.matchRate);
+    if (rates.length < 2) return undefined;
+    const mid = Math.floor(rates.length / 2);
+    const earlier = rates.slice(0, mid).reduce((s, v) => s + v, 0) / mid;
+    const recentSlice = rates.slice(mid);
+    const recent = recentSlice.reduce((s, v) => s + v, 0) / recentSlice.length;
+    const diff = recent - earlier;
+    return { value: `${Math.abs(diff).toFixed(1)}%`, positive: diff >= 0 };
+  })();
+
   const supplierStats = new Map<
     string,
     {
@@ -262,11 +286,11 @@ export default async function DashboardPage() {
               label="Total spend reconciled"
               value={formatCurrency(allGross, currency)}
               sub={`Across ${snapshot.runs.length} run${snapshot.runs.length !== 1 ? "s" : ""}`}
-              trend={{
-                value: "+14.2%",
-                positive: true,
+              trend={spendTrendCalc ? {
+                value: spendTrendCalc.value,
+                positive: spendTrendCalc.positive,
                 data: spendTrend.map(t => maxTrendGross ? t.gross / maxTrendGross : 0.5),
-              }}
+              } : undefined}
             />
             <KpiCard
               label="VAT reclaimable"
@@ -274,32 +298,27 @@ export default async function DashboardPage() {
               sub="Claimable input tax"
               accent
               href="/bookkeeping/tax-summary"
-              trend={{
-                value: "+8.5%",
-                positive: true,
+              trend={vatTrendCalc ? {
+                value: vatTrendCalc.value,
+                positive: vatTrendCalc.positive,
                 data: spendTrend.map(t => maxTrendGross ? t.vat / maxTrendGross : 0.3),
-              }}
+              } : undefined}
             />
             <KpiCard
               label="Average match rate"
               value={`${avgMatchRate}%`}
               sub="Documents matched to transactions"
-              trend={{
-                value: "+2%",
-                positive: true,
+              trend={matchRateTrendCalc ? {
+                value: matchRateTrendCalc.value,
+                positive: matchRateTrendCalc.positive,
                 data: spendTrend.map(t => t.matchRate / 100),
-              }}
+              } : undefined}
             />
             <KpiCard
               label="Open exceptions"
               value={totalExceptions}
               sub={`${needsReview} run${needsReview !== 1 ? "s" : ""} need review`}
               href={totalExceptions > 0 && latest ? `/runs/${latest.id}/exceptions` : undefined}
-              trend={{
-                value: "-4",
-                positive: true,
-                data: [0.8, 0.6, 0.7, 0.5, 0.4, 0.3, 0.2],
-              }}
             />
           </div>
 
@@ -394,7 +413,7 @@ export default async function DashboardPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {snapshot.runs
               .filter(run => run.summary.exceptions > 0)
-              .slice(0, 3)
+              .slice(0, 6)
               .map(run => (
                 <Card key={run.id} className="flex flex-col justify-between border-l-4 border-l-[var(--color-danger)] p-4 hover:bg-[var(--color-panel)] transition-colors">
                   <div>
@@ -404,7 +423,7 @@ export default async function DashboardPage() {
                     </div>
                     <h3 className="mt-2 text-sm font-bold leading-none">{run.name}</h3>
                     <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
-                      {run.summary.exceptions} issues blocking this run from being posted.
+                      {run.summary.exceptions} issue{run.summary.exceptions !== 1 ? "s" : ""} blocking this run from being posted.
                     </p>
                   </div>
                   <Link href={`/runs/${run.id}/exceptions`} className="mt-4 text-xs font-bold text-[var(--color-accent)] hover:underline inline-flex items-center gap-1">
@@ -412,38 +431,17 @@ export default async function DashboardPage() {
                   </Link>
                 </Card>
               ))}
-            
-            <Card className="flex flex-col justify-between border-l-4 border-l-amber-500 p-4 hover:bg-[var(--color-panel)] transition-colors">
-              <div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-xs font-bold text-amber-600 uppercase tracking-tight">DEADLINE</span>
-                  <span className="text-[10px] text-[var(--color-muted-foreground)] uppercase">6 Days</span>
+            {snapshot.runs.filter(run => run.summary.exceptions > 0).length === 0 && (
+              <Card className="col-span-full flex items-center gap-3 border-l-4 border-l-emerald-500 p-4">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                  <ShieldCheck className="h-4 w-4" />
                 </div>
-                <h3 className="mt-2 text-sm font-bold leading-none">VAT Return (Mar 2025)</h3>
-                <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
-                  Your VAT return for Mar 2025 is due in 6 days. 12 transactions still need review.
-                </p>
-              </div>
-              <Link href="/bookkeeping/tax-summary" className="mt-4 text-xs font-bold text-[var(--color-accent)] hover:underline inline-flex items-center gap-1">
-                Open VAT summary <ArrowRight className="h-3 w-3" />
-              </Link>
-            </Card>
-
-            <Card className="flex flex-col justify-between border-l-4 border-l-indigo-500 p-4 hover:bg-[var(--color-panel)] transition-colors">
-              <div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-xs font-bold text-indigo-600 uppercase tracking-tight">OCR QUEUE</span>
-                  <span className="text-[10px] text-[var(--color-muted-foreground)] uppercase">Pending</span>
+                <div>
+                  <p className="text-sm font-bold text-emerald-700">No exceptions outstanding</p>
+                  <p className="text-xs text-[var(--color-muted-foreground)]">All runs are clear — nothing needs your attention right now.</p>
                 </div>
-                <h3 className="mt-2 text-sm font-bold leading-none">Statement Parsing</h3>
-                <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
-                  3 uploaded statements are awaiting final extraction review.
-                </p>
-              </div>
-              <Link href="/bank-statements" className="mt-4 text-xs font-bold text-[var(--color-accent)] hover:underline inline-flex items-center gap-1">
-                Enter OCR review <ArrowRight className="h-3 w-3" />
-              </Link>
-            </Card>
+              </Card>
+            )}
           </div>
         </section>
       )}

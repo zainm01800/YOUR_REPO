@@ -60,7 +60,9 @@ export interface BalanceSheetReport {
   liabilitySection: ReportSection;
   equitySection: ReportSection;
   netAssets: number;            // total assets - total liabilities
-  totalEquity: number;
+  /** Retained profit from P&L included in total equity */
+  retainedProfit: number;
+  totalEquity: number;          // capital + retained profit - drawings
   uncategorisedCount: number;
 }
 
@@ -229,18 +231,29 @@ export function buildBalanceSheet(
   const liabilitySection = buildSection(bsTxs, "liability", "Liabilities");
   const equitySection = buildSection(bsTxs, "equity", "Equity Movements");
 
-  // Also add P&L retained profit as equity
   const netAssets = round2(assetSection.total - liabilitySection.total);
 
-  // Equity: capital introduced reduces drawings reduces = net equity
-  // For this lightweight model: equity = capital introduced - drawings
+  // Equity = capital introduced - drawings + retained profit (net P&L)
+  // Retained profit is derived from all P&L transactions
+  const pnlTxs = transactions.filter(
+    (t) => t.statementType === "p_and_l" && t.category !== "Uncategorised",
+  );
+  const retainedProfit = round2(
+    pnlTxs
+      .filter((t) => t.accountType === "income")
+      .reduce((s, t) => s + t.netAmount, 0) -
+    pnlTxs
+      .filter((t) => t.accountType === "expense")
+      .reduce((s, t) => s + t.netAmount, 0),
+  );
+
   const capitalIntroduced = equitySection.buckets
     .filter((b) => b.bucket.toLowerCase().includes("capital"))
     .reduce((s, b) => s + b.subtotal, 0);
   const drawings = equitySection.buckets
     .filter((b) => b.bucket.toLowerCase().includes("drawings") || b.bucket.toLowerCase().includes("drawing"))
     .reduce((s, b) => s + b.subtotal, 0);
-  const totalEquity = round2(capitalIntroduced - drawings);
+  const totalEquity = round2(capitalIntroduced - drawings + retainedProfit);
 
   const uncategorisedCount = transactions.filter(
     (t) =>
@@ -254,6 +267,7 @@ export function buildBalanceSheet(
     liabilitySection,
     equitySection,
     netAssets,
+    retainedProfit,
     totalEquity,
     uncategorisedCount,
   };
@@ -279,7 +293,8 @@ export function buildVatReport(
     };
   }
 
-  const withTax = transactions.filter((t) => t.taxAmount > 0 || t.grossAmount > 0);
+  // Only include transactions where tax was actually charged/recoverable
+  const withTax = transactions.filter((t) => t.taxAmount !== 0);
 
   // Output tax: VAT on income
   const incomeTxs = withTax.filter((t) => t.accountType === "income");
