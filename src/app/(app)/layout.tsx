@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getRepository } from "@/lib/data";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { RecoveryUI } from "@/components/auth/recovery-ui";
+import { buildViewerAccessProfile } from "@/lib/auth/viewer-access";
 
 export default async function AuthenticatedLayout({
   children,
@@ -17,14 +18,17 @@ export default async function AuthenticatedLayout({
 
   try {
     const repository = await getRepository();
-    const [workspace, workspaces] = await Promise.all([
+    const [workspace, workspaces, currentUser] = await Promise.all([
       repository.getWorkspace(),
       repository.getUserWorkspaces(),
+      repository.getCurrentUser(),
     ]);
 
     if (!workspace) {
       redirect("/sign-up");
     }
+
+    const viewerAccess = buildViewerAccessProfile(currentUser, workspace);
 
     return (
       <AppShell
@@ -32,6 +36,7 @@ export default async function AuthenticatedLayout({
         workspaces={workspaces}
         currentWorkspaceId={workspace.id}
         businessType={workspace.businessType}
+        viewerAccess={viewerAccess}
       >
         {children}
       </AppShell>

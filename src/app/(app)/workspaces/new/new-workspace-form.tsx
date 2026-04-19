@@ -32,6 +32,24 @@ export function NewWorkspaceForm() {
         </p>
       </div>
 
+      <div className="space-y-1.5">
+        <label htmlFor="businessType" className="text-sm font-medium text-[var(--color-foreground)]">
+          Business type
+        </label>
+        <select
+          id="businessType"
+          name="businessType"
+          defaultValue="sole_trader"
+          className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+        >
+          <option value="sole_trader">Sole trader / self-employed</option>
+          <option value="general_small_business">Business / company</option>
+        </select>
+        <p className="text-xs text-[var(--color-muted-foreground)]">
+          This controls which reports and workflows are emphasised for this workspace.
+        </p>
+      </div>
+
       {state?.error && (
         <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{state.error}</p>
       )}

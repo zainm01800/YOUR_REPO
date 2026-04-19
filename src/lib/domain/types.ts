@@ -62,6 +62,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  accountType: UserAccountType;
 }
 
 /** The fundamental accounting classification of a category */
@@ -90,6 +91,7 @@ export type TaxTreatment =
   | "reverse_charge"    // EU/B2B reverse charge
   | "non_recoverable";  // Input VAT paid but not recoverable (e.g. business entertainment)
 
+export type UserAccountType = "business_user" | "accountant";
 export type BusinessType = "sole_trader" | "general_small_business";
 export type CategorySection =
   | "Income"

@@ -2,6 +2,13 @@ import { currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { type PrismaClient } from "@prisma/client";
 import { demoStore } from "@/lib/demo/demo-store";
+import {
+  normalizePendingAccountType,
+  normalizePendingBusinessType,
+  PENDING_ACCOUNT_TYPE_COOKIE,
+  PENDING_BUSINESS_TYPE_COOKIE,
+} from "@/lib/auth/account-intent";
+import { upsertUserCompat } from "@/lib/data/user-compat";
 
 export interface UserContext {
   clerkId: string;
@@ -40,20 +47,26 @@ export const resolveUserWorkspace = async (prisma: PrismaClient) => {
     name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || email,
   };
 
+  const cookieStore = await cookies();
+  const pendingAccountType = normalizePendingAccountType(
+    cookieStore.get(PENDING_ACCOUNT_TYPE_COOKIE)?.value,
+  );
+  const pendingBusinessType = normalizePendingBusinessType(
+    cookieStore.get(PENDING_BUSINESS_TYPE_COOKIE)?.value,
+  );
+
   // 1. Resolve or Create the User in our DB
-  const user = await prisma.user.upsert({
+  const user = await upsertUserCompat(prisma, {
     where: { email: context.email },
-    update: { name: context.name },
+    update: { name: context.name, accountType: pendingAccountType },
     create: {
       id: context.clerkId, // Use Clerk ID for consistency
       email: context.email,
       name: context.name,
       passwordHash: "", // Clerk handles passwords
+      accountType: pendingAccountType,
     },
   });
-
-  // 2. Resolve the requested Workspace (from cookie) or the primary one
-  const cookieStore = await cookies();
   const activeWorkspaceId = cookieStore.get("active_workspace_id")?.value;
 
   let membership;
@@ -90,7 +103,7 @@ export const resolveUserWorkspace = async (prisma: PrismaClient) => {
           amountTolerance: 0.05,
           dateToleranceDays: 5,
           vatRegistered: false,
-          businessType: "sole_trader",
+          businessType: pendingBusinessType,
         },
       });
 
@@ -125,6 +138,8 @@ export const resolveUserWorkspace = async (prisma: PrismaClient) => {
   // Seed default rules for the new private workspace if we were the creator
   if (isNewWorkspace && membership) {
     await seedDefaultRules(prisma, membership.workspace.id);
+    cookieStore.delete(PENDING_ACCOUNT_TYPE_COOKIE);
+    cookieStore.delete(PENDING_BUSINESS_TYPE_COOKIE);
   }
 
   return {

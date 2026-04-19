@@ -12,6 +12,7 @@ import { mergeWorkspaceCategoryRules } from "@/lib/accounting/default-categories
 import { resolveUserWorkspace } from "./multi-tenancy";
 import { getPrismaClient } from "./prisma";
 import { applyReviewMutationToRun } from "./review-mutation";
+import { findUserCompat, upsertUserCompat } from "./user-compat";
 import type {
   AttachBankSourceInput,
   CreateRunInput,
@@ -348,8 +349,13 @@ function toWorkspace(workspace: {
   };
 }
 
-function toUser(user: { id: string; email: string; name: string }): User {
-  return { id: user.id, email: user.email, name: user.name };
+function toUser(user: { id: string; email: string; name: string; accountType?: string | null }): User {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    accountType: (user.accountType as User["accountType"]) || "business_user",
+  };
 }
 
 function toVatRule(rule: {
@@ -1943,10 +1949,10 @@ export const basePrismaRepository: Repository = {
         }
 
         // 1. Sync user record first to satisfy foreign key constraints
-        await tx.user.upsert({
+        await upsertUserCompat(tx as PrismaClient, {
           where: { id: userId },
-          update: { email, name },
-          create: { id: userId, email, name, passwordHash: "" },
+          update: { email, name, accountType: "business_user" },
+          create: { id: userId, email, name, passwordHash: "", accountType: "business_user" },
         });
 
         // 2. Create or update membership
@@ -2028,7 +2034,7 @@ export async function createPrismaRepository(
   return {
     ...basePrismaRepository,
     getCurrentUser: async () => {
-      const dbUser = await prisma.user.findUnique({ where: { id: userId } });
+      const dbUser = await findUserCompat(prisma, { id: userId });
       if (!dbUser) throw new Error("User not found");
       return toUser(dbUser);
     },

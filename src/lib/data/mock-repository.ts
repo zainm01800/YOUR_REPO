@@ -38,7 +38,7 @@ import { buildReviewRows } from "@/lib/reconciliation/review-rows";
 import { buildRunSummary } from "@/lib/reconciliation/summary";
 
 // Bump STORE_VERSION whenever demoStore shape changes to force a reset.
-const STORE_VERSION = 6;
+const STORE_VERSION = 7;
 const g = global as typeof global & { __mockStore?: typeof demoStore; __mockStoreVersion?: number };
 if (!g.__mockStore || g.__mockStoreVersion !== STORE_VERSION) {
   g.__mockStore = deepClone(demoStore);

@@ -19,6 +19,7 @@ const user: User = {
   id: "user_demo_owner",
   email: appConfig.demoCredentials.email,
   name: "Maya Chen",
+  accountType: "business_user",
 };
 
 const workspace: Workspace = {

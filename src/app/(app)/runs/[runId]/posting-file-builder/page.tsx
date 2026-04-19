@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
 import { PostingFileBuilder } from "@/components/export/posting-file-builder";
 import { getRepository } from "@/lib/data";
+import { buildViewerAccessProfile } from "@/lib/auth/viewer-access";
 
 export default async function PostingFileBuilderPage({
   params,
@@ -12,7 +13,15 @@ export default async function PostingFileBuilderPage({
 }) {
   const { runId } = await params;
   const repository = await getRepository();
-  const run = await repository.getRun(runId);
+  const [run, workspace, currentUser] = await Promise.all([
+    repository.getRun(runId),
+    repository.getWorkspace(),
+    repository.getCurrentUser(),
+  ]);
+  const viewerAccess = buildViewerAccessProfile(currentUser, workspace);
+  if (!viewerAccess.canSeePostingBuilder) {
+    redirect(`/runs/${runId}/export`);
+  }
 
   if (!run) {
     notFound();

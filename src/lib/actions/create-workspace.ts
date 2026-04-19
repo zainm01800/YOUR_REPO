@@ -6,6 +6,13 @@ import { currentUser } from "@clerk/nextjs/server";
 import { getPrismaClient } from "@/lib/data/prisma";
 import { mergeWorkspaceCategoryRules } from "@/lib/accounting/default-categories";
 import { demoStore } from "@/lib/demo/demo-store";
+import {
+  normalizePendingAccountType,
+  normalizePendingBusinessType,
+  PENDING_ACCOUNT_TYPE_COOKIE,
+  PENDING_BUSINESS_TYPE_COOKIE,
+} from "@/lib/auth/account-intent";
+import { upsertUserCompat } from "@/lib/data/user-compat";
 
 export async function createWorkspace(
   _prevState: { error?: string } | null,
@@ -18,6 +25,10 @@ export async function createWorkspace(
   if (name.length > 80) {
     return { error: "Workspace name must be 80 characters or fewer." };
   }
+
+  const businessType = normalizePendingBusinessType(
+    (formData.get("businessType") as string | null) ?? undefined,
+  );
 
   const prisma = getPrismaClient();
   if (!prisma) {
@@ -34,15 +45,24 @@ export async function createWorkspace(
     return { error: "No email address found on your account." };
   }
 
+  const cookieStore = await cookies();
+  const pendingAccountType = normalizePendingAccountType(
+    cookieStore.get(PENDING_ACCOUNT_TYPE_COOKIE)?.value,
+  );
+
   // Resolve or create the user row
-  const user = await prisma.user.upsert({
+  const user = await upsertUserCompat(prisma, {
     where: { email },
-    update: { name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || email },
+    update: {
+      name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || email,
+      accountType: pendingAccountType,
+    },
     create: {
       id: clerkUser.id,
       email,
       name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || email,
       passwordHash: "",
+      accountType: pendingAccountType,
     },
   });
 
@@ -65,7 +85,7 @@ export async function createWorkspace(
       amountTolerance: 1.5,
       dateToleranceDays: 5,
       vatRegistered: false,
-      businessType: "sole_trader",
+      businessType,
     },
   });
 
@@ -132,11 +152,12 @@ export async function createWorkspace(
   }
 
   // Switch to the new workspace
-  const cookieStore = await cookies();
   cookieStore.set("active_workspace_id", workspace.id, {
     path: "/",
     maxAge: 30 * 24 * 60 * 60,
   });
+  cookieStore.delete(PENDING_ACCOUNT_TYPE_COOKIE);
+  cookieStore.delete(PENDING_BUSINESS_TYPE_COOKIE);
 
   redirect("/dashboard");
 }

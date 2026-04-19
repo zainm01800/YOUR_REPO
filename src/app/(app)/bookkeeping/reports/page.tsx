@@ -3,6 +3,7 @@ import { FinancialReports } from "@/components/bookkeeping/financial-reports";
 import type { ClassifiedTransaction } from "@/lib/accounting/classifier";
 import { getRepository } from "@/lib/data";
 import { classifyTransaction, buildCategoryRuleMap } from "@/lib/accounting/classifier";
+import { buildViewerAccessProfile } from "@/lib/auth/viewer-access";
 import {
   buildBalanceSheet,
   buildPnL,
@@ -10,14 +11,20 @@ import {
   buildVatReport,
 } from "@/lib/accounting/reports";
 import { resolveCategory } from "@/lib/categories/suggester";
+import { redirect } from "next/navigation";
 
 export default async function BookkeepingReportsPage() {
   const repository = await getRepository();
-  const [settingsSnapshot, runs, unassignedBankTxns] = await Promise.all([
+  const [settingsSnapshot, runs, unassignedBankTxns, currentUser] = await Promise.all([
     repository.getSettingsSnapshot(),
     repository.getRunsWithTransactions(),
     repository.getUnassignedBankTransactions().catch(() => []),
+    repository.getCurrentUser(),
   ]);
+  const viewerAccess = buildViewerAccessProfile(currentUser, settingsSnapshot.workspace);
+  if (!viewerAccess.canSeeFinancialReports) {
+    redirect("/bookkeeping/tax-summary");
+  }
   const categoryRuleMap = buildCategoryRuleMap(settingsSnapshot.categoryRules);
 
   const allTransactions: ClassifiedTransaction[] = [];
@@ -57,7 +64,8 @@ export default async function BookkeepingReportsPage() {
     settingsSnapshot.workspace.vatRegistered,
   );
   const uncategorised = buildUncategorisedList(allTransactions);
-  const isSoleTrader = settingsSnapshot.workspace.businessType === "sole_trader";
+  const isSoleTrader =
+    settingsSnapshot.workspace.businessType === "sole_trader" && !viewerAccess.canSeeFullAccounting;
 
   return (
     <>
@@ -78,6 +86,7 @@ export default async function BookkeepingReportsPage() {
         uncategorised={uncategorised}
         currency={settingsSnapshot.workspace.defaultCurrency}
         businessType={settingsSnapshot.workspace.businessType}
+        canSeeFullAccounting={viewerAccess.canSeeFullAccounting}
       />
     </>
   );

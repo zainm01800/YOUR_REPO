@@ -1,10 +1,20 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { PostingFileBuilder } from "@/components/posting-file-builder/posting-file-builder";
 import { getRepository } from "@/lib/data";
+import { buildViewerAccessProfile } from "@/lib/auth/viewer-access";
+import { redirect } from "next/navigation";
 
 export default async function PostingFileBuilderPage() {
   const repository = await getRepository();
-  const runs = await repository.getRunsWithTransactions();
+  const [runs, workspace, currentUser] = await Promise.all([
+    repository.getRunsWithTransactions(),
+    repository.getWorkspace(),
+    repository.getCurrentUser(),
+  ]);
+  const viewerAccess = buildViewerAccessProfile(currentUser, workspace);
+  if (!viewerAccess.canSeePostingBuilder) {
+    redirect("/export/period-pack");
+  }
 
   return (
     <>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { SettingsSnapshot, Workspace } from "@/lib/domain/types";
+import type { ViewerAccessProfile } from "@/lib/auth/viewer-access";
 import { Card } from "@/components/ui/card";
 import { CategoryRuleManager } from "@/components/settings/category-rule-manager";
 import { GlRuleManager } from "@/components/settings/gl-rule-manager";
@@ -14,9 +15,10 @@ import { DeleteWorkspaceCard } from "@/components/settings/delete-workspace-card
 interface SettingsTabsProps {
   settings: SettingsSnapshot;
   isOwner: boolean;
+  viewerAccess: ViewerAccessProfile;
 }
 
-export function SettingsTabs({ settings, isOwner }: SettingsTabsProps) {
+export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsProps) {
   const [activeTab, setActiveTab] = useState<"general" | "tax" | "team" | "advanced">("general");
 
   const workspace = settings.workspace;
@@ -56,16 +58,18 @@ export function SettingsTabs({ settings, isOwner }: SettingsTabsProps) {
           >
             Team & Access
           </button>
-          <button
-            onClick={() => setActiveTab("advanced")}
-            className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium transition ${
-              activeTab === "advanced"
-                ? "border-[var(--color-accent)] text-[var(--color-foreground)]"
-                : "border-transparent text-[var(--color-muted-foreground)] hover:border-[var(--color-border)] hover:text-[var(--color-foreground)]"
-            }`}
-          >
-            Advanced Settings
-          </button>
+          {viewerAccess.canSeeFullAccounting ? (
+            <button
+              onClick={() => setActiveTab("advanced")}
+              className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium transition ${
+                activeTab === "advanced"
+                  ? "border-[var(--color-accent)] text-[var(--color-foreground)]"
+                  : "border-transparent text-[var(--color-muted-foreground)] hover:border-[var(--color-border)] hover:text-[var(--color-foreground)]"
+              }`}
+            >
+              Advanced Settings
+            </button>
+          ) : null}
         </nav>
       </div>
 
@@ -99,7 +103,7 @@ export function SettingsTabs({ settings, isOwner }: SettingsTabsProps) {
           </div>
         )}
 
-        {activeTab === "advanced" && (
+        {activeTab === "advanced" && viewerAccess.canSeeFullAccounting && (
           <div className="space-y-6">
             <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
               <GlRuleManager initialRules={settings.glRules} />

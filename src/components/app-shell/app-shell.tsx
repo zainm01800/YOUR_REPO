@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 import type { Workspace } from "@/lib/domain/types";
+import type { ViewerAccessProfile } from "@/lib/auth/viewer-access";
 import { cn } from "@/lib/utils";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { ToastProvider } from "@/components/ui/toast";
@@ -45,9 +46,11 @@ type NavigationSection = {
   }>;
 };
 
-function buildNavigation(businessType: Workspace["businessType"]): NavigationSection[] {
-  // Sole trader: focused tax-first flow
-  if (businessType === "sole_trader") {
+function buildNavigation(
+  businessType: Workspace["businessType"],
+  viewerAccess: ViewerAccessProfile,
+): NavigationSection[] {
+  if (!viewerAccess.isAccountantView && businessType === "sole_trader") {
     return [
       {
         label: "Import",
@@ -68,7 +71,6 @@ function buildNavigation(businessType: Workspace["businessType"]): NavigationSec
         items: [
           { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
           { href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt },
-          { href: "/bookkeeping/reports", label: "Profit & Loss", icon: BarChart3 },
         ],
       },
       {
@@ -86,7 +88,46 @@ function buildNavigation(businessType: Workspace["businessType"]): NavigationSec
     ];
   }
 
-  // General business: full nav
+  if (!viewerAccess.isAccountantView) {
+    return [
+      {
+        label: "Ingest",
+        items: [
+          { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
+          { href: "/ocr-extraction", label: "OCR Extraction", icon: ScanText },
+        ],
+      },
+      {
+        label: "Process",
+        items: [
+          { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
+          { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
+        ],
+      },
+      {
+        label: "Reconcile",
+        items: [
+          { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+          { href: "/runs", label: "Reconciliation Runs", icon: FolderOpen },
+          { href: "/runs/new", label: "New Recon Run", icon: PlusSquare },
+        ],
+      },
+      {
+        label: "Report",
+        items: [
+          { href: "/bookkeeping/reports", label: "Business Reports", icon: BarChart3 },
+          { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
+          { href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt },
+          { href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen },
+        ],
+      },
+      {
+        label: "Configure",
+        items: [{ href: "/settings", label: "Settings & Members", icon: Settings2 }],
+      },
+    ];
+  }
+
   return [
     {
       label: "Ingest",
@@ -139,13 +180,15 @@ function buildNavigation(businessType: Workspace["businessType"]): NavigationSec
 function NavItems({
   currentPath,
   businessType,
+  viewerAccess,
   onNavigate,
 }: {
   currentPath: string;
   businessType: Workspace["businessType"];
+  viewerAccess: ViewerAccessProfile;
   onNavigate?: () => void;
 }) {
-  const navigation = buildNavigation(businessType);
+  const navigation = buildNavigation(businessType, viewerAccess);
 
   return (
     <nav className="mt-6 space-y-5">
@@ -194,17 +237,25 @@ export function AppShell({
   workspaces,
   currentWorkspaceId,
   businessType,
+  viewerAccess,
 }: {
   children: React.ReactNode;
   workspaceName: string;
   workspaces: WorkspaceInfo[];
   currentWorkspaceId: string;
   businessType: Workspace["businessType"];
+  viewerAccess: ViewerAccessProfile;
 }) {
   const currentPath = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const businessTypeLabel =
-    businessType === "sole_trader" ? "Sole trader mode" : "Business mode";
+    viewerAccess.isWebsiteOwner
+      ? "Owner override"
+      : viewerAccess.isAccountantView
+        ? "Accountant mode"
+        : businessType === "sole_trader"
+          ? "Sole trader mode"
+          : "Business mode";
 
   const workspaceCard = (
     <div className="mb-4">
@@ -221,7 +272,7 @@ export function AppShell({
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-sidebar)] p-5 lg:block">
         {workspaceCard}
-        <NavItems currentPath={currentPath} businessType={businessType} />
+        <NavItems currentPath={currentPath} businessType={businessType} viewerAccess={viewerAccess} />
       </aside>
 
       {/* Mobile overlay */}
@@ -250,7 +301,7 @@ export function AppShell({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <NavItems currentPath={currentPath} businessType={businessType} onNavigate={() => setMobileOpen(false)} />
+        <NavItems currentPath={currentPath} businessType={businessType} viewerAccess={viewerAccess} onNavigate={() => setMobileOpen(false)} />
       </aside>
 
       <main className="flex-1 overflow-y-auto">

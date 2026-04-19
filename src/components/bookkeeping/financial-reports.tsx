@@ -720,6 +720,7 @@ export function FinancialReports({
   uncategorised,
   currency,
   businessType,
+  canSeeFullAccounting = false,
 }: {
   pnl: PnLReport;
   balanceSheet: BalanceSheetReport;
@@ -727,9 +728,10 @@ export function FinancialReports({
   uncategorised: UncategorisedTransaction[];
   currency: string;
   businessType: Workspace["businessType"];
+  canSeeFullAccounting?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("pnl");
-  const isSoleTrader = businessType === "sole_trader";
+  const isSoleTrader = businessType === "sole_trader" && !canSeeFullAccounting;
 
   const tabs: Array<{ id: Tab; label: string; badge?: number }> = [
     { id: "pnl", label: isSoleTrader ? "Profit Summary" : "Profit & Loss" },

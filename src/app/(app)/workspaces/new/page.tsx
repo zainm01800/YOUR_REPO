@@ -21,7 +21,7 @@ export default function NewWorkspacePage() {
             <div>
               <h2 className="font-semibold">Workspace details</h2>
               <p className="text-sm text-[var(--color-muted-foreground)]">
-                You&apos;ll be the owner and can invite others later.
+                You&apos;ll be the owner and can set whether this workspace is for a sole trader or a business.
               </p>
             </div>
           </div>

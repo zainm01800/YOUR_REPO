@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getPrismaClient } from "@/lib/data/prisma";
 import { getRepository } from "@/lib/data";
 import { randomBytes } from "crypto";
+import { findUserCompat } from "@/lib/data/user-compat";
 
 // ─── Workspace switching ─────────────────────────────────────────────────────
 
@@ -60,7 +61,7 @@ export async function inviteUser(
     }
 
     // Check not already a member
-    const existingUser = await prisma.user.findUnique({ where: { email: normalised } });
+    const existingUser = await findUserCompat(prisma, { email: normalised });
     if (existingUser) {
       const existingMembership = await prisma.membership.findUnique({
         where: { userId_workspaceId: { userId: existingUser.id, workspaceId: workspace.id } },
