@@ -133,6 +133,7 @@ export function TransactionsTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [categorySaveError, setCategorySaveError] = useState<string | null>(null);
 
   const [aiCategorising, setAiCategorising] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -298,10 +299,17 @@ export function TransactionsTable({
       setEditingId(null);
       return;
     }
-    
+
+    let saveSucceeded = false;
+    let openedBulkPrompt = false;
+    setCategorySaveError(null);
     setSaving(txId);
     try {
       await updateTransactionCategoryAction(txId, newCategory);
+      saveSucceeded = true;
+      setLocalTransactions((prev) =>
+        prev.map((tx) => (tx.id === txId ? { ...tx, category: newCategory } : tx)),
+      );
       setCategoryOverrides((prev) => ({ ...prev, [txId]: newCategory }));
       setSavedId(txId);
       setTimeout(() => setSavedId((id) => (id === txId ? null : id)), 2000);
@@ -330,6 +338,7 @@ export function TransactionsTable({
         });
 
         if (similar.length > 0) {
+          openedBulkPrompt = true;
           setBulkPrompt({
             originalTxId: txId,
             category: newCategory,
@@ -344,15 +353,21 @@ export function TransactionsTable({
           return;
         }
       }
-    } catch {
-      // Optimistic failure
+    } catch (error) {
+      setCategorySaveError(
+        error instanceof Error
+          ? error.message
+          : "Could not save that category right now. Please try again.",
+      );
     } finally {
-      if (!bulkPrompt) {
+      if (saveSucceeded || openedBulkPrompt) {
         setSaving(null);
         setEditingId(null);
+      } else {
+        setSaving(null);
       }
     }
-  }, [rowsWithCategory, bulkPrompt]);
+  }, [rowsWithCategory]);
 
   async function handleApplyBulk() {
     if (!bulkPrompt) return;
@@ -815,6 +830,10 @@ export function TransactionsTable({
 
       {deleteError && (
         <p className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600">{deleteError}</p>
+      )}
+
+      {categorySaveError && (
+        <p className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600">{categorySaveError}</p>
       )}
 
       <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white">
