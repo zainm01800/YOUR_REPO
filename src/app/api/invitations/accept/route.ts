@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { getPrismaClient } from "@/lib/data/prisma";
+import { findUserCompat } from "@/lib/data/user-compat";
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,8 +44,8 @@ export async function POST(req: NextRequest) {
     const displayName =
       `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || email;
 
-    const existingByEmail = await db.user.findUnique({ where: { email } });
-    const existingById = await db.user.findUnique({ where: { id: userId } });
+    const existingByEmail = await findUserCompat(db, { email });
+    const existingById = await findUserCompat(db, { id: userId });
 
     if (existingByEmail) {
       await db.user.update({ where: { email }, data: { name: displayName } });
