@@ -4,6 +4,7 @@ import type { ClassifiedTransaction } from "@/lib/accounting/classifier";
 import { getRepository } from "@/lib/data";
 import { classifyTransaction, buildCategoryRuleMap } from "@/lib/accounting/classifier";
 import { buildViewerAccessProfile } from "@/lib/auth/viewer-access";
+import { resolveViewerUser } from "@/lib/auth/viewer-user";
 import {
   buildBalanceSheet,
   buildPnL,
@@ -21,7 +22,8 @@ export default async function BookkeepingReportsPage() {
     repository.getUnassignedBankTransactions().catch(() => []),
     repository.getCurrentUser(),
   ]);
-  const viewerAccess = buildViewerAccessProfile(currentUser, settingsSnapshot.workspace);
+  const viewerUser = await resolveViewerUser(currentUser);
+  const viewerAccess = buildViewerAccessProfile(viewerUser, settingsSnapshot.workspace);
   if (!viewerAccess.canSeeFinancialReports) {
     redirect("/bookkeeping/tax-summary");
   }

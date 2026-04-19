@@ -2,6 +2,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { type PrismaClient } from "@prisma/client";
 import { demoStore } from "@/lib/demo/demo-store";
+import { getLockedAccountTypeFromClerkUser } from "@/lib/auth/account-type";
 import {
   normalizePendingAccountType,
   normalizePendingBusinessType,
@@ -51,6 +52,8 @@ export const resolveUserWorkspace = async (prisma: PrismaClient) => {
   const pendingAccountType = normalizePendingAccountType(
     cookieStore.get(PENDING_ACCOUNT_TYPE_COOKIE)?.value,
   );
+  const lockedAccountType = getLockedAccountTypeFromClerkUser(clerkUser);
+  const effectiveAccountType = lockedAccountType ?? pendingAccountType;
   const pendingBusinessType = normalizePendingBusinessType(
     cookieStore.get(PENDING_BUSINESS_TYPE_COOKIE)?.value,
   );
@@ -58,13 +61,13 @@ export const resolveUserWorkspace = async (prisma: PrismaClient) => {
   // 1. Resolve or Create the User in our DB
   const user = await upsertUserCompat(prisma, {
     where: { email: context.email },
-    update: { name: context.name, accountType: pendingAccountType },
+    update: { name: context.name, accountType: effectiveAccountType },
     create: {
       id: context.clerkId, // Use Clerk ID for consistency
       email: context.email,
       name: context.name,
       passwordHash: "", // Clerk handles passwords
-      accountType: pendingAccountType,
+      accountType: effectiveAccountType,
     },
   });
   const activeWorkspaceId = cookieStore.get("active_workspace_id")?.value;

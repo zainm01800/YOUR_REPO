@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/app-shell/page-header";
 import { PostingFileBuilder } from "@/components/posting-file-builder/posting-file-builder";
 import { getRepository } from "@/lib/data";
 import { buildViewerAccessProfile } from "@/lib/auth/viewer-access";
+import { resolveViewerUser } from "@/lib/auth/viewer-user";
 import { redirect } from "next/navigation";
 
 export default async function PostingFileBuilderPage() {
@@ -11,7 +12,8 @@ export default async function PostingFileBuilderPage() {
     repository.getWorkspace(),
     repository.getCurrentUser(),
   ]);
-  const viewerAccess = buildViewerAccessProfile(currentUser, workspace);
+  const viewerUser = await resolveViewerUser(currentUser);
+  const viewerAccess = buildViewerAccessProfile(viewerUser, workspace);
   if (!viewerAccess.canSeePostingBuilder) {
     redirect("/export/period-pack");
   }

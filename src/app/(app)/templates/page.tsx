@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/app-shell/page-header";
 import { TemplateEditor } from "@/components/templates/template-editor";
 import { getRepository } from "@/lib/data";
 import { buildViewerAccessProfile } from "@/lib/auth/viewer-access";
+import { resolveViewerUser } from "@/lib/auth/viewer-user";
 import { redirect } from "next/navigation";
 
 export default async function TemplatesPage() {
@@ -10,7 +11,8 @@ export default async function TemplatesPage() {
     repository.getWorkspace(),
     repository.getCurrentUser(),
   ]);
-  const viewerAccess = buildViewerAccessProfile(currentUser, workspace);
+  const viewerUser = await resolveViewerUser(currentUser);
+  const viewerAccess = buildViewerAccessProfile(viewerUser, workspace);
   if (!viewerAccess.canSeeTemplates) {
     redirect("/dashboard");
   }

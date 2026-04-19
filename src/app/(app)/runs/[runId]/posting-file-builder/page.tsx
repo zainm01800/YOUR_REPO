@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { PostingFileBuilder } from "@/components/export/posting-file-builder";
 import { getRepository } from "@/lib/data";
 import { buildViewerAccessProfile } from "@/lib/auth/viewer-access";
+import { resolveViewerUser } from "@/lib/auth/viewer-user";
 
 export default async function PostingFileBuilderPage({
   params,
@@ -18,7 +19,8 @@ export default async function PostingFileBuilderPage({
     repository.getWorkspace(),
     repository.getCurrentUser(),
   ]);
-  const viewerAccess = buildViewerAccessProfile(currentUser, workspace);
+  const viewerUser = await resolveViewerUser(currentUser);
+  const viewerAccess = buildViewerAccessProfile(viewerUser, workspace);
   if (!viewerAccess.canSeePostingBuilder) {
     redirect(`/runs/${runId}/export`);
   }

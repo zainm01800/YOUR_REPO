@@ -93,8 +93,8 @@ export function SignUpExperience() {
             </h1>
             <p className="mt-3 text-sm leading-7 text-[var(--color-muted-foreground)]">
               Pick whether you&apos;re using ClearMatch for your own business or as an accountant.
-              We&apos;ll shape the workspace around that choice, and you can still adjust the
-              business type later in settings.
+              We&apos;ll shape the workspace around that choice. Your account type is permanent and
+              can&apos;t be changed later.
             </p>
           </div>
 

@@ -4,6 +4,7 @@ import { ClientUploadCard } from "@/components/settings/client-upload-card";
 import { Card } from "@/components/ui/card";
 import { getRepository } from "@/lib/data";
 import { buildViewerAccessProfile } from "@/lib/auth/viewer-access";
+import { resolveViewerUser } from "@/lib/auth/viewer-user";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -21,7 +22,8 @@ export default async function SettingsPage() {
   const currentWorkspaceId = settings.workspace.id;
   const myMembership = userWorkspaces.find((w) => w.id === currentWorkspaceId);
   const isOwner = myMembership?.role === "owner";
-  const viewerAccess = buildViewerAccessProfile(currentUser, settings.workspace);
+  const viewerUser = await resolveViewerUser(currentUser);
+  const viewerAccess = buildViewerAccessProfile(viewerUser, settings.workspace);
 
   const uploadToken = process.env.UPLOAD_TOKEN?.trim();
   const appUrl = process.env.APP_URL?.replace(/\/$/, "") ?? "";
@@ -49,11 +51,16 @@ export default async function SettingsPage() {
             {viewerAccess.isWebsiteOwner
               ? "Your owner override is active, so you can see the full product even when a normal user would get a simpler view."
               : viewerAccess.isAccountantView
-                ? "This account is in accountant mode, so advanced accounting screens and tools stay visible."
+                ? "This account is locked into accountant mode, so advanced accounting screens and tools stay visible."
                 : settings.workspace.businessType === "sole_trader"
-                  ? "This workspace is in sole trader business-user mode, so the experience stays focused on reconciliation, VAT, and tax summaries."
-                  : "This workspace is in business-user mode, so the day-to-day bookkeeping tools stay visible while the more specialist accountant tools stay limited."}
+                  ? "This account is locked into business-user mode, so the experience stays focused on reconciliation, VAT, and tax summaries for this sole trader workspace."
+                  : "This account is locked into business-user mode, so the day-to-day bookkeeping tools stay visible while the more specialist accountant tools stay limited."}
           </p>
+          {!viewerAccess.isWebsiteOwner && (
+            <p className="text-xs text-[var(--color-muted-foreground)]">
+              Account type is a one-time choice for each login and cannot be changed later.
+            </p>
+          )}
         </Card>
       </div>
 

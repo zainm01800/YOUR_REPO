@@ -12,6 +12,7 @@ import {
   PENDING_ACCOUNT_TYPE_COOKIE,
   PENDING_BUSINESS_TYPE_COOKIE,
 } from "@/lib/auth/account-intent";
+import { getLockedAccountTypeFromClerkUser } from "@/lib/auth/account-type";
 import { upsertUserCompat } from "@/lib/data/user-compat";
 
 export async function createWorkspace(
@@ -49,20 +50,22 @@ export async function createWorkspace(
   const pendingAccountType = normalizePendingAccountType(
     cookieStore.get(PENDING_ACCOUNT_TYPE_COOKIE)?.value,
   );
+  const lockedAccountType = getLockedAccountTypeFromClerkUser(clerkUser);
+  const effectiveAccountType = lockedAccountType ?? pendingAccountType;
 
   // Resolve or create the user row
   const user = await upsertUserCompat(prisma, {
     where: { email },
     update: {
       name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || email,
-      accountType: pendingAccountType,
+      accountType: effectiveAccountType,
     },
     create: {
       id: clerkUser.id,
       email,
       name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || email,
       passwordHash: "",
-      accountType: pendingAccountType,
+      accountType: effectiveAccountType,
     },
   });
 

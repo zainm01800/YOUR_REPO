@@ -7,7 +7,7 @@ export default async function SignInPage() {
   const { userId } = await auth();
 
   if (userId) {
-    redirect("/dashboard");
+    redirect("/account-type");
   }
 
   return (
@@ -33,7 +33,7 @@ export default async function SignInPage() {
             routing="path"
             path="/sign-in"
             signUpUrl="/sign-up"
-            forceRedirectUrl="/dashboard"
+            forceRedirectUrl="/account-type"
           />
         </Card>
       </div>
