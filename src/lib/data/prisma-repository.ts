@@ -55,10 +55,35 @@ const detailedRunInclude = {
   bankStatement: true,
   uploadedFiles: true,
   transactions: {
-    include: {
+    select: {
+      id: true,
+      sourceBankTransactionId: true,
+      externalId: true,
+      sourceLineNumber: true,
+      transactionDate: true,
+      postedDate: true,
+      amount: true,
+      currency: true,
+      merchant: true,
+      description: true,
+      employee: true,
+      reference: true,
+      vatCode: true,
+      glCode: true,
+      category: true,
+      taxTreatment: true,
+      taxRate: true,
+      noReceiptRequired: true,
+      excludedFromExport: true,
       sourceBankTransaction: {
-        include: {
-          bankStatement: true,
+        select: {
+          id: true,
+          bankStatementId: true,
+          bankStatement: {
+            select: {
+              name: true,
+            },
+          },
         },
       },
     },
@@ -73,10 +98,35 @@ const summaryRunInclude = {
   workspace: true,
   bankStatement: true,
   transactions: {
-    include: {
+    select: {
+      id: true,
+      sourceBankTransactionId: true,
+      externalId: true,
+      sourceLineNumber: true,
+      transactionDate: true,
+      postedDate: true,
+      amount: true,
+      currency: true,
+      merchant: true,
+      description: true,
+      employee: true,
+      reference: true,
+      vatCode: true,
+      glCode: true,
+      category: true,
+      taxTreatment: true,
+      taxRate: true,
+      noReceiptRequired: true,
+      excludedFromExport: true,
       sourceBankTransaction: {
-        include: {
-          bankStatement: true,
+        select: {
+          id: true,
+          bankStatementId: true,
+          bankStatement: {
+            select: {
+              name: true,
+            },
+          },
         },
       },
     },
@@ -108,9 +158,6 @@ const transactionOnlyRunInclude = {
       taxRate: true,
       noReceiptRequired: true,
       excludedFromExport: true,
-      categoryConfidence: true,
-      categoryReason: true,
-      confidenceScore: true,
       sourceBankTransaction: {
         select: { id: true, bankStatementId: true, bankStatement: { select: { name: true } } },
       },
@@ -149,7 +196,29 @@ const invitationInclude = {
 } satisfies Prisma.InvitationInclude;
 
 const bankStatementInclude = {
-  transactions: true,
+  transactions: {
+    select: {
+      id: true,
+      bankStatementId: true,
+      externalId: true,
+      sourceLineNumber: true,
+      transactionDate: true,
+      postedDate: true,
+      amount: true,
+      currency: true,
+      merchant: true,
+      description: true,
+      employee: true,
+      reference: true,
+      vatCode: true,
+      glCode: true,
+      category: true,
+      taxTreatment: true,
+      taxRate: true,
+      noReceiptRequired: true,
+      excludedFromExport: true,
+    },
+  },
 } satisfies Prisma.BankStatementInclude;
 
 type DbBankStatement = Prisma.BankStatementGetPayload<{ include: typeof bankStatementInclude }>;
@@ -194,9 +263,6 @@ const unassignedBankTransactionSelect = {
   taxRate: true,
   noReceiptRequired: true,
   excludedFromExport: true,
-  categoryConfidence: true,
-  categoryReason: true,
-  confidenceScore: true,
   bankStatement: {
     select: {
       name: true,
@@ -449,9 +515,9 @@ function toBankTransaction(transaction: DbBankStatement["transactions"][number])
     taxRate: transaction.taxRate !== null && transaction.taxRate !== undefined ? Number(transaction.taxRate) : undefined,
     noReceiptRequired: transaction.noReceiptRequired || undefined,
     excludedFromExport: transaction.excludedFromExport || undefined,
-    categoryConfidence: transaction.categoryConfidence || undefined,
-    categoryReason: transaction.categoryReason || undefined,
-    confidenceScore: transaction.confidenceScore ? Number(transaction.confidenceScore) : undefined,
+    categoryConfidence: (transaction as any).categoryConfidence || undefined,
+    categoryReason: (transaction as any).categoryReason || undefined,
+    confidenceScore: (transaction as any).confidenceScore ? Number((transaction as any).confidenceScore) : undefined,
   };
 }
 
@@ -513,9 +579,9 @@ function toUnassignedBankTransaction(transaction: DbUnassignedBankTransaction): 
     taxRate: transaction.taxRate !== null && transaction.taxRate !== undefined ? Number(transaction.taxRate) : undefined,
     noReceiptRequired: transaction.noReceiptRequired || undefined,
     excludedFromExport: transaction.excludedFromExport || undefined,
-    categoryConfidence: transaction.categoryConfidence || undefined,
-    categoryReason: transaction.categoryReason || undefined,
-    confidenceScore: transaction.confidenceScore ? Number(transaction.confidenceScore) : undefined,
+    categoryConfidence: (transaction as any).categoryConfidence || undefined,
+    categoryReason: (transaction as any).categoryReason || undefined,
+    confidenceScore: (transaction as any).confidenceScore ? Number((transaction as any).confidenceScore) : undefined,
   };
 }
 
@@ -1641,32 +1707,51 @@ export const basePrismaRepository: Repository = {
     confidenceScore?: number
   ): Promise<void> {
     const prisma = requirePrisma();
-    
-    // Try updating assigned transaction first
-    try {
-      await prisma.transaction.update({
+    const richUpdate = {
+      category: category ?? null,
+      categoryReason: reason ?? null,
+      confidenceScore: confidenceScore ?? null,
+      categoryConfidence: reason ? "ai" : undefined,
+    };
+    const legacyUpdate = {
+      category: category ?? null,
+    };
+
+    const updateWithFallback = async (
+      updater: (data: typeof richUpdate | typeof legacyUpdate) => Promise<unknown>,
+    ) => {
+      try {
+        await updater(richUpdate);
+        return true;
+      } catch (error) {
+        if (isSchemaMismatchError(error)) {
+          await updater(legacyUpdate);
+          return true;
+        }
+        return false;
+      }
+    };
+
+    const updatedTransaction = await updateWithFallback((data) =>
+      prisma.transaction.update({
         where: { id: transactionId },
-        data: { 
-          category: category ?? null,
-          categoryReason: reason ?? null,
-          confidenceScore: confidenceScore ?? null,
-          categoryConfidence: reason ? "ai" : undefined // Basic heuristic for now
-        },
-      });
-    } catch {
-      // Fallback to updating unassigned bank transaction
-      await prisma.bankTransaction.update({
+        data,
+      }),
+    );
+
+    if (updatedTransaction) {
+      return;
+    }
+
+    const updatedBankTransaction = await updateWithFallback((data) =>
+      prisma.bankTransaction.update({
         where: { id: transactionId },
-        data: { 
-          category: category ?? null,
-          categoryReason: reason ?? null,
-          confidenceScore: confidenceScore ?? null,
-          categoryConfidence: reason ? "ai" : undefined
-        },
-      }).catch(() => {
-        // If both fail, ignore or handle accordingly
-        console.warn(`[setTransactionCategory] Failed to update transaction ${transactionId} in both tables.`);
-      });
+        data,
+      }),
+    );
+
+    if (!updatedBankTransaction) {
+      console.warn(`[setTransactionCategory] Failed to update transaction ${transactionId} in both tables.`);
     }
   },
 
@@ -2205,9 +2290,33 @@ export async function createPrismaRepository(
       
       const runTransactions = await prisma.transaction.findMany({
         where: { run: { workspaceId: workspace.id } },
-        include: {
+        select: {
+          id: true,
+          sourceBankTransactionId: true,
+          externalId: true,
+          sourceLineNumber: true,
+          transactionDate: true,
+          postedDate: true,
+          amount: true,
+          currency: true,
+          merchant: true,
+          description: true,
+          employee: true,
+          reference: true,
+          vatCode: true,
+          glCode: true,
+          category: true,
+          taxTreatment: true,
+          taxRate: true,
+          noReceiptRequired: true,
+          excludedFromExport: true,
           run: { select: { id: true, name: true, period: true } },
-          sourceBankTransaction: { include: { bankStatement: { select: { name: true } } } },
+          sourceBankTransaction: {
+            select: {
+              bankStatementId: true,
+              bankStatement: { select: { name: true } },
+            },
+          },
         },
         orderBy: { transactionDate: "desc" },
         skip,
@@ -2251,7 +2360,28 @@ export async function createPrismaRepository(
             bankStatement: { workspaceId: workspace.id },
             runTransactions: { none: {} },
           },
-          include: { bankStatement: { select: { id: true, name: true } } },
+          select: {
+            id: true,
+            bankStatementId: true,
+            externalId: true,
+            sourceLineNumber: true,
+            transactionDate: true,
+            postedDate: true,
+            amount: true,
+            currency: true,
+            merchant: true,
+            description: true,
+            employee: true,
+            reference: true,
+            vatCode: true,
+            glCode: true,
+            category: true,
+            taxTreatment: true,
+            taxRate: true,
+            noReceiptRequired: true,
+            excludedFromExport: true,
+            bankStatement: { select: { id: true, name: true } },
+          },
           orderBy: { transactionDate: "desc" },
           skip: unassignedSkip,
           take: remaining,
