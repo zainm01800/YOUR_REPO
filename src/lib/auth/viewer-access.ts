@@ -16,7 +16,7 @@ function normalizeEmail(email?: string | null) {
 }
 
 export function getWebsiteOwnerEmails() {
-  return [process.env.APP_OWNER_EMAIL, process.env.AI_OWNER_EMAIL]
+  return [process.env.APP_OWNER_EMAIL]
     .map(normalizeEmail)
     .filter(Boolean);
 }
