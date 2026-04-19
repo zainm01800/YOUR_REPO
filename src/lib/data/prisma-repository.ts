@@ -273,6 +273,24 @@ const unassignedBankTransactionSelect = {
 
 type DbUnassignedBankTransaction = Prisma.BankTransactionGetPayload<{ select: typeof unassignedBankTransactionSelect }>;
 
+const categoryRuleLegacySafeSelect = {
+  id: true,
+  category: true,
+  supplierPattern: true,
+  keywordPattern: true,
+  priority: true,
+  accountType: true,
+  statementType: true,
+  reportingBucket: true,
+  defaultTaxTreatment: true,
+  defaultVatRate: true,
+  defaultVatRecoverable: true,
+  glCode: true,
+  isActive: true,
+} satisfies Prisma.CategoryRuleSelect;
+
+type DbCategoryRuleLegacySafe = Prisma.CategoryRuleGetPayload<{ select: typeof categoryRuleLegacySafeSelect }>;
+
 function requirePrisma() {
   const prisma = getPrismaClient();
   if (!prisma) {
@@ -397,9 +415,9 @@ function toGlRule(rule: {
 function toCategoryRule(rule: {
   id: string;
   category: string;
-  slug: string;
-  description: string | null;
-  section: string;
+  slug?: string | null;
+  description?: string | null;
+  section?: string | null;
   supplierPattern: string | null;
   keywordPattern: string | null;
   priority: number;
@@ -410,19 +428,19 @@ function toCategoryRule(rule: {
   defaultVatRate: Prisma.Decimal;
   defaultVatRecoverable: boolean;
   glCode: string | null;
-  isSystemDefault: boolean;
+  isSystemDefault?: boolean | null;
   isActive: boolean;
-  isVisible: boolean;
+  isVisible?: boolean | null;
   allowableForTax?: boolean;
   allowablePercentage?: Prisma.Decimal | null;
-  sortOrder: number;
+  sortOrder?: number | null;
 }): CategoryRule {
   return {
     id: rule.id,
     category: rule.category,
-    slug: rule.slug,
+    slug: rule.slug || rule.category.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
     description: rule.description || undefined,
-    section: rule.section as CategoryRule["section"],
+    section: (rule.section as CategoryRule["section"]) || "Other & Special",
     supplierPattern: rule.supplierPattern || undefined,
     keywordPattern: rule.keywordPattern || undefined,
     priority: rule.priority,
@@ -433,12 +451,12 @@ function toCategoryRule(rule: {
     defaultVatRate: Number(rule.defaultVatRate),
     defaultVatRecoverable: rule.defaultVatRecoverable,
     glCode: rule.glCode || undefined,
-    isSystemDefault: rule.isSystemDefault,
+    isSystemDefault: rule.isSystemDefault ?? true,
     isActive: rule.isActive,
-    isVisible: rule.isVisible,
+    isVisible: rule.isVisible ?? true,
     allowableForTax: rule.allowableForTax ?? true,
     allowablePercentage: rule.allowablePercentage != null ? Number(rule.allowablePercentage) : 100,
-    sortOrder: rule.sortOrder,
+    sortOrder: rule.sortOrder ?? rule.priority,
   };
 }
 
@@ -1142,7 +1160,11 @@ export const basePrismaRepository: Repository = {
       }),
       prisma.vatRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { taxCode: "asc" } }),
       prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
-      prisma.categoryRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+      prisma.categoryRule.findMany({
+        where: { workspaceId: workspace.id },
+        orderBy: { priority: "asc" },
+        select: categoryRuleLegacySafeSelect,
+      }),
     ]);
 
     const domainRuns = runs.map(toSummaryDomainRun);
@@ -1171,7 +1193,11 @@ export const basePrismaRepository: Repository = {
       }),
       prisma.vatRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { taxCode: "asc" } }),
       prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
-      prisma.categoryRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+      prisma.categoryRule.findMany({
+        where: { workspaceId: workspace.id },
+        orderBy: { priority: "asc" },
+        select: categoryRuleLegacySafeSelect,
+      }),
       prisma.membership.findMany({
         where: { workspaceId: workspace.id },
         include: { user: true },
@@ -1209,7 +1235,11 @@ export const basePrismaRepository: Repository = {
       }),
       prisma.vatRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { taxCode: "asc" } }),
       prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
-      prisma.categoryRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+      prisma.categoryRule.findMany({
+        where: { workspaceId: workspace.id },
+        orderBy: { priority: "asc" },
+        select: categoryRuleLegacySafeSelect,
+      }),
     ]);
 
     const domainVatRules = vatRules.map(toVatRule);
@@ -1255,7 +1285,11 @@ export const basePrismaRepository: Repository = {
       loadRun(prisma, runId),
       prisma.vatRule.findMany({ where: { workspaceId: workspace.id } }),
       prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id } }),
-      prisma.categoryRule.findMany({ where: { workspaceId: workspace.id } }),
+      prisma.categoryRule.findMany({
+        where: { workspaceId: workspace.id },
+        orderBy: { priority: "asc" },
+        select: categoryRuleLegacySafeSelect,
+      }),
     ]);
 
     if (!run) {
@@ -1658,7 +1692,8 @@ export const basePrismaRepository: Repository = {
     const { workspace } = await ensureBootstrap(prisma);
     const rules = await prisma.categoryRule.findMany({
       where: { workspaceId: workspace.id },
-      orderBy: [{ sortOrder: "asc" }, { priority: "asc" }, { category: "asc" }],
+      orderBy: [{ priority: "asc" }, { category: "asc" }],
+      select: categoryRuleLegacySafeSelect,
     });
     return mergeWorkspaceCategoryRules(rules.map(toCategoryRule));
   },
@@ -1701,7 +1736,8 @@ export const basePrismaRepository: Repository = {
 
     const updated = await prisma.categoryRule.findMany({
       where: { workspaceId: workspace.id },
-      orderBy: [{ sortOrder: "asc" }, { priority: "asc" }, { category: "asc" }],
+      orderBy: [{ priority: "asc" }, { category: "asc" }],
+      select: categoryRuleLegacySafeSelect,
     });
     return updated.map(toCategoryRule);
   },
@@ -2063,7 +2099,11 @@ export async function createPrismaRepository(
         }),
         prisma.vatRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { taxCode: "asc" } }),
         prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
-        prisma.categoryRule.findMany({ where: { workspaceId: workspace.id }, orderBy: { priority: "asc" } }),
+        prisma.categoryRule.findMany({
+          where: { workspaceId: workspace.id },
+          orderBy: { priority: "asc" },
+          select: categoryRuleLegacySafeSelect,
+        }),
         prisma.mappingTemplate.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "desc" } }),
       ]);
       const domainVatRules = vatRules.map(toVatRule);
@@ -2092,7 +2132,11 @@ export async function createPrismaRepository(
         }),
         prisma.vatRule.findMany({ where: { workspaceId: workspace.id } }),
         prisma.glCodeRule.findMany({ where: { workspaceId: workspace.id } }),
-        prisma.categoryRule.findMany({ where: { workspaceId: workspace.id } }),
+        prisma.categoryRule.findMany({
+          where: { workspaceId: workspace.id },
+          orderBy: { priority: "asc" },
+          select: categoryRuleLegacySafeSelect,
+        }),
       ]);
       const domainVatRules = vatRules.map(toVatRule);
       const domainGlRules = glRules.map(toGlRule);
