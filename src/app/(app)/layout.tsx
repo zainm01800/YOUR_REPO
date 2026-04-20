@@ -39,6 +39,8 @@ export default async function AuthenticatedLayout({
   let workspace;
   let workspaces;
   let storedUser;
+  let viewerUser;
+  let viewerAccess;
 
   try {
     const repository = await getRepository();
@@ -47,17 +49,25 @@ export default async function AuthenticatedLayout({
       repository.getUserWorkspaces(),
       repository.getCurrentUser(),
     ]);
+
+    if (!workspace || !workspaces || !storedUser) {
+      redirect("/sign-up");
+    }
+
+    viewerUser = await resolveViewerUser(storedUser);
+    viewerAccess = buildViewerAccessProfile(viewerUser, workspace);
   } catch (error: any) {
+    // Re-throw redirects so Next.js can handle them properly
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error;
+    }
     console.error(`[Layout] Workspace resolution failed:`, error);
     return <RecoveryUI message={error?.message} />;
   }
 
-  if (!workspace || !workspaces || !storedUser) {
+  if (!viewerUser || !viewerAccess) {
     redirect("/sign-up");
   }
-
-  const viewerUser = await resolveViewerUser(storedUser);
-  const viewerAccess = buildViewerAccessProfile(viewerUser, workspace);
 
   return (
     <AppShell

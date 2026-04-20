@@ -15,9 +15,18 @@ export async function GET() {
   return NextResponse.json(statements);
 }
 
+const MAX_STATEMENT_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+
 export async function POST(request: Request) {
   const repository = await getRepository();
-  const formData = await request.formData();
+
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: "Invalid form data." }, { status: 400 });
+  }
+
   const statementFile = formData.get("statementFile");
 
   if (!(statementFile instanceof File) || statementFile.size === 0) {
@@ -27,11 +36,24 @@ export async function POST(request: Request) {
     );
   }
 
-  const customName = String(formData.get("name") || "").trim();
-  const defaultCurrency = String(formData.get("defaultCurrency") || "GBP");
-  const columnMappings = JSON.parse(
-    String(formData.get("columnMappings") || "{}"),
-  ) as Record<string, string>;
+  if (statementFile.size > MAX_STATEMENT_SIZE_BYTES) {
+    return NextResponse.json(
+      { error: "File is too large. Maximum size is 20 MB." },
+      { status: 413 },
+    );
+  }
+
+  const customName = String(formData.get("name") || "").trim().slice(0, 200);
+  const defaultCurrency = String(formData.get("defaultCurrency") || "GBP").slice(0, 10);
+
+  let columnMappings: Record<string, string>;
+  try {
+    columnMappings = JSON.parse(
+      String(formData.get("columnMappings") || "{}"),
+    ) as Record<string, string>;
+  } catch {
+    columnMappings = {};
+  }
 
   const buffer = await statementFile.arrayBuffer();
   const fileName = statementFile.name;

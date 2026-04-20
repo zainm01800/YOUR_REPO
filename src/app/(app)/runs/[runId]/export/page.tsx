@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { ExportDownloadPanel } from "@/components/export/export-download-panel";
+import { ReExportButton } from "@/components/export/re-export-button";
 import { Button } from "@/components/ui/button";
 import { getRepository } from "@/lib/data";
 import { formatDate } from "@/lib/utils";
@@ -225,6 +226,7 @@ export default async function ExportPage({
                   <th className="px-4 py-3">File</th>
                   <th className="px-4 py-3">Format</th>
                   <th className="px-4 py-3">Created</th>
+                  <th className="px-4 py-3 text-right">Re-export</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-panel)]">
@@ -238,6 +240,13 @@ export default async function ExportPage({
                     </td>
                     <td className="px-4 py-3 text-[var(--color-muted-foreground)]">
                       {formatDate(record.createdAt)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <ReExportButton
+                        runId={run.id}
+                        format={record.format as "csv" | "xlsx" | "zip"}
+                        fileName={record.fileName}
+                      />
                     </td>
                   </tr>
                 ))}

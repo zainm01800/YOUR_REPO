@@ -26,7 +26,11 @@ async function runSync() {
   });
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  if (!isAuthorizedCronRequest(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   return runSync();
 }
 

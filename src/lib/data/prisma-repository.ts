@@ -2052,6 +2052,308 @@ export const basePrismaRepository: Repository = {
   async getPaginatedTransactions(skip: number, take: number): Promise<import("@/lib/domain/types").TransactionRecord[]> {
     throw new Error("getPaginatedTransactions not implemented in base repository");
   },
+
+  // ─── Clients ───────────────────────────────────────────────────────────────
+
+  async getClients() {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const rows = await prisma.client.findMany({
+      where: { workspaceId: workspace.id },
+      include: { invoices: { select: { id: true, total: true, status: true } } },
+      orderBy: { name: "asc" },
+    });
+    return rows.map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      phone: c.phone,
+      addressLine1: c.addressLine1,
+      addressLine2: c.addressLine2,
+      city: c.city,
+      postcode: c.postcode,
+      country: c.country,
+      vatNumber: c.vatNumber,
+      paymentTermsDays: c.paymentTermsDays,
+      notes: c.notes,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
+      workspaceId: c.workspaceId,
+      invoiceCount: c.invoices.length,
+      totalInvoiced: c.invoices.reduce((s, inv) => s + inv.total.toNumber(), 0),
+      outstandingAmount: c.invoices
+        .filter((inv) => inv.status === "sent" || inv.status === "overdue")
+        .reduce((s, inv) => s + inv.total.toNumber(), 0),
+    }));
+  },
+
+  async getClient(clientId: string) {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const c = await prisma.client.findFirst({
+      where: { id: clientId, workspaceId: workspace.id },
+      include: { invoices: { select: { id: true, total: true, status: true } } },
+    });
+    if (!c) return null;
+    return {
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      phone: c.phone,
+      addressLine1: c.addressLine1,
+      addressLine2: c.addressLine2,
+      city: c.city,
+      postcode: c.postcode,
+      country: c.country,
+      vatNumber: c.vatNumber,
+      paymentTermsDays: c.paymentTermsDays,
+      notes: c.notes,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
+      workspaceId: c.workspaceId,
+      invoiceCount: c.invoices.length,
+      totalInvoiced: c.invoices.reduce((s, inv) => s + inv.total.toNumber(), 0),
+      outstandingAmount: c.invoices
+        .filter((inv) => inv.status === "sent" || inv.status === "overdue")
+        .reduce((s, inv) => s + inv.total.toNumber(), 0),
+    };
+  },
+
+  async createClient(input: import("@/lib/domain/types").CreateClientInput) {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const c = await prisma.client.create({
+      data: { ...input, paymentTermsDays: input.paymentTermsDays ?? 30, workspaceId: workspace.id },
+      include: { invoices: true },
+    });
+    return {
+      id: c.id, name: c.name, email: c.email, phone: c.phone,
+      addressLine1: c.addressLine1, addressLine2: c.addressLine2, city: c.city,
+      postcode: c.postcode, country: c.country, vatNumber: c.vatNumber,
+      paymentTermsDays: c.paymentTermsDays, notes: c.notes,
+      createdAt: c.createdAt.toISOString(), updatedAt: c.updatedAt.toISOString(),
+      workspaceId: c.workspaceId, invoiceCount: 0, totalInvoiced: 0, outstandingAmount: 0,
+    };
+  },
+
+  async updateClient(clientId: string, input: Partial<import("@/lib/domain/types").CreateClientInput>) {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const c = await prisma.client.update({
+      where: { id: clientId, workspaceId: workspace.id } as any,
+      data: input,
+      include: { invoices: { select: { id: true, total: true, status: true } } },
+    });
+    return {
+      id: c.id, name: c.name, email: c.email, phone: c.phone,
+      addressLine1: c.addressLine1, addressLine2: c.addressLine2, city: c.city,
+      postcode: c.postcode, country: c.country, vatNumber: c.vatNumber,
+      paymentTermsDays: c.paymentTermsDays, notes: c.notes,
+      createdAt: c.createdAt.toISOString(), updatedAt: c.updatedAt.toISOString(),
+      workspaceId: c.workspaceId,
+      invoiceCount: c.invoices.length,
+      totalInvoiced: c.invoices.reduce((s, inv) => s + inv.total.toNumber(), 0),
+      outstandingAmount: c.invoices
+        .filter((inv) => inv.status === "sent" || inv.status === "overdue")
+        .reduce((s, inv) => s + inv.total.toNumber(), 0),
+    };
+  },
+
+  async deleteClient(clientId: string) {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    await prisma.client.delete({ where: { id: clientId, workspaceId: workspace.id } as any });
+  },
+
+  // ─── Invoices ─────────────────────────────────────────────────────────────
+
+  async getInvoices() {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const rows = await prisma.invoice.findMany({
+      where: { workspaceId: workspace.id },
+      include: { client: { select: { id: true, name: true, email: true } } },
+      orderBy: { issueDate: "desc" },
+    });
+    return rows.map(mapInvoice);
+  },
+
+  async getInvoice(invoiceId: string) {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const inv = await prisma.invoice.findFirst({
+      where: { id: invoiceId, workspaceId: workspace.id },
+      include: { client: { select: { id: true, name: true, email: true } } },
+    });
+    if (!inv) return null;
+    return mapInvoice(inv);
+  },
+
+  async createInvoice(input: import("@/lib/domain/types").CreateInvoiceInput) {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const lineItems = input.lineItems as import("@/lib/domain/types").InvoiceLineItem[];
+    const subtotal = lineItems.reduce((s, li) => s + li.amount, 0);
+    const vatAmount = lineItems.reduce((s, li) => s + li.vatAmount, 0);
+    const total = subtotal + vatAmount;
+    const inv = await prisma.invoice.create({
+      data: {
+        invoiceNumber: input.invoiceNumber,
+        clientId: input.clientId,
+        workspaceId: workspace.id,
+        issueDate: new Date(input.issueDate),
+        dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
+        lineItems: lineItems as any,
+        subtotal, vatAmount, total,
+        currency: input.currency ?? workspace.defaultCurrency ?? "GBP",
+        notes: input.notes,
+      },
+      include: { client: { select: { id: true, name: true, email: true } } },
+    });
+    return mapInvoice(inv);
+  },
+
+  async updateInvoice(
+    invoiceId: string,
+    input: Partial<import("@/lib/domain/types").CreateInvoiceInput> & {
+      dueDate?: string | null;
+      status?: string;
+      paidAt?: string | null;
+      paidAmount?: number | null;
+    },
+  ) {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const data: Record<string, unknown> = {};
+    if (input.invoiceNumber !== undefined) data.invoiceNumber = input.invoiceNumber;
+    if (input.clientId !== undefined) data.clientId = input.clientId;
+    if (input.issueDate !== undefined) data.issueDate = new Date(input.issueDate);
+    if (input.dueDate !== undefined) data.dueDate = input.dueDate ? new Date(input.dueDate) : null;
+    if (input.currency !== undefined) data.currency = input.currency;
+    if (input.notes !== undefined) data.notes = input.notes;
+    if (input.status !== undefined) data.status = input.status;
+    if (input.paidAt !== undefined) data.paidAt = input.paidAt ? new Date(input.paidAt) : null;
+    if (input.paidAmount !== undefined) data.paidAmount = input.paidAmount;
+    if (input.lineItems !== undefined) {
+      const lineItems = input.lineItems as import("@/lib/domain/types").InvoiceLineItem[];
+      data.lineItems = lineItems as any;
+      data.subtotal = lineItems.reduce((s, li) => s + li.amount, 0);
+      data.vatAmount = lineItems.reduce((s, li) => s + li.vatAmount, 0);
+      data.total = (data.subtotal as number) + (data.vatAmount as number);
+    }
+    const inv = await prisma.invoice.update({
+      where: { id: invoiceId, workspaceId: workspace.id } as any,
+      data,
+      include: { client: { select: { id: true, name: true, email: true } } },
+    });
+    return mapInvoice(inv);
+  },
+
+  async deleteInvoice(invoiceId: string) {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    await prisma.invoice.delete({ where: { id: invoiceId, workspaceId: workspace.id } as any });
+  },
+
+  async getNextInvoiceNumber() {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const last = await prisma.invoice.findFirst({
+      where: { workspaceId: workspace.id },
+      orderBy: { createdAt: "desc" },
+      select: { invoiceNumber: true },
+    });
+    if (!last) return "INV-001";
+    const match = last.invoiceNumber.match(/(\d+)$/);
+    if (!match) return "INV-001";
+    const next = (parseInt(match[1], 10) + 1).toString().padStart(3, "0");
+    return last.invoiceNumber.replace(/\d+$/, next);
+  },
+
+  // ─── Manual Expenses ──────────────────────────────────────────────────────
+
+  async getManualExpenses() {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const rows = await prisma.manualExpense.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: { date: "desc" },
+    });
+    return rows.map(mapManualExpense);
+  },
+
+  async createManualExpense(input: import("@/lib/domain/types").CreateManualExpenseInput) {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const exp = await prisma.manualExpense.create({
+      data: {
+        date: new Date(input.date),
+        description: input.description,
+        merchant: input.merchant,
+        category: input.category,
+        vatCode: input.vatCode,
+        glCode: input.glCode,
+        amount: input.amount,
+        currency: input.currency ?? workspace.defaultCurrency ?? "GBP",
+        isMileage: input.isMileage ?? false,
+        mileageMiles: input.mileageMiles,
+        mileageRatePerMile: input.mileageRatePerMile,
+        notes: input.notes,
+        workspaceId: workspace.id,
+      },
+    });
+    return mapManualExpense(exp);
+  },
+
+  async updateManualExpense(expenseId: string, input: Partial<import("@/lib/domain/types").CreateManualExpenseInput>) {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const data: Record<string, unknown> = { ...input };
+    if (input.date) data.date = new Date(input.date);
+    const exp = await prisma.manualExpense.update({
+      where: { id: expenseId, workspaceId: workspace.id } as any,
+      data,
+    });
+    return mapManualExpense(exp);
+  },
+
+  async deleteManualExpense(expenseId: string) {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    await prisma.manualExpense.delete({ where: { id: expenseId, workspaceId: workspace.id } as any });
+  },
+
+  // ─── Budgets ──────────────────────────────────────────────────────────────
+
+  async getCategoryBudgets() {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const rows = await prisma.categoryBudget.findMany({ where: { workspaceId: workspace.id } });
+    return rows.map((b) => ({
+      id: b.id,
+      category: b.category,
+      amount: b.amount.toNumber(),
+      period: b.period as "monthly" | "annual",
+      workspaceId: b.workspaceId,
+    }));
+  },
+
+  async upsertCategoryBudget(category: string, amount: number, period: "monthly" | "annual") {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const b = await prisma.categoryBudget.upsert({
+      where: { workspaceId_category: { workspaceId: workspace.id, category } },
+      update: { amount, period },
+      create: { workspaceId: workspace.id, category, amount, period },
+    });
+    return { id: b.id, category: b.category, amount: b.amount.toNumber(), period: b.period as "monthly" | "annual", workspaceId: b.workspaceId };
+  },
+
+  async deleteCategoryBudget(budgetId: string) {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    await prisma.categoryBudget.delete({ where: { id: budgetId, workspaceId: workspace.id } as any });
+  },
 };
 
 export const prismaRepository = basePrismaRepository;
@@ -2484,5 +2786,423 @@ export async function createPrismaRepository(
 
       return results;
     },
+
+    // ─── Clients ─────────────────────────────────────────────────────────────
+
+    async getClients() {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const rows = await prisma.client.findMany({
+        where: { workspaceId: workspace.id },
+        include: {
+          invoices: {
+            select: { id: true, total: true, status: true },
+          },
+        },
+        orderBy: { name: "asc" },
+      });
+      return rows.map((c) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        addressLine1: c.addressLine1,
+        addressLine2: c.addressLine2,
+        city: c.city,
+        postcode: c.postcode,
+        country: c.country,
+        vatNumber: c.vatNumber,
+        paymentTermsDays: c.paymentTermsDays,
+        notes: c.notes,
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt.toISOString(),
+        workspaceId: c.workspaceId,
+        invoiceCount: c.invoices.length,
+        totalInvoiced: c.invoices.reduce((s, inv) => s + inv.total.toNumber(), 0),
+        outstandingAmount: c.invoices
+          .filter((inv) => inv.status === "sent" || inv.status === "overdue")
+          .reduce((s, inv) => s + inv.total.toNumber(), 0),
+      }));
+    },
+
+    async getClient(clientId: string) {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const c = await prisma.client.findFirst({
+        where: { id: clientId, workspaceId: workspace.id },
+        include: { invoices: { select: { id: true, total: true, status: true } } },
+      });
+      if (!c) return null;
+      return {
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        addressLine1: c.addressLine1,
+        addressLine2: c.addressLine2,
+        city: c.city,
+        postcode: c.postcode,
+        country: c.country,
+        vatNumber: c.vatNumber,
+        paymentTermsDays: c.paymentTermsDays,
+        notes: c.notes,
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt.toISOString(),
+        workspaceId: c.workspaceId,
+        invoiceCount: c.invoices.length,
+        totalInvoiced: c.invoices.reduce((s, inv) => s + inv.total.toNumber(), 0),
+        outstandingAmount: c.invoices
+          .filter((inv) => inv.status === "sent" || inv.status === "overdue")
+          .reduce((s, inv) => s + inv.total.toNumber(), 0),
+      };
+    },
+
+    async createClient(input: import("@/lib/domain/types").CreateClientInput) {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const c = await prisma.client.create({
+        data: {
+          ...input,
+          paymentTermsDays: input.paymentTermsDays ?? 30,
+          workspaceId: workspace.id,
+        },
+        include: { invoices: true },
+      });
+      return {
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        addressLine1: c.addressLine1,
+        addressLine2: c.addressLine2,
+        city: c.city,
+        postcode: c.postcode,
+        country: c.country,
+        vatNumber: c.vatNumber,
+        paymentTermsDays: c.paymentTermsDays,
+        notes: c.notes,
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt.toISOString(),
+        workspaceId: c.workspaceId,
+        invoiceCount: 0,
+        totalInvoiced: 0,
+        outstandingAmount: 0,
+      };
+    },
+
+    async updateClient(clientId: string, input: Partial<import("@/lib/domain/types").CreateClientInput>) {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const c = await prisma.client.update({
+        where: { id: clientId, workspaceId: workspace.id } as any,
+        data: input,
+        include: { invoices: { select: { id: true, total: true, status: true } } },
+      });
+      return {
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        addressLine1: c.addressLine1,
+        addressLine2: c.addressLine2,
+        city: c.city,
+        postcode: c.postcode,
+        country: c.country,
+        vatNumber: c.vatNumber,
+        paymentTermsDays: c.paymentTermsDays,
+        notes: c.notes,
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt.toISOString(),
+        workspaceId: c.workspaceId,
+        invoiceCount: c.invoices.length,
+        totalInvoiced: c.invoices.reduce((s, inv) => s + inv.total.toNumber(), 0),
+        outstandingAmount: c.invoices
+          .filter((inv) => inv.status === "sent" || inv.status === "overdue")
+          .reduce((s, inv) => s + inv.total.toNumber(), 0),
+      };
+    },
+
+    async deleteClient(clientId: string) {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      await prisma.client.delete({ where: { id: clientId, workspaceId: workspace.id } as any });
+    },
+
+    // ─── Invoices ─────────────────────────────────────────────────────────────
+
+    async getInvoices() {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const rows = await prisma.invoice.findMany({
+        where: { workspaceId: workspace.id },
+        include: { client: { select: { id: true, name: true, email: true } } },
+        orderBy: { issueDate: "desc" },
+      });
+      return rows.map(mapInvoice);
+    },
+
+    async getInvoice(invoiceId: string) {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const inv = await prisma.invoice.findFirst({
+        where: { id: invoiceId, workspaceId: workspace.id },
+        include: { client: { select: { id: true, name: true, email: true } } },
+      });
+      if (!inv) return null;
+      return mapInvoice(inv);
+    },
+
+    async createInvoice(input: import("@/lib/domain/types").CreateInvoiceInput) {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const lineItems = input.lineItems as import("@/lib/domain/types").InvoiceLineItem[];
+      const subtotal = lineItems.reduce((s, li) => s + li.amount, 0);
+      const vatAmount = lineItems.reduce((s, li) => s + li.vatAmount, 0);
+      const total = subtotal + vatAmount;
+      const inv = await prisma.invoice.create({
+        data: {
+          invoiceNumber: input.invoiceNumber,
+          clientId: input.clientId,
+          workspaceId: workspace.id,
+          issueDate: new Date(input.issueDate),
+          dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
+          lineItems: lineItems as any,
+          subtotal,
+          vatAmount,
+          total,
+          currency: input.currency ?? workspace.defaultCurrency ?? "GBP",
+          notes: input.notes,
+        },
+        include: { client: { select: { id: true, name: true, email: true } } },
+      });
+      return mapInvoice(inv);
+    },
+
+    async updateInvoice(
+      invoiceId: string,
+      input: Partial<import("@/lib/domain/types").CreateInvoiceInput> & {
+        status?: string;
+        paidAt?: string | null;
+        paidAmount?: number | null;
+      },
+    ) {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const data: Record<string, unknown> = {};
+      if (input.invoiceNumber !== undefined) data.invoiceNumber = input.invoiceNumber;
+      if (input.clientId !== undefined) data.clientId = input.clientId;
+      if (input.issueDate !== undefined) data.issueDate = new Date(input.issueDate);
+      if (input.dueDate !== undefined) data.dueDate = input.dueDate ? new Date(input.dueDate) : null;
+      if (input.currency !== undefined) data.currency = input.currency;
+      if (input.notes !== undefined) data.notes = input.notes;
+      if (input.status !== undefined) data.status = input.status;
+      if (input.paidAt !== undefined) data.paidAt = input.paidAt ? new Date(input.paidAt) : null;
+      if (input.paidAmount !== undefined) data.paidAmount = input.paidAmount;
+      if (input.lineItems !== undefined) {
+        const lineItems = input.lineItems as import("@/lib/domain/types").InvoiceLineItem[];
+        data.lineItems = lineItems as any;
+        data.subtotal = lineItems.reduce((s, li) => s + li.amount, 0);
+        data.vatAmount = lineItems.reduce((s, li) => s + li.vatAmount, 0);
+        data.total = (data.subtotal as number) + (data.vatAmount as number);
+      }
+      const inv = await prisma.invoice.update({
+        where: { id: invoiceId, workspaceId: workspace.id } as any,
+        data,
+        include: { client: { select: { id: true, name: true, email: true } } },
+      });
+      return mapInvoice(inv);
+    },
+
+    async deleteInvoice(invoiceId: string) {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      await prisma.invoice.delete({ where: { id: invoiceId, workspaceId: workspace.id } as any });
+    },
+
+    async getNextInvoiceNumber() {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const last = await prisma.invoice.findFirst({
+        where: { workspaceId: workspace.id },
+        orderBy: { createdAt: "desc" },
+        select: { invoiceNumber: true },
+      });
+      if (!last) return "INV-001";
+      const match = last.invoiceNumber.match(/(\d+)$/);
+      if (!match) return "INV-001";
+      const next = (parseInt(match[1], 10) + 1).toString().padStart(3, "0");
+      return last.invoiceNumber.replace(/\d+$/, next);
+    },
+
+    // ─── Manual Expenses ──────────────────────────────────────────────────────
+
+    async getManualExpenses() {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const rows = await prisma.manualExpense.findMany({
+        where: { workspaceId: workspace.id },
+        orderBy: { date: "desc" },
+      });
+      return rows.map(mapManualExpense);
+    },
+
+    async createManualExpense(input: import("@/lib/domain/types").CreateManualExpenseInput) {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const exp = await prisma.manualExpense.create({
+        data: {
+          date: new Date(input.date),
+          description: input.description,
+          merchant: input.merchant,
+          category: input.category,
+          vatCode: input.vatCode,
+          glCode: input.glCode,
+          amount: input.amount,
+          currency: input.currency ?? workspace.defaultCurrency ?? "GBP",
+          isMileage: input.isMileage ?? false,
+          mileageMiles: input.mileageMiles,
+          mileageRatePerMile: input.mileageRatePerMile,
+          notes: input.notes,
+          workspaceId: workspace.id,
+        },
+      });
+      return mapManualExpense(exp);
+    },
+
+    async updateManualExpense(expenseId: string, input: Partial<import("@/lib/domain/types").CreateManualExpenseInput>) {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const data: Record<string, unknown> = { ...input };
+      if (input.date) data.date = new Date(input.date);
+      const exp = await prisma.manualExpense.update({
+        where: { id: expenseId, workspaceId: workspace.id } as any,
+        data,
+      });
+      return mapManualExpense(exp);
+    },
+
+    async deleteManualExpense(expenseId: string) {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      await prisma.manualExpense.delete({ where: { id: expenseId, workspaceId: workspace.id } as any });
+    },
+
+    // ─── Budgets ──────────────────────────────────────────────────────────────
+
+    async getCategoryBudgets() {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const rows = await prisma.categoryBudget.findMany({ where: { workspaceId: workspace.id } });
+      return rows.map((b) => ({
+        id: b.id,
+        category: b.category,
+        amount: b.amount.toNumber(),
+        period: b.period as "monthly" | "annual",
+        workspaceId: b.workspaceId,
+      }));
+    },
+
+    async upsertCategoryBudget(category: string, amount: number, period: "monthly" | "annual") {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      const b = await prisma.categoryBudget.upsert({
+        where: { workspaceId_category: { workspaceId: workspace.id, category } },
+        update: { amount, period },
+        create: { workspaceId: workspace.id, category, amount, period },
+      });
+      return { id: b.id, category: b.category, amount: b.amount.toNumber(), period: b.period as "monthly" | "annual", workspaceId: b.workspaceId };
+    },
+
+    async deleteCategoryBudget(budgetId: string) {
+      const prisma = requirePrisma();
+      const { workspace } = await ensureBootstrap(prisma);
+      await prisma.categoryBudget.delete({ where: { id: budgetId, workspaceId: workspace.id } as any });
+    },
+  };
+}
+
+// ─── Mapping helpers ──────────────────────────────────────────────────────────
+
+type PrismaInvoice = {
+  id: string;
+  invoiceNumber: string;
+  status: string;
+  issueDate: Date;
+  dueDate: Date | null;
+  lineItems: unknown;
+  subtotal: { toNumber(): number };
+  vatAmount: { toNumber(): number };
+  total: { toNumber(): number };
+  currency: string;
+  notes: string | null;
+  paidAt: Date | null;
+  paidAmount: { toNumber(): number } | null;
+  clientId: string;
+  workspaceId: string;
+  client: { id: string; name: string; email: string | null };
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function mapInvoice(inv: PrismaInvoice): import("@/lib/domain/types").Invoice {
+  return {
+    id: inv.id,
+    invoiceNumber: inv.invoiceNumber,
+    status: inv.status as import("@/lib/domain/types").InvoiceStatus,
+    issueDate: inv.issueDate.toISOString().slice(0, 10),
+    dueDate: inv.dueDate?.toISOString().slice(0, 10) ?? null,
+    lineItems: (inv.lineItems as import("@/lib/domain/types").InvoiceLineItem[]) ?? [],
+    subtotal: inv.subtotal.toNumber(),
+    vatAmount: inv.vatAmount.toNumber(),
+    total: inv.total.toNumber(),
+    currency: inv.currency,
+    notes: inv.notes,
+    paidAt: inv.paidAt?.toISOString() ?? null,
+    paidAmount: inv.paidAmount?.toNumber() ?? null,
+    clientId: inv.clientId,
+    workspaceId: inv.workspaceId,
+    client: inv.client,
+    createdAt: inv.createdAt.toISOString(),
+    updatedAt: inv.updatedAt.toISOString(),
+  };
+}
+
+type PrismaManualExpense = {
+  id: string;
+  date: Date;
+  description: string;
+  merchant: string | null;
+  category: string | null;
+  vatCode: string | null;
+  glCode: string | null;
+  amount: { toNumber(): number };
+  currency: string;
+  isMileage: boolean;
+  mileageMiles: { toNumber(): number } | null;
+  mileageRatePerMile: { toNumber(): number } | null;
+  receiptStorageKey: string | null;
+  notes: string | null;
+  workspaceId: string;
+  createdAt: Date;
+};
+
+function mapManualExpense(exp: PrismaManualExpense): import("@/lib/domain/types").ManualExpense {
+  return {
+    id: exp.id,
+    date: exp.date.toISOString().slice(0, 10),
+    description: exp.description,
+    merchant: exp.merchant,
+    category: exp.category,
+    vatCode: exp.vatCode,
+    glCode: exp.glCode,
+    amount: exp.amount.toNumber(),
+    currency: exp.currency,
+    isMileage: exp.isMileage,
+    mileageMiles: exp.mileageMiles?.toNumber() ?? null,
+    mileageRatePerMile: exp.mileageRatePerMile?.toNumber() ?? null,
+    receiptStorageKey: exp.receiptStorageKey,
+    notes: exp.notes,
+    workspaceId: exp.workspaceId,
+    createdAt: exp.createdAt.toISOString(),
   };
 }

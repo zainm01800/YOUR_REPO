@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
-import { getRepository } from "@/lib/data";
+import { isWebsiteOwnerEmail } from "@/lib/auth/viewer-access";
+import { requireApiAuth } from "@/lib/api/auth-guard";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ runId: string }> },
 ) {
   const { runId } = await context.params;
-  const repository = await getRepository();
+  const { repository, errorResponse } = await requireApiAuth();
+  if (errorResponse) return errorResponse;
+
+  // Debug endpoint is restricted to the website owner only
+  const currentUser = await repository.getCurrentUser();
+  if (!isWebsiteOwnerEmail(currentUser.email)) {
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
   const run = await repository.getRun(runId);
 
   if (!run) {

@@ -139,11 +139,13 @@ export const resolveUserWorkspace = async (prisma: PrismaClient) => {
     throw new Error("Failed to resolve or create a workspace for the user.");
   }
 
-  // Seed default rules for the new private workspace if we were the creator
+  // Seed default rules for the new private workspace if we were the creator.
+  // NOTE: We intentionally do NOT delete the pending cookies here because
+  // this function is also called from server component layouts where cookie
+  // writes are forbidden (Next.js throws). The cookies are short-lived and
+  // the locked Clerk metadata takes precedence anyway.
   if (isNewWorkspace && membership) {
     await seedDefaultRules(prisma, membership.workspace.id);
-    cookieStore.delete(PENDING_ACCOUNT_TYPE_COOKIE);
-    cookieStore.delete(PENDING_BUSINESS_TYPE_COOKIE);
   }
 
   return {

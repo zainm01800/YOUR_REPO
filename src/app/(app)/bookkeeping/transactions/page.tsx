@@ -14,7 +14,9 @@ export default async function BookkeepingTransactionsPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const { page } = await searchParams;
-  const currentPage = Number(page || "1");
+  // Clamp page to a valid positive integer to prevent negative skip values
+  const rawPage = parseInt(page ?? "1", 10);
+  const currentPage = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
   const pageSize = 100;
   const skip = (currentPage - 1) * pageSize;
 

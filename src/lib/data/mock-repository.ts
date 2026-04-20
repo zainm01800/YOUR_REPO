@@ -2,9 +2,16 @@ import { demoStore } from "@/lib/demo/demo-store";
 import type {
   BankStatement,
   BankStatementSummary,
+  CategoryBudget,
   CategoryRule,
+  Client,
+  CreateClientInput,
+  CreateInvoiceInput,
+  CreateManualExpenseInput,
   DashboardSnapshot,
   GlCodeRule,
+  Invoice,
+  ManualExpense,
   RunListItem,
   ReviewRow,
   SettingsSnapshot,
@@ -550,6 +557,32 @@ export const mockRepository: Repository = {
 
     return all.slice(skip, skip + take);
   },
+
+  // ─── Clients (stubs — demo mode doesn't persist these) ────────────────────
+  async getClients(): Promise<Client[]> { return []; },
+  async getClient(_clientId: string): Promise<Client | null> { return null; },
+  async createClient(_input: CreateClientInput): Promise<Client> { throw new Error("Not supported in demo mode"); },
+  async updateClient(_clientId: string, _input: Partial<CreateClientInput>): Promise<Client> { throw new Error("Not supported in demo mode"); },
+  async deleteClient(_clientId: string): Promise<void> {},
+
+  // ─── Invoices (stubs) ─────────────────────────────────────────────────────
+  async getInvoices(): Promise<Invoice[]> { return []; },
+  async getInvoice(_invoiceId: string): Promise<Invoice | null> { return null; },
+  async createInvoice(_input: CreateInvoiceInput): Promise<Invoice> { throw new Error("Not supported in demo mode"); },
+  async updateInvoice(_invoiceId: string, _input: Partial<CreateInvoiceInput> & { dueDate?: string | null; status?: string; paidAt?: string | null; paidAmount?: number | null }): Promise<Invoice> { throw new Error("Not supported in demo mode"); },
+  async deleteInvoice(_invoiceId: string): Promise<void> {},
+  async getNextInvoiceNumber(): Promise<string> { return "INV-001"; },
+
+  // ─── Manual Expenses (stubs) ──────────────────────────────────────────────
+  async getManualExpenses(): Promise<ManualExpense[]> { return []; },
+  async createManualExpense(_input: CreateManualExpenseInput): Promise<ManualExpense> { throw new Error("Not supported in demo mode"); },
+  async updateManualExpense(_expenseId: string, _input: Partial<CreateManualExpenseInput>): Promise<ManualExpense> { throw new Error("Not supported in demo mode"); },
+  async deleteManualExpense(_expenseId: string): Promise<void> {},
+
+  // ─── Budgets (stubs) ──────────────────────────────────────────────────────
+  async getCategoryBudgets(): Promise<CategoryBudget[]> { return []; },
+  async upsertCategoryBudget(_category: string, _amount: number, _period: "monthly" | "annual"): Promise<CategoryBudget> { throw new Error("Not supported in demo mode"); },
+  async deleteCategoryBudget(_budgetId: string): Promise<void> {},
 };
 
 export async function getCurrentUser(): Promise<User> {

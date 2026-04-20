@@ -2,9 +2,16 @@ import type {
   BankStatement,
   BankStatementSummary,
   CategoryRule,
+  CategoryBudget,
+  Client,
+  CreateClientInput,
+  CreateInvoiceInput,
+  CreateManualExpenseInput,
   DashboardSnapshot,
   GlCodeRule,
   BankSourceMode,
+  Invoice,
+  ManualExpense,
   MappingTemplate,
   ReconciliationRun,
   RunListItem,
@@ -122,4 +129,26 @@ export interface Repository {
   acceptInvitation(token: string, userId: string, email: string, name: string): Promise<{ success: boolean; error?: string; workspaceId?: string }>;
   getTransactionStats(): Promise<TransactionStats>;
   getPaginatedTransactions(skip: number, take: number): Promise<TransactionRecord[]>;
+  // ─── Clients ───────────────────────────────────────────────────────────────
+  getClients(): Promise<Client[]>;
+  getClient(clientId: string): Promise<Client | null>;
+  createClient(input: CreateClientInput): Promise<Client>;
+  updateClient(clientId: string, input: Partial<CreateClientInput>): Promise<Client>;
+  deleteClient(clientId: string): Promise<void>;
+  // ─── Invoices ──────────────────────────────────────────────────────────────
+  getInvoices(): Promise<Invoice[]>;
+  getInvoice(invoiceId: string): Promise<Invoice | null>;
+  createInvoice(input: CreateInvoiceInput): Promise<Invoice>;
+  updateInvoice(invoiceId: string, input: Partial<CreateInvoiceInput> & { dueDate?: string | null; status?: string; paidAt?: string | null; paidAmount?: number | null }): Promise<Invoice>;
+  deleteInvoice(invoiceId: string): Promise<void>;
+  getNextInvoiceNumber(): Promise<string>;
+  // ─── Manual Expenses ───────────────────────────────────────────────────────
+  getManualExpenses(): Promise<ManualExpense[]>;
+  createManualExpense(input: CreateManualExpenseInput): Promise<ManualExpense>;
+  updateManualExpense(expenseId: string, input: Partial<CreateManualExpenseInput>): Promise<ManualExpense>;
+  deleteManualExpense(expenseId: string): Promise<void>;
+  // ─── Budgets ───────────────────────────────────────────────────────────────
+  getCategoryBudgets(): Promise<CategoryBudget[]>;
+  upsertCategoryBudget(category: string, amount: number, period: "monthly" | "annual"): Promise<CategoryBudget>;
+  deleteCategoryBudget(budgetId: string): Promise<void>;
 }

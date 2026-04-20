@@ -615,3 +615,125 @@ export interface SettingsSnapshot {
   memberships: WorkspaceMember[];
   invitations: Invitation[];
 }
+
+// ─── Sole Trader Feature Types ────────────────────────────────────────────────
+
+export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "void";
+
+export interface InvoiceLineItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  vatRate: number; // percentage e.g. 20
+  amount: number;  // quantity * unitPrice
+  vatAmount: number;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  postcode?: string | null;
+  country?: string | null;
+  vatNumber?: string | null;
+  paymentTermsDays: number;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  workspaceId: string;
+  /** Populated when fetched with invoice counts */
+  invoiceCount?: number;
+  totalInvoiced?: number;
+  outstandingAmount?: number;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  status: InvoiceStatus;
+  issueDate: string;
+  dueDate?: string | null;
+  lineItems: InvoiceLineItem[];
+  subtotal: number;
+  vatAmount: number;
+  total: number;
+  currency: string;
+  notes?: string | null;
+  paidAt?: string | null;
+  paidAmount?: number | null;
+  clientId: string;
+  workspaceId: string;
+  client: Pick<Client, "id" | "name" | "email">;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ManualExpense {
+  id: string;
+  date: string;
+  description: string;
+  merchant?: string | null;
+  category?: string | null;
+  vatCode?: string | null;
+  glCode?: string | null;
+  amount: number;
+  currency: string;
+  isMileage: boolean;
+  mileageMiles?: number | null;
+  mileageRatePerMile?: number | null;
+  receiptStorageKey?: string | null;
+  notes?: string | null;
+  workspaceId: string;
+  createdAt: string;
+}
+
+export interface CategoryBudget {
+  id: string;
+  category: string;
+  amount: number;
+  period: "monthly" | "annual";
+  workspaceId: string;
+}
+
+export interface CreateClientInput {
+  name: string;
+  email?: string;
+  phone?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  postcode?: string;
+  country?: string;
+  vatNumber?: string;
+  paymentTermsDays?: number;
+  notes?: string;
+}
+
+export interface CreateInvoiceInput {
+  clientId: string;
+  invoiceNumber: string;
+  issueDate: string;
+  dueDate?: string | null;
+  lineItems: InvoiceLineItem[];
+  currency?: string;
+  notes?: string | null;
+}
+
+export interface CreateManualExpenseInput {
+  date: string;
+  description: string;
+  merchant?: string;
+  category?: string;
+  vatCode?: string;
+  glCode?: string;
+  amount: number;
+  currency?: string;
+  isMileage?: boolean;
+  mileageMiles?: number;
+  mileageRatePerMile?: number;
+  notes?: string;
+}

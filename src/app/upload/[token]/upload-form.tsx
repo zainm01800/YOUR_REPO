@@ -4,11 +4,18 @@ import { useState, useRef, useCallback } from "react";
 
 type UploadState = "idle" | "uploading" | "success" | "error";
 
+// Token comes from the page URL — the form needs it to call the right API
+interface UploadFormProps {
+  token: string;
+}
+
 const ACCEPTED_EXTENSIONS = [".csv", ".xlsx", ".xls", ".ofx", ".qfx", ".qif"];
 const ACCEPTED_MIME =
   "text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/x-ofx,application/x-qfx,.ofx,.qfx,.qif,.csv,.xlsx,.xls";
+const MAX_FILE_SIZE_MB = 20;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-export function UploadForm() {
+export function UploadForm({ token }: UploadFormProps) {
   const [clientName, setClientName] = useState("");
   const [currency, setCurrency] = useState("GBP");
   const [file, setFile] = useState<File | null>(null);
@@ -23,6 +30,11 @@ export function UploadForm() {
       setErrorMsg(
         `Unsupported file type. Please upload one of: ${ACCEPTED_EXTENSIONS.join(", ")}`
       );
+      setState("error");
+      return;
+    }
+    if (f.size > MAX_FILE_SIZE_BYTES) {
+      setErrorMsg(`File is too large. Maximum size is ${MAX_FILE_SIZE_MB} MB.`);
       setState("error");
       return;
     }
@@ -72,7 +84,7 @@ export function UploadForm() {
       formData.append("name", statementName);
       formData.append("defaultCurrency", currency);
 
-      const res = await fetch("/api/bank-statements", {
+      const res = await fetch(`/api/upload/${encodeURIComponent(token)}`, {
         method: "POST",
         body: formData,
       });

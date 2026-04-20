@@ -7,7 +7,9 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Calculator,
+  Car,
   FileOutput,
+  FilePlus,
   FolderOpen,
   type LucideIcon,
   LayoutDashboard,
@@ -15,9 +17,12 @@ import {
   Landmark,
   Menu,
   PackageOpen,
+  PieChart,
   PlusSquare,
   Receipt,
   ScanText,
+  Target,
+  UserPlus,
   Settings2,
   Table2,
   TrendingUp,
@@ -53,10 +58,18 @@ function buildNavigation(
   if (!viewerAccess.isAccountantView && businessType === "sole_trader") {
     return [
       {
+        label: "Sales",
+        items: [
+          { href: "/clients", label: "Clients", icon: UserPlus },
+          { href: "/invoices", label: "Invoices", icon: FilePlus },
+        ],
+      },
+      {
         label: "Import",
         items: [
           { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
           { href: "/ocr-extraction", label: "OCR Extraction", icon: ScanText },
+          { href: "/expenses", label: "Expenses & Mileage", icon: Car },
         ],
       },
       {
@@ -64,12 +77,14 @@ function buildNavigation(
         items: [
           { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
           { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
+          { href: "/bookkeeping/budget", label: "Budget vs. Actual", icon: Target },
         ],
       },
       {
         label: "Report",
         items: [
           { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
+          { href: "/bookkeeping/tax-estimate", label: "Tax Estimate", icon: PieChart },
           { href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt },
         ],
       },

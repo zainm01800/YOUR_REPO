@@ -47,5 +47,5 @@ export default async function UploadPage({ params }: Props) {
     );
   }
 
-  return <UploadForm />;
+  return <UploadForm token={token} />;
 }
