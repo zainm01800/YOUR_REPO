@@ -28,7 +28,12 @@ export async function updateTransactionCategoryAction(
 ) {
   await requireAuthenticatedUser();
   const repository = await getRepository();
-  await repository.setTransactionCategory(transactionId, category, reason, confidenceScore);
+  try {
+    await repository.setTransactionCategory(transactionId, category, reason, confidenceScore);
+  } catch (err) {
+    console.error(`[actions/bookkeeping] updateTransactionCategoryAction failed for ID ${transactionId} (category: ${category}):`, err);
+    throw err;
+  }
 
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/bookkeeping/tax-summary");
@@ -45,9 +50,14 @@ export async function bulkUpdateTransactionCategoryAction(
 ) {
   await requireAuthenticatedUser();
   const repository = await getRepository();
-  await Promise.all(
-    transactionIds.map(id => repository.setTransactionCategory(id, category, reason, confidenceScore))
-  );
+  try {
+    await Promise.all(
+      transactionIds.map(id => repository.setTransactionCategory(id, category, reason, confidenceScore))
+    );
+  } catch (err) {
+    console.error(`[actions/bookkeeping] bulkUpdateTransactionCategoryAction failed for ${transactionIds.length} IDs (category: ${category}):`, err);
+    throw err;
+  }
 
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/bookkeeping/tax-summary");

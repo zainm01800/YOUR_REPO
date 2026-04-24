@@ -1812,7 +1812,7 @@ export const basePrismaRepository: Repository = {
     );
 
     if (!updatedBankTransaction) {
-      console.warn(`[setTransactionCategory] Failed to update transaction ${transactionId} in both tables.`);
+      throw new Error(`Transaction category update failed: transaction ID "${transactionId}" was not found in either the individual transactions or the bank transactions table.`);
     }
   },
 

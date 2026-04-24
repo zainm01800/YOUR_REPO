@@ -41,7 +41,7 @@ export default async function BookkeepingTaxSummaryPage({
       const resolvedCategoryName =
         transaction.category ?? resolveCategory(transaction, settingsSnapshot.categoryRules);
       const resolvedCategory = resolvedCategoryName
-        ? categoryRuleMap.get(resolvedCategoryName)
+        ? categoryRuleMap.get(resolvedCategoryName.trim().toLowerCase())
         : undefined;
 
       allTransactions.push(
@@ -54,7 +54,7 @@ export default async function BookkeepingTaxSummaryPage({
   for (const tx of unassignedBankTxns) {
     const resolvedCategoryName = tx.category ?? resolveCategory(tx, settingsSnapshot.categoryRules);
     const resolvedCategory = resolvedCategoryName
-      ? categoryRuleMap.get(resolvedCategoryName)
+      ? categoryRuleMap.get(resolvedCategoryName.trim().toLowerCase())
       : undefined;
     allTransactions.push(
       classifyTransaction(tx, resolvedCategory, settingsSnapshot.workspace.vatRegistered),
