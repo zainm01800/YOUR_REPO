@@ -58,6 +58,12 @@ function buildNavigation(
   if (!viewerAccess.isAccountantView && businessType === "sole_trader") {
     return [
       {
+        label: "Overview",
+        items: [
+          { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+        ],
+      },
+      {
         label: "Sales",
         items: [
           { href: "/clients", label: "Clients", icon: UserPlus },
