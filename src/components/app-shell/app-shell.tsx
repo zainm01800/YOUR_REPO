@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  Bell,
   Calculator,
   Car,
   FileOutput,
@@ -21,6 +22,7 @@ import {
   PlusSquare,
   Receipt,
   ScanText,
+  Search,
   Target,
   UserPlus,
   Settings2,
@@ -342,8 +344,8 @@ export function AppShell({
             <span className="text-sm font-semibold text-[var(--color-foreground)] lg:hidden">
               {appConfig.name}
             </span>
-            {/* Workspace Context Strip */}
-            <div className="hidden lg:flex items-center gap-3 px-4 py-1.5 rounded-2xl bg-white border border-[var(--color-border)] shadow-sm">
+            {/* Workspace context pill — desktop only */}
+            <div className="hidden lg:flex items-center gap-3 px-4 py-1.5 rounded-2xl bg-white border border-[var(--color-border)] shadow-sm shrink-0">
               <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-bold text-[10px]">
                 {workspaceName.slice(0, 2).toUpperCase()}
               </div>
@@ -358,15 +360,6 @@ export function AppShell({
               <div className="h-6 w-px bg-[var(--color-border)] mx-1" />
               <div className="flex flex-col">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted-foreground)] leading-none">
-                  Period
-                </span>
-                <span className="text-sm font-semibold text-[var(--color-foreground)] leading-tight">
-                  {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
-                </span>
-              </div>
-              <div className="h-6 w-px bg-[var(--color-border)] mx-1" />
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted-foreground)] leading-none">
                   Mode
                 </span>
                 <span className="text-sm font-semibold text-[var(--color-foreground)] leading-tight">
@@ -375,7 +368,26 @@ export function AppShell({
               </div>
             </div>
 
-            <div className="flex items-center gap-3 lg:ml-auto">
+            {/* Global search bar — desktop */}
+            <div className="hidden lg:flex flex-1 max-w-md mx-4">
+              <div className="flex w-full items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-muted-foreground)] shadow-sm cursor-text hover:border-[var(--color-accent)]/40 transition-colors">
+                <Search className="h-4 w-4 shrink-0" />
+                <span className="flex-1 select-none">Search transactions, clients, invoices…</span>
+                <kbd className="hidden sm:inline-flex h-5 items-center gap-0.5 rounded border border-[var(--color-border)] bg-[var(--color-page)] px-1.5 font-mono text-[10px] text-[var(--color-muted-foreground)]">
+                  ⌘K
+                </kbd>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 lg:ml-auto">
+              {/* Notification bell */}
+              <button
+                type="button"
+                className="hidden lg:flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-white text-[var(--color-muted-foreground)] shadow-sm transition hover:bg-[var(--color-panel)] hover:text-[var(--color-foreground)]"
+                aria-label="Notifications"
+              >
+                <Bell className="h-4 w-4" />
+              </button>
               <UserButton />
             </div>
           </div>

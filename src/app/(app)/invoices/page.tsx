@@ -15,7 +15,17 @@ const STATUS_STYLES: Record<string, string> = {
   void: "bg-gray-50 text-gray-400 border-gray-200",
 };
 
-export default async function InvoicesPage() {
+const FILTER_TABS = ["All", "Overdue", "Sent", "Paid", "Draft"] as const;
+type FilterTab = (typeof FILTER_TABS)[number];
+
+export default async function InvoicesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>;
+}) {
+  const params = await searchParams;
+  const activeTab = (params.filter as FilterTab) ?? "All";
+
   const repository = await getRepository();
   const [invoices, settings] = await Promise.all([
     repository.getInvoices(),
@@ -23,9 +33,30 @@ export default async function InvoicesPage() {
   ]);
   const currency = settings.workspace.defaultCurrency ?? "GBP";
 
-  const totalDraft = invoices.filter((i) => i.status === "draft").reduce((s, i) => s + i.total, 0);
-  const totalSent = invoices.filter((i) => i.status === "sent" || i.status === "overdue").reduce((s, i) => s + i.total, 0);
-  const totalPaid = invoices.filter((i) => i.status === "paid").reduce((s, i) => s + (i.paidAmount ?? i.total), 0);
+  // Compute effective status (sent + overdue date → overdue)
+  const now = new Date();
+  const withEffectiveStatus = invoices.map((inv) => ({
+    ...inv,
+    effectiveStatus:
+      inv.status === "sent" && inv.dueDate && new Date(inv.dueDate) < now
+        ? "overdue"
+        : inv.status,
+  }));
+
+  const totalDraft = invoices
+    .filter((i) => i.status === "draft")
+    .reduce((s, i) => s + i.total, 0);
+  const totalOutstanding = withEffectiveStatus
+    .filter((i) => i.effectiveStatus === "sent" || i.effectiveStatus === "overdue")
+    .reduce((s, i) => s + i.total, 0);
+  const totalPaid = invoices
+    .filter((i) => i.status === "paid")
+    .reduce((s, i) => s + (i.paidAmount ?? i.total), 0);
+
+  const filtered = withEffectiveStatus.filter((inv) => {
+    if (activeTab === "All") return true;
+    return inv.effectiveStatus === activeTab.toLowerCase();
+  });
 
   return (
     <>
@@ -43,36 +74,94 @@ export default async function InvoicesPage() {
         }
       />
 
+      {/* Stat cards */}
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: "Draft", value: formatCurrency(totalDraft, currency), tone: "neutral" },
-          { label: "Outstanding", value: formatCurrency(totalSent, currency), tone: totalSent > 0 ? "warning" : "neutral" },
+          {
+            label: "Outstanding",
+            value: formatCurrency(totalOutstanding, currency),
+            tone: totalOutstanding > 0 ? "warning" : "neutral",
+          },
           { label: "Paid", value: formatCurrency(totalPaid, currency), tone: "success" },
         ].map((s) => (
           <div
             key={s.label}
-            className={`flex flex-col items-center rounded-2xl border px-5 py-4 text-center ${
+            className={`flex flex-col rounded-2xl border px-5 py-4 ${
               s.tone === "warning"
-                ? "border-amber-200 bg-amber-50 text-amber-700"
+                ? "border-amber-200 bg-amber-50"
                 : s.tone === "success"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-foreground)]"
+                  ? "border-emerald-200 bg-emerald-50"
+                  : "border-[var(--color-border)] bg-[var(--color-panel)]"
             }`}
           >
-            <span className="text-2xl font-bold tabular-nums">{s.value}</span>
-            <span className="mt-0.5 text-xs font-medium uppercase tracking-wide opacity-70">{s.label}</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+              {s.label}
+            </span>
+            <span
+              className={`mt-1.5 text-2xl font-bold tabular-nums ${
+                s.tone === "warning"
+                  ? "text-amber-700"
+                  : s.tone === "success"
+                    ? "text-emerald-700"
+                    : "text-[var(--color-foreground)]"
+              }`}
+            >
+              {s.value}
+            </span>
           </div>
         ))}
       </div>
 
-      {invoices.length === 0 ? (
+      {/* Filter tabs */}
+      <div className="flex items-center gap-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-1 w-fit">
+        {FILTER_TABS.map((tab) => {
+          const count =
+            tab === "All"
+              ? withEffectiveStatus.length
+              : withEffectiveStatus.filter((i) => i.effectiveStatus === tab.toLowerCase()).length;
+          const isActive = activeTab === tab;
+          return (
+            <Link
+              key={tab}
+              href={`/invoices?filter=${tab}`}
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium transition ${
+                isActive
+                  ? "bg-white text-[var(--color-foreground)] shadow-sm"
+                  : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+              }`}
+            >
+              {tab}
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${
+                  isActive
+                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+                    : "bg-[var(--color-border)] text-[var(--color-muted-foreground)]"
+                }`}
+              >
+                {count}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {filtered.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-[var(--color-border)] bg-[var(--color-panel)] p-12 text-center">
           <FilePlus className="mx-auto mb-3 h-8 w-8 text-[var(--color-muted-foreground)]" />
-          <p className="text-sm font-medium text-[var(--color-foreground)]">No invoices yet</p>
-          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">Create your first invoice to start tracking payments.</p>
-          <Link href="/invoices/new" className="mt-4 inline-block">
-            <Button className="h-8 px-3 text-xs">Create invoice</Button>
-          </Link>
+          <p className="text-sm font-medium text-[var(--color-foreground)]">
+            {activeTab === "All" ? "No invoices yet" : `No ${activeTab.toLowerCase()} invoices`}
+          </p>
+          {activeTab === "All" && (
+            <>
+              <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+                Create your first invoice to start tracking payments.
+              </p>
+              <Link href="/invoices/new" className="mt-4 inline-block">
+                <Button className="h-8 px-3 text-xs">Create invoice</Button>
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)]">
@@ -88,7 +177,7 @@ export default async function InvoicesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
-              {invoices.map((inv) => (
+              {filtered.map((inv) => (
                 <tr key={inv.id} className="hover:bg-white/60 transition-colors">
                   <td className="px-5 py-3 font-medium">
                     <Link
@@ -99,18 +188,23 @@ export default async function InvoicesPage() {
                     </Link>
                   </td>
                   <td className="px-5 py-3 text-[var(--color-muted-foreground)]">
-                    <Link href={`/clients/${inv.clientId}`} className="hover:text-[var(--color-accent)]">
+                    <Link
+                      href={`/clients/${inv.clientId}`}
+                      className="hover:text-[var(--color-accent)]"
+                    >
                       {inv.client.name}
                     </Link>
                   </td>
                   <td className="px-5 py-3">
                     <span
-                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[inv.status] ?? ""}`}
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[inv.effectiveStatus] ?? ""}`}
                     >
-                      {inv.status}
+                      {inv.effectiveStatus}
                     </span>
                   </td>
-                  <td className="px-5 py-3 text-[var(--color-muted-foreground)]">{formatDate(inv.issueDate)}</td>
+                  <td className="px-5 py-3 text-[var(--color-muted-foreground)]">
+                    {formatDate(inv.issueDate)}
+                  </td>
                   <td className="px-5 py-3 text-[var(--color-muted-foreground)]">
                     {inv.dueDate ? formatDate(inv.dueDate) : "—"}
                   </td>

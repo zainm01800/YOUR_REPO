@@ -8,14 +8,15 @@ interface ExpenseFormProps {
   categoryRules: CategoryRule[];
   vatCodes: string[];
   currency: string;
+  defaultIsMileage?: boolean;
   onSaved: () => void;
   onCancel: () => void;
 }
 
 const HMRC_MILEAGE_RATE = 0.45; // £0.45 per mile (first 10,000 miles)
 
-export function ExpenseForm({ categoryRules, vatCodes, currency, onSaved, onCancel }: ExpenseFormProps) {
-  const [isMileage, setIsMileage] = useState(false);
+export function ExpenseForm({ categoryRules, vatCodes, currency, defaultIsMileage = false, onSaved, onCancel }: ExpenseFormProps) {
+  const [isMileage, setIsMileage] = useState(defaultIsMileage);
 
   // Group categories by section for the optgroup dropdown
   const categorySections = useMemo(() => {

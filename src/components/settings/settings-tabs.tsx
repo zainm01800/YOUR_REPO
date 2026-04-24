@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { SettingsSnapshot, Workspace } from "@/lib/domain/types";
+import { Building2, CreditCard, Layers, Users, Bell, ShieldAlert } from "lucide-react";
+import type { SettingsSnapshot, Workspace } from "@/lib/domain/types";
 import type { ViewerAccessProfile } from "@/lib/auth/viewer-access";
 import { Card } from "@/components/ui/card";
 import { CategoryRuleManager } from "@/components/settings/category-rule-manager";
@@ -18,73 +19,58 @@ interface SettingsTabsProps {
   viewerAccess: ViewerAccessProfile;
 }
 
-export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsProps) {
-  const [activeTab, setActiveTab] = useState<"general" | "tax" | "team" | "advanced">("general");
+type TabId = "business" | "categories" | "team" | "advanced" | "danger";
 
+interface TabItem {
+  id: TabId;
+  label: string;
+  icon: React.ElementType;
+  hidden?: boolean;
+}
+
+export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsProps) {
+  const [activeTab, setActiveTab] = useState<TabId>("business");
   const workspace = settings.workspace;
 
+  const tabs: TabItem[] = ([
+    { id: "business" as TabId, label: "Business & VAT", icon: Building2 },
+    { id: "categories" as TabId, label: "Categories", icon: Layers },
+    { id: "team" as TabId, label: "Members & Access", icon: Users },
+    { id: "advanced" as TabId, label: "Advanced", icon: CreditCard, hidden: !viewerAccess.canSeeFullAccounting },
+    { id: "danger" as TabId, label: "Danger zone", icon: ShieldAlert },
+  ] as TabItem[]).filter((t) => !t.hidden);
+
   return (
-    <div className="space-y-6">
-      {/* Tab Navigation */}
-      <div className="border-b border-[var(--color-border)]">
-        <nav className="-mb-px flex space-x-6 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab("general")}
-            className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium transition ${
-              activeTab === "general"
-                ? "border-[var(--color-accent)] text-[var(--color-foreground)]"
-                : "border-transparent text-[var(--color-muted-foreground)] hover:border-[var(--color-border)] hover:text-[var(--color-foreground)]"
-            }`}
-          >
-            General & Categories
-          </button>
-          <button
-            onClick={() => setActiveTab("tax")}
-            className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium transition ${
-              activeTab === "tax"
-                ? "border-[var(--color-accent)] text-[var(--color-foreground)]"
-                : "border-transparent text-[var(--color-muted-foreground)] hover:border-[var(--color-border)] hover:text-[var(--color-foreground)]"
-            }`}
-          >
-            Tax & Company Profile
-          </button>
-          <button
-            onClick={() => setActiveTab("team")}
-            className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium transition ${
-              activeTab === "team"
-                ? "border-[var(--color-accent)] text-[var(--color-foreground)]"
-                : "border-transparent text-[var(--color-muted-foreground)] hover:border-[var(--color-border)] hover:text-[var(--color-foreground)]"
-            }`}
-          >
-            Team & Access
-          </button>
-          {viewerAccess.canSeeFullAccounting ? (
-            <button
-              onClick={() => setActiveTab("advanced")}
-              className={`whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium transition ${
-                activeTab === "advanced"
-                  ? "border-[var(--color-accent)] text-[var(--color-foreground)]"
-                  : "border-transparent text-[var(--color-muted-foreground)] hover:border-[var(--color-border)] hover:text-[var(--color-foreground)]"
-              }`}
-            >
-              Advanced Settings
-            </button>
-          ) : null}
+    <div className="flex gap-6">
+      {/* Left vertical nav */}
+      <aside className="w-48 shrink-0">
+        <nav className="space-y-0.5">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-left transition ${
+                  isActive
+                    ? "bg-white text-[var(--color-foreground)] shadow-sm"
+                    : "text-[var(--color-muted-foreground)] hover:bg-white/80 hover:text-[var(--color-foreground)]"
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {tab.label}
+              </button>
+            );
+          })}
         </nav>
-      </div>
+      </aside>
 
-      {/* Tab Contents */}
-      <div className="mt-6">
-        {activeTab === "general" && (
-          <div className="max-w-6xl space-y-6">
-            <Card className="space-y-5">
-              <CategoryRuleManager initialRules={settings.categoryRules} />
-            </Card>
-          </div>
-        )}
-
-        {activeTab === "tax" && (
-          <div className="max-w-4xl space-y-6">
+      {/* Tab content */}
+      <div className="flex-1 min-w-0">
+        {activeTab === "business" && (
+          <div className="space-y-6 max-w-2xl">
             <VatRegistrationCard
               initialVatRegistered={workspace.vatRegistered}
               initialBusinessType={workspace.businessType}
@@ -93,10 +79,18 @@ export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsPr
           </div>
         )}
 
+        {activeTab === "categories" && (
+          <div className="space-y-6">
+            <Card className="space-y-5">
+              <CategoryRuleManager initialRules={settings.categoryRules} />
+            </Card>
+          </div>
+        )}
+
         {activeTab === "team" && (
-          <div className="max-w-6xl">
-            <MemberManager 
-              memberships={settings.memberships} 
+          <div>
+            <MemberManager
+              memberships={settings.memberships}
               invitations={settings.invitations}
               workspaceId={workspace.id}
             />
@@ -117,13 +111,13 @@ export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsPr
                   <div>
                     <h2 className="text-xl font-semibold">Mapping templates</h2>
                     <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-                      Saved column mappings from previous uploads. Applied when creating a new run.
+                      Saved column mappings from previous uploads.
                     </p>
                   </div>
                   <div className="space-y-3">
                     {settings.templates.length === 0 ? (
                       <p className="rounded-2xl bg-[var(--color-panel)] p-5 text-sm text-[var(--color-muted-foreground)]">
-                        No mapping templates saved yet. They appear here after you save one during a run.
+                        No mapping templates saved yet.
                       </p>
                     ) : (
                       settings.templates.map((template) => (
@@ -146,18 +140,19 @@ export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsPr
                 </Card>
               </div>
             </div>
+          </div>
+        )}
 
-            {/* Danger zone */}
-            <div className="max-w-2xl">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted-foreground)]">
-                Danger zone
-              </p>
-              <DeleteWorkspaceCard
-                workspaceId={workspace.id}
-                workspaceName={workspace.name}
-                isOwner={isOwner}
-              />
-            </div>
+        {activeTab === "danger" && (
+          <div className="max-w-2xl">
+            <p className="mb-4 text-sm text-[var(--color-muted-foreground)]">
+              Destructive actions that cannot be undone. Please be certain before proceeding.
+            </p>
+            <DeleteWorkspaceCard
+              workspaceId={workspace.id}
+              workspaceName={workspace.name}
+              isOwner={isOwner}
+            />
           </div>
         )}
       </div>

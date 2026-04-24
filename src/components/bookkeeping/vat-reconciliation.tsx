@@ -397,81 +397,90 @@ export function VatReconciliation({
         </button>
       </div>
 
-      {/* Net VAT banner */}
-      <Card
-        className={`rounded-3xl p-6 ${
-          netVat > 0
-            ? "border-amber-200 bg-amber-50"
-            : netVat < 0
-              ? "border-emerald-200 bg-emerald-50"
-              : "border-[var(--color-border)] bg-[var(--color-panel)]"
-        }`}
-      >
-        <div className="flex items-center gap-4">
-          <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+      {/* No transactions warning */}
+      {!hasTransactions && (
+        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+          <span className="text-sm text-amber-700">No VAT-able transactions found for the selected period.</span>
+        </div>
+      )}
+
+      {/* Two-column: return boxes (left) + submission panel (right) */}
+      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
+        {/* Left — UK VAT Return boxes */}
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            <h2 className="text-base font-semibold text-[var(--color-foreground)]">
+              UK VAT return figures
+            </h2>
+            <div className="group relative cursor-help" title="Based on your categorised transactions. Boxes 2, 8 and 9 (EU acquisitions) are omitted as they are not applicable for most UK sole traders.">
+              <Info className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {boxes.map((b) => (
+              <ReturnBox key={b.box} {...b} />
+            ))}
+          </div>
+        </div>
+
+        {/* Right — Submission summary panel */}
+        <div className="space-y-4">
+          {/* Net position highlight */}
+          <Card
+            className={`rounded-3xl p-5 ${
               netVat > 0
-                ? "bg-amber-100 text-amber-700"
+                ? "border-amber-200 bg-amber-50"
                 : netVat < 0
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-white text-[var(--color-muted-foreground)]"
+                  ? "border-emerald-200 bg-emerald-50"
+                  : "border-[var(--color-border)] bg-[var(--color-panel)]"
             }`}
           >
-            {netVat > 0 ? (
-              <TrendingUp className="h-6 w-6" />
-            ) : netVat < 0 ? (
-              <TrendingDown className="h-6 w-6" />
-            ) : (
-              <CheckCircle2 className="h-6 w-6" />
-            )}
-          </div>
-          <div>
-            <p
-              className={`text-xs font-bold uppercase tracking-[0.14em] ${
-                netVat > 0
-                  ? "text-amber-700"
-                  : netVat < 0
-                    ? "text-emerald-700"
-                    : "text-[var(--color-muted-foreground)]"
-              }`}
-            >
-              {netVat > 0 ? "VAT payable to HMRC" : netVat < 0 ? "VAT reclaimable from HMRC" : "VAT position"}
+            <p className={`text-xs font-bold uppercase tracking-[0.14em] ${
+              netVat > 0 ? "text-amber-700" : netVat < 0 ? "text-emerald-700" : "text-[var(--color-muted-foreground)]"
+            }`}>
+              {netVat > 0 ? "Amount payable" : netVat < 0 ? "Amount reclaimable" : "Net position"}
             </p>
-            <p
-              className={`mt-0.5 text-3xl font-black ${
-                netVat > 0
-                  ? "text-amber-800"
-                  : netVat < 0
-                    ? "text-emerald-800"
-                    : "text-[var(--color-foreground)]"
-              }`}
-            >
+            <p className={`mt-1 text-3xl font-black tabular-nums ${
+              netVat > 0 ? "text-amber-800" : netVat < 0 ? "text-emerald-800" : "text-[var(--color-foreground)]"
+            }`}>
               {fmt(netVat, currency)}
             </p>
-          </div>
-          {!hasTransactions && (
-            <div className="ml-auto flex items-center gap-2 rounded-2xl border border-amber-200 bg-white px-4 py-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <span className="text-sm text-amber-700">No transactions yet</span>
-            </div>
-          )}
-        </div>
-      </Card>
+            <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
+              {netVat > 0
+                ? "Due to HMRC at next filing deadline"
+                : netVat < 0
+                  ? "Reclaimable from HMRC on your next return"
+                  : "Your VAT is balanced — nothing owed or reclaimable"}
+            </p>
+          </Card>
 
-      {/* UK VAT Return boxes */}
-      <div>
-        <div className="mb-3 flex items-center gap-2">
-          <h2 className="text-base font-semibold text-[var(--color-foreground)]">
-            UK VAT return figures
-          </h2>
-          <div className="group relative cursor-help" title="Based on your categorised transactions. Boxes 2, 8 and 9 (EU acquisitions) are omitted as they are not applicable for most UK sole traders.">
-            <Info className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
-          </div>
-        </div>
-        <div className="grid gap-3 lg:grid-cols-2">
-          {boxes.map((b) => (
-            <ReturnBox key={b.box} {...b} />
-          ))}
+          {/* Filing deadlines */}
+          <Card className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-5">
+            <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+              Filing notes
+            </p>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                <p className="text-[var(--color-muted-foreground)]">
+                  Review figures with your accountant before filing
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                <p className="text-[var(--color-muted-foreground)]">
+                  File via HMRC VAT online account or MTD-compatible software
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-accent)]" />
+                <p className="text-[var(--color-muted-foreground)]">
+                  EC boxes (2, 8, 9) omitted — not applicable for most UK businesses
+                </p>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
 
@@ -497,19 +506,6 @@ export function VatReconciliation({
           icon={<TrendingDown className="h-5 w-5" />}
         />
       </div>
-
-      {/* Footer note */}
-      <Card className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-5">
-        <div className="flex gap-3">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-muted-foreground)]" />
-          <p className="text-xs leading-6 text-[var(--color-muted-foreground)]">
-            Figures are derived from your categorised transactions using the VAT rates and tax
-            treatments set on each category. Boxes 2, 8 and 9 (EC acquisitions and dispatches)
-            are not shown as they apply to businesses trading with EU countries. Always review
-            these figures with your accountant before filing.
-          </p>
-        </div>
-      </Card>
     </div>
   );
 }
