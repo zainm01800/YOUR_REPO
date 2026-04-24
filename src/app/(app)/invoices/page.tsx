@@ -9,7 +9,7 @@ export const metadata = { title: "Invoices" };
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-[var(--color-panel)] text-[var(--color-muted-foreground)] border-[var(--color-border)]",
-  sent: "bg-blue-50 text-blue-700 border-blue-200",
+  sent: "cm-status-accent",
   paid: "bg-emerald-50 text-emerald-700 border-emerald-200",
   overdue: "bg-[var(--color-danger-soft)] text-[var(--color-danger)] border-[var(--color-danger-border)]",
   void: "bg-gray-50 text-gray-400 border-gray-200",
@@ -33,7 +33,7 @@ export default async function InvoicesPage({
   ]);
   const currency = settings.workspace.defaultCurrency ?? "GBP";
 
-  // Compute effective status (sent + overdue date → overdue)
+  // Compute effective status (sent + overdue date -> overdue)
   const now = new Date();
   const withEffectiveStatus = invoices.map((inv) => ({
     ...inv,
@@ -147,7 +147,7 @@ export default async function InvoicesPage({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-[var(--color-border)] bg-[var(--color-panel)] p-12 text-center">
+        <div className="cm-empty p-12">
           <FilePlus className="mx-auto mb-3 h-8 w-8 text-[var(--color-muted-foreground)]" />
           <p className="text-sm font-medium text-[var(--color-foreground)]">
             {activeTab === "All" ? "No invoices yet" : `No ${activeTab.toLowerCase()} invoices`}
@@ -164,9 +164,9 @@ export default async function InvoicesPage({
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)]">
+        <div className="cm-table-wrap">
           <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
-            <thead className="bg-white text-left text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+            <thead className="cm-table-head text-left">
               <tr>
                 <th className="px-5 py-3">Invoice #</th>
                 <th className="px-5 py-3">Client</th>
@@ -206,7 +206,7 @@ export default async function InvoicesPage({
                     {formatDate(inv.issueDate)}
                   </td>
                   <td className="px-5 py-3 text-[var(--color-muted-foreground)]">
-                    {inv.dueDate ? formatDate(inv.dueDate) : "—"}
+                    {inv.dueDate ? formatDate(inv.dueDate) : "-"}
                   </td>
                   <td className="px-5 py-3 text-right tabular-nums font-semibold">
                     {formatCurrency(inv.total, inv.currency)}

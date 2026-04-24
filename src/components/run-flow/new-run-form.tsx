@@ -319,7 +319,7 @@ export function NewRunForm({
   return (
     <Card className="space-y-6">
       <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
-        <div className="space-y-5 rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
+        <div className="cm-panel-subtle space-y-5 p-5">
           {bankStatements.length === 0 && (
             <div className="mb-4 rounded-xl border border-[var(--color-danger-border)] bg-[var(--color-danger-soft)] p-4 text-[var(--color-danger)]">
               <h3 className="font-semibold flex items-center gap-2">

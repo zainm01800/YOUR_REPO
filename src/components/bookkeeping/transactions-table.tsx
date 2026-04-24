@@ -698,12 +698,12 @@ export function TransactionsTable({
               type="button"
               onClick={handleAiScan}
               disabled={aiCategorising}
-              className="group flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+              className="group flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--color-accent-strong)] disabled:opacity-50"
             >
               {aiCategorising ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Thinking…
+                  Thinking...
                 </>
               ) : (
                 <>
@@ -731,14 +731,14 @@ export function TransactionsTable({
       )}
 
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 shadow-sm">
-          <span className="text-sm font-bold text-indigo-700">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--accent-soft)] bg-[var(--accent-softer)] px-4 py-2.5 shadow-sm">
+          <span className="text-sm font-bold text-[var(--accent-ink)]">
             {selected.size} selected
           </span>
-          <div className="h-6 w-px bg-indigo-200 mx-1" />
+          <div className="h-6 w-px bg-[var(--accent-soft)] mx-1" />
           
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Bulk Category:</span>
+            <span className="text-xs font-semibold text-[var(--accent-ink)] uppercase tracking-wider">Bulk Category:</span>
             <select
               onChange={async (e) => {
                 const category = e.target.value;
@@ -756,9 +756,9 @@ export function TransactionsTable({
                 }
               }}
               disabled={bulkApplying}
-              className="h-8 rounded-lg border border-indigo-200 bg-white px-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="h-8 rounded-lg border border-[var(--line)] bg-white px-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)]"
             >
-              <option value="">Choose category…</option>
+              <option value="">Choose category...</option>
               {uniquePickerRules.map((rule) => (
                 <option key={rule.slug} value={rule.category}>{rule.category}</option>
               ))}
@@ -766,7 +766,7 @@ export function TransactionsTable({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Bulk Tax:</span>
+            <span className="text-xs font-semibold text-[var(--accent-ink)] uppercase tracking-wider">Bulk Tax:</span>
             <button
               type="button"
               disabled={bulkApplying}
@@ -800,14 +800,14 @@ export function TransactionsTable({
                   setBulkApplying(false);
                 }
               }}
-              className="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-white/80 transition shadow-sm"
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--line)] bg-white px-3 py-1.5 text-xs font-bold text-[var(--accent-ink)] hover:border-[var(--color-border-strong)] transition shadow-sm"
             >
               Toggle Allowable
             </button>
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
-            {bulkApplying && <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />}
+            {bulkApplying && <Loader2 className="h-4 w-4 animate-spin text-[var(--accent-ink)]" />}
             <button
               type="button"
               onClick={handleDeleteSelected}
@@ -815,12 +815,12 @@ export function TransactionsTable({
               className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              {deleting ? "Deleting…" : `Delete ${selected.size}`}
+              {deleting ? "Deleting..." : `Delete ${selected.size}`}
             </button>
             <button
               type="button"
               onClick={() => setSelected(new Set())}
-              className="px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-xs font-semibold text-[var(--accent-ink)] hover:bg-[var(--accent-softer)] rounded-lg transition-colors"
             >
               Cancel
             </button>
@@ -915,7 +915,7 @@ export function TransactionsTable({
                             {isCollapsed ? (
                               <ChevronRight className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
                             ) : (
-                              <ChevronDown className="h-3.5 w-3.5 text-indigo-600" />
+                              <ChevronDown className="h-3.5 w-3.5 text-[var(--accent-ink)]" />
                             )}
                           </button>
                         </td>
@@ -937,7 +937,7 @@ export function TransactionsTable({
                                   const ids = group.rows.map(r => r.id);
                                   setSelected(prev => new Set([...prev, ...ids]));
                                 }}
-                                className="text-[10px] font-bold uppercase tracking-tighter text-indigo-600 hover:text-indigo-800"
+                                className="text-[10px] font-bold uppercase tracking-tighter text-[var(--accent-ink)] hover:text-[var(--ink)]"
                               >
                                 Select All
                               </button>
@@ -1032,7 +1032,7 @@ export function TransactionsTable({
       {/* Bulk Categorisation Prompt Modal */}
       {bulkPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="mx-4 w-full max-w-2xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow-panel)]">
             <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-panel)] px-6 py-4">
               <h2 className="text-lg font-semibold text-[var(--color-foreground)]">
                 Similar Transactions Detected
@@ -1109,18 +1109,18 @@ export function TransactionsTable({
 
             <div className="border-t border-[var(--color-border)] bg-[var(--color-panel)] px-6 py-4">
               {/* Remember rule toggle */}
-              <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3">
+              <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--accent-soft)] bg-[var(--accent-softer)] px-4 py-3">
                 <input
                   type="checkbox"
                   checked={rememberRule}
                   onChange={(e) => setRememberRule(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded accent-indigo-600"
+                  className="mt-0.5 h-4 w-4 rounded accent-[var(--accent)]"
                 />
                 <div>
-                  <p className="text-sm font-semibold text-indigo-800">
+                  <p className="text-sm font-semibold text-[var(--accent-ink)]">
                     Remember for future imports
                   </p>
-                  <p className="text-xs text-indigo-600">
+                  <p className="text-xs text-[var(--accent-ink)]/80">
                     Automatically categorise transactions containing{" "}
                     <span className="font-medium">
                       {(() => {
@@ -1169,7 +1169,7 @@ export function TransactionsTable({
       {/* AI Preview Overview Modal */}
       {aiPreviewResults && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="flex flex-col w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl bg-white shadow-2xl">
+          <div className="flex flex-col w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow-panel)]">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 px-8 py-6">
               <div>

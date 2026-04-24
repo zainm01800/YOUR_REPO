@@ -19,7 +19,7 @@ interface SettingsTabsProps {
   viewerAccess: ViewerAccessProfile;
 }
 
-type TabId = "business" | "categories" | "team" | "advanced" | "danger";
+type TabId = "business" | "categories" | "team" | "notifications" | "advanced" | "danger";
 
 interface TabItem {
   id: TabId;
@@ -33,9 +33,10 @@ export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsPr
   const workspace = settings.workspace;
 
   const tabs: TabItem[] = ([
-    { id: "business" as TabId, label: "Business & VAT", icon: Building2 },
+    { id: "business" as TabId, label: "Business details", icon: Building2 },
     { id: "categories" as TabId, label: "Categories", icon: Layers },
-    { id: "team" as TabId, label: "Members & Access", icon: Users },
+    { id: "team" as TabId, label: "Members", icon: Users },
+    { id: "notifications" as TabId, label: "Notifications", icon: Bell },
     { id: "advanced" as TabId, label: "Advanced", icon: CreditCard, hidden: !viewerAccess.canSeeFullAccounting },
     { id: "danger" as TabId, label: "Danger zone", icon: ShieldAlert },
   ] as TabItem[]).filter((t) => !t.hidden);
@@ -94,6 +95,37 @@ export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsPr
               invitations={settings.invitations}
               workspaceId={workspace.id}
             />
+          </div>
+        )}
+
+        {activeTab === "notifications" && (
+          <div className="max-w-2xl space-y-4">
+            <Card className="space-y-5 p-6">
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--color-foreground)]">Notifications</h2>
+                <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+                  Choose what activity triggers an email or in-app notification.
+                </p>
+              </div>
+              {[
+                { label: "Invoice paid", sub: "When a client invoice is marked as paid" },
+                { label: "Invoice overdue", sub: "When an invoice passes its due date" },
+                { label: "New member joined", sub: "When someone accepts a workspace invite" },
+                { label: "Monthly summary", sub: "A brief P&L summary emailed each month" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-[var(--color-foreground)]">{item.label}</p>
+                    <p className="text-xs text-[var(--color-muted-foreground)]">{item.sub}</p>
+                  </div>
+                  <div className="relative h-5 w-9 shrink-0">
+                    <div className="h-5 w-9 rounded-full bg-[var(--color-border)]" />
+                    <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow" />
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs text-[var(--color-muted-foreground)]">Notification preferences coming soon. These settings are displayed for preview only.</p>
+            </Card>
           </div>
         )}
 

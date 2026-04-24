@@ -106,7 +106,7 @@ function MetricCard({
       : tone === "warning"
         ? "border-amber-200 bg-amber-50"
         : tone === "info"
-          ? "border-indigo-200 bg-indigo-50"
+          ? "border-[var(--accent-soft)] bg-[var(--accent-softer)]"
           : tone === "muted"
             ? "border-[var(--color-border)] bg-[var(--color-panel)]"
             : "border-[var(--color-border)] bg-white";
@@ -239,15 +239,15 @@ function MTDComplianceAlert({
   suggestedQuarterlySaving: number;
 }) {
   return (
-    <Card className="rounded-2xl border-indigo-200 bg-indigo-50 p-6 shadow-sm">
+    <Card className="rounded-2xl border-[var(--accent-soft)] bg-[var(--accent-softer)] p-6 shadow-sm">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex gap-4">
-          <div className="rounded-2xl bg-indigo-100 p-3 text-indigo-600">
+          <div className="rounded-2xl bg-white p-3 text-[var(--accent-ink)]">
             <Calculator className="h-6 w-6" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-lg font-semibold text-indigo-900">Quarterly reporting may apply</h3>
-            <p className="max-w-xl text-sm leading-relaxed text-indigo-800">
+            <h3 className="text-lg font-semibold text-[var(--ink)]">Quarterly reporting may apply</h3>
+            <p className="max-w-xl text-sm leading-relaxed text-[var(--ink-2)]">
               Your gross income ({formatAmount(grossTurnover, currency)}) has exceeded the <strong>{formatAmount(threshold, currency)}</strong> HMRC threshold.
               Starting from April 2026, you may be required to submit <strong>quarterly updates</strong> to HMRC.
               Note: your actual tax is due via <strong>Payments on Account</strong> (31 Jan &amp; 31 Jul), not quarterly.
@@ -255,10 +255,10 @@ function MTDComplianceAlert({
           </div>
         </div>
 
-        <div className="flex min-w-[240px] flex-col gap-2 rounded-2xl border border-indigo-100 bg-white/60 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Suggested Quarterly Saving</p>
-          <p className="font-mono text-2xl font-bold text-indigo-900">{formatAmount(suggestedQuarterlySaving, currency)}</p>
-          <p className="text-xs text-indigo-700/70 italic">Set aside each quarter for cash-flow planning.</p>
+        <div className="flex min-w-[240px] flex-col gap-2 rounded-2xl border border-[var(--line)] bg-white/70 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">Suggested Quarterly Saving</p>
+          <p className="font-mono text-2xl font-bold text-[var(--ink)]">{formatAmount(suggestedQuarterlySaving, currency)}</p>
+          <p className="text-xs text-[var(--muted)] italic">Set aside each quarter for cash-flow planning.</p>
         </div>
       </div>
     </Card>
@@ -310,7 +310,7 @@ function CategoryBreakdownTable({
 }) {
   if (rows.length === 0) {
     return (
-      <Card className="rounded-3xl border border-dashed border-[var(--color-border)] bg-[var(--color-panel)] p-6">
+      <Card className="cm-empty p-6">
         <h3 className="text-base font-semibold text-[var(--color-foreground)]">{title}</h3>
         <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{description}</p>
         <p className="mt-4 text-sm text-[var(--color-muted-foreground)]">Nothing to show here right now.</p>
@@ -319,7 +319,7 @@ function CategoryBreakdownTable({
   }
 
   return (
-    <Card className="overflow-hidden rounded-3xl border border-[var(--color-border)] p-0">
+    <Card className="cm-table-wrap p-0">
       <div className="border-b border-[var(--color-border)] bg-[var(--color-panel)] px-6 py-4">
         <h3 className="text-base font-semibold text-[var(--color-foreground)]">{title}</h3>
         <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{description}</p>
@@ -496,120 +496,71 @@ export function TaxSummary({
             />
           )}
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              label="Accounting profit"
-              value={formatAmount(taxSummary.profitSummary.accountingProfit, taxSummary.currency)}
-              help="Your normal bookkeeping profit after income and expenses."
-              tone="default"
-            />
-            <MetricCard
-              label="Tax add-backs"
-              value={formatAmount(taxSummary.profitSummary.totalTaxAdjustments, taxSummary.currency)}
-              help="Items added back because they are non-claimable or still uncategorised."
-              tone="warning"
-            />
-            <MetricCard
-              label="Taxable profit"
-              value={formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)}
-              help="Your current tax starting point after those adjustments."
-              tone="positive"
-            />
-            <MetricCard
-              label={hasEstimatedTax ? "Estimated tax" : "Estimated tax"}
-              value={hasEstimatedTax ? formatAmount(taxSummary.estimatedTax!.totalEstimatedTax, taxSummary.currency) : "—"}
-              help={
-                hasEstimatedTax
-                  ? "A planning estimate based on the selected business type and current figures."
-                  : "This workspace is in business mode, so the page stops at profit and VAT summary."
-              }
-              tone={hasEstimatedTax ? "warning" : "muted"}
-            />
-          </div>
-
-          <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+          {/* Two-column: income statement left, key figures right */}
+          <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
+            {/* Left — income statement */}
             <Card className="rounded-2xl border border-[var(--line)] bg-white p-6 shadow-[var(--shadow-sm)]">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 mb-6">
                 <div className="rounded-[10px] bg-[var(--accent-softer)] p-2 text-[var(--accent-ink)]">
                   <CircleDollarSign className="h-5 w-5" />
                 </div>
                 <div>
                   <h3 className="panel-title mt-0">Profit summary</h3>
-                  <p className="panel-sub">
-                    A plain-English bridge from bookkeeping profit to tax profit.
-                  </p>
+                  <p className="panel-sub">Income → expenses → taxable profit</p>
                 </div>
               </div>
 
-              <div className="mt-6">
+              <SummaryLine
+                label="Gross sales"
+                value={formatAmount(taxSummary.profitSummary.totalIncome, taxSummary.currency)}
+              />
+              <SummaryLine
+                label="Business expenses"
+                value={formatSignedAmount(-taxSummary.profitSummary.totalExpenses, taxSummary.currency)}
+              />
+              <SummaryLine
+                label="Accounting profit"
+                value={formatAmount(taxSummary.profitSummary.accountingProfit, taxSummary.currency)}
+                strong
+              />
+              {taxSummary.profitSummary.totalTaxAdjustments > 0 && (
                 <SummaryLine
-                  label="Total income"
-                  value={formatAmount(taxSummary.profitSummary.totalIncome, taxSummary.currency)}
-                />
-                <SummaryLine
-                  label="Total expenses"
-                  value={formatSignedAmount(-taxSummary.profitSummary.totalExpenses, taxSummary.currency)}
-                />
-                <SummaryLine
-                  label="Accounting profit"
-                  value={formatAmount(taxSummary.profitSummary.accountingProfit, taxSummary.currency)}
-                  strong
-                />
-                <SummaryLine
-                  label="Add back non-claimable and uncategorised items"
+                  label="Add back non-claimable items"
                   value={formatSignedAmount(taxSummary.profitSummary.totalTaxAdjustments, taxSummary.currency)}
                   tone="warning"
                 />
-                <SummaryLine
-                  label="Taxable profit"
-                  value={formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)}
-                  tone="positive"
-                  strong
-                />
-                {hasEstimatedTax && (
-                  <>
-                    <SummaryLine
-                      label="Less: Personal allowance"
-                      value={formatSignedAmount(-taxSummary.estimatedTax!.personalAllowanceUsed, taxSummary.currency)}
-                      tone="positive"
-                    />
-                    <SummaryLine
-                      label="Taxable income after allowances"
-                      value={formatAmount(taxSummary.estimatedTax!.taxableIncomeAfterAllowance, taxSummary.currency)}
-                      strong
-                      tone={taxSummary.estimatedTax!.taxableIncomeAfterAllowance > 0 ? "positive" : "default"}
-                    />
-                    <SummaryLine
-                      label="Estimated total tax"
-                      value={formatAmount(taxSummary.estimatedTax!.totalEstimatedTax, taxSummary.currency)}
-                      strong
-                      tone={taxSummary.estimatedTax!.totalEstimatedTax > 0 ? "warning" : "default"}
-                    />
-                  </>
-                )}
-              </div>
-            </Card>
+              )}
+              <SummaryLine
+                label="Taxable profit"
+                value={formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency)}
+                tone="positive"
+                strong
+              />
+              {hasEstimatedTax && (
+                <>
+                  <SummaryLine
+                    label="Less: Personal allowance"
+                    value={formatSignedAmount(-taxSummary.estimatedTax!.personalAllowanceUsed, taxSummary.currency)}
+                    tone="positive"
+                  />
+                  <SummaryLine
+                    label="Taxable income after allowances"
+                    value={formatAmount(taxSummary.estimatedTax!.taxableIncomeAfterAllowance, taxSummary.currency)}
+                    strong
+                    tone={taxSummary.estimatedTax!.taxableIncomeAfterAllowance > 0 ? "positive" : "default"}
+                  />
+                </>
+              )}
 
-            <div className="space-y-5">
-              <EstimateOverviewCard taxSummary={taxSummary} />
-
-              <Card className="rounded-2xl border border-[var(--line)] bg-white p-6 shadow-[var(--shadow-sm)]">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-[10px] bg-[var(--accent-softer)] p-2 text-[var(--accent-ink)]">
-                    <Receipt className="h-5 w-5" />
+              {/* VAT section */}
+              {taxSummary.vatSummary.enabled && (
+                <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Receipt className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">VAT position</span>
                   </div>
-                  <div>
-                    <h3 className="panel-title mt-0">VAT summary</h3>
-                    <p className="panel-sub">
-                      The VAT position based on the same categorised bookkeeping data.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 space-y-0">
                   <SummaryLine label="Output VAT" value={formatAmount(taxSummary.vatSummary.outputVat, taxSummary.currency)} />
                   <SummaryLine label="Input VAT" value={formatAmount(taxSummary.vatSummary.inputVat, taxSummary.currency)} />
-                  <SummaryLine label="Non-recoverable VAT" value={formatAmount(taxSummary.vatSummary.nonRecoverableVat, taxSummary.currency)} />
                   <SummaryLine
                     label={netVatDue ? "Net VAT due" : "Net VAT reclaimable"}
                     value={formatAmount(Math.abs(taxSummary.vatSummary.netVatPosition), taxSummary.currency)}
@@ -617,66 +568,108 @@ export function TaxSummary({
                     tone={netVatDue ? "warning" : "positive"}
                   />
                 </div>
+              )}
+            </Card>
+
+            {/* Right — key figures panel */}
+            <div className="space-y-4">
+              <Card className="rounded-2xl border border-[var(--line)] bg-white p-6 shadow-[var(--shadow-sm)]">
+                {/* Ready badge */}
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-base font-semibold text-[var(--color-foreground)]">Key Figures</h3>
+                  {taxSummary.profitSummary.uncategorizedCount === 0 ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Ready for Self Assessment
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700">
+                      <AlertTriangle className="h-3 w-3" />
+                      Needs review
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {[
+                    {
+                      label: "Turnover",
+                      value: formatAmount(taxSummary.profitSummary.totalIncome, taxSummary.currency),
+                      tone: "default" as const,
+                    },
+                    {
+                      label: "Taxable profit",
+                      value: formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency),
+                      tone: "positive" as const,
+                    },
+                    ...(hasEstimatedTax ? [{
+                      label: "Personal allowance",
+                      value: formatAmount(taxSummary.estimatedTax!.personalAllowanceUsed, taxSummary.currency),
+                      tone: "default" as const,
+                    }, {
+                      label: "Estimated tax due",
+                      value: formatAmount(taxSummary.estimatedTax!.totalEstimatedTax, taxSummary.currency),
+                      tone: "warning" as const,
+                    }] : []),
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3"
+                    >
+                      <span className="text-sm text-[var(--color-muted-foreground)]">{item.label}</span>
+                      <span className={`font-mono text-sm font-semibold tabular-nums ${
+                        item.tone === "positive" ? "text-emerald-700" :
+                        item.tone === "warning" ? "text-amber-700" :
+                        "text-[var(--color-foreground)]"
+                      }`}>
+                        {item.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={exportSummary}
+                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--color-panel)] px-4 py-2.5 text-sm font-medium text-[var(--color-foreground)] transition hover:bg-white"
+                >
+                  <Download className="h-4 w-4" />
+                  Download CSV
+                </button>
               </Card>
 
+              {/* Uncategorised warning / all-clear */}
               {taxSummary.profitSummary.uncategorizedCount > 0 ? (
-                <Card className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+                <Card className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                   <div className="flex gap-3">
-                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
                     <div>
-                      <h3 className="text-base font-semibold text-amber-900">Transactions still need review</h3>
-                      <p className="mt-1 text-sm text-amber-800">
-                        {taxSummary.profitSummary.uncategorizedCount} transaction
-                        {taxSummary.profitSummary.uncategorizedCount === 1 ? "" : "s"} {taxSummary.profitSummary.uncategorizedCount === 1 ? "is" : "are"} still uncategorised.
-                        To stay conservative, uncategorised expenses are currently added back instead of treated as claimable.
+                      <p className="text-sm font-semibold text-amber-900">
+                        {taxSummary.profitSummary.uncategorizedCount} uncategorised transaction{taxSummary.profitSummary.uncategorizedCount !== 1 ? "s" : ""}
+                      </p>
+                      <p className="mt-0.5 text-xs text-amber-800">
+                        Uncategorised expenses are added back to keep the estimate conservative.
                       </p>
                     </div>
                   </div>
                 </Card>
               ) : (
-                <Card className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+                <Card className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                   <div className="flex gap-3">
-                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     <div>
-                      <h3 className="text-base font-semibold text-emerald-900">No uncategorised items</h3>
-                      <p className="mt-1 text-sm text-emerald-800">
-                        Everything in the selected period has a bookkeeping category, so the summary is more reliable.
+                      <p className="text-sm font-semibold text-emerald-900">All transactions categorised</p>
+                      <p className="mt-0.5 text-xs text-emerald-800">
+                        The summary is as accurate as possible given your current data.
                       </p>
                     </div>
                   </div>
                 </Card>
               )}
-            </div>
-          </div>
 
-          <div className="grid gap-3 lg:grid-cols-3">
-            <Card className="rounded-2xl border border-[var(--line)] p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-2)]">
-                Step 1
-              </p>
-              <h3 className="mt-2 text-base font-semibold text-[var(--ink)]">Start with bookkeeping profit</h3>
-              <p className="mt-2 text-sm text-[var(--muted)]">
-                We take the same categorised income and expenses used elsewhere in the bookkeeping area.
-              </p>
-            </Card>
-            <Card className="rounded-2xl border border-[var(--line)] p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-2)]">
-                Step 2
-              </p>
-              <h3 className="mt-2 text-base font-semibold text-[var(--ink)]">Adjust for tax treatment</h3>
-              <p className="mt-2 text-sm text-[var(--muted)]">
-                Non-claimable and uncategorised items are added back so the tax view stays cautious.
-              </p>
-            </Card>
-            <Card className="rounded-2xl border border-[var(--line)] p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-2)]">
-                Step 3
-              </p>
-              <h3 className="mt-2 text-base font-semibold text-[var(--ink)]">Estimate tax if relevant</h3>
-              <p className="mt-2 text-sm text-[var(--muted)]">
-                In sole trader mode, we turn the taxable profit into a simple owner-level tax estimate.
-              </p>
-            </Card>
+              {/* Tax estimate overview (if sole trader) */}
+              {hasEstimatedTax && <EstimateOverviewCard taxSummary={taxSummary} />}
+            </div>
           </div>
         </TabsContent>
 
@@ -735,7 +728,7 @@ export function TaxSummary({
             </div>
 
             <div className="grid gap-6 xl:grid-cols-2">
-              <Card className="rounded-3xl border border-[var(--color-border)] p-6">
+              <Card className="cm-panel p-5">
                 <h3 className="text-lg font-semibold text-[var(--color-foreground)]">Income tax breakdown</h3>
                 <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
                   Estimate split across the active tax bands (2026/27).
@@ -760,7 +753,7 @@ export function TaxSummary({
                 </div>
               </Card>
 
-              <Card className="rounded-3xl border border-[var(--color-border)] p-6">
+              <Card className="cm-panel p-5">
                 <h3 className="text-lg font-semibold text-[var(--color-foreground)]">National Insurance breakdown</h3>
                 <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
                   Class 2 (flat rate) + Class 4 (profit-linked) for sole traders.
@@ -786,7 +779,7 @@ export function TaxSummary({
               </Card>
             </div>
 
-            <Card className="rounded-3xl border border-[var(--color-border)] p-6 space-y-4">
+            <Card className="cm-panel space-y-4 p-5">
               <SummaryLine
                 label="Total estimated tax (income tax + NI)"
                 value={formatAmount(taxSummary.estimatedTax!.totalEstimatedTax, taxSummary.currency)}
@@ -819,7 +812,7 @@ export function TaxSummary({
         ) : null}
 
         <TabsContent value="notes" className="space-y-6">
-          <Card className="rounded-3xl border border-[var(--color-border)] p-6">
+          <Card className="cm-panel p-5">
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-[var(--color-accent-soft)] p-2 text-[var(--color-accent)]">
                 <Info className="h-5 w-5" />
@@ -845,7 +838,7 @@ export function TaxSummary({
             </div>
           </Card>
 
-          <Card className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
+          <Card className="cm-panel-subtle p-5">
             <h3 className="text-lg font-semibold text-[var(--color-foreground)]">Important note</h3>
             <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
               This page is a practical planning summary, not a filing submission or formal tax advice.

@@ -10,7 +10,7 @@ export const metadata = { title: "Client" };
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-[var(--color-panel)] text-[var(--color-muted-foreground)] border-[var(--color-border)]",
-  sent: "bg-blue-50 text-blue-700 border-blue-200",
+  sent: "cm-status-accent",
   paid: "bg-emerald-50 text-emerald-700 border-emerald-200",
   overdue: "bg-[var(--color-danger-soft)] text-[var(--color-danger)] border-[var(--color-danger-border)]",
   void: "bg-gray-50 text-gray-400 border-gray-200",
@@ -63,7 +63,7 @@ export default async function ClientDetailPage({
       />
 
       {/* Client details card */}
-      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
+      <div className="cm-panel-subtle p-5">
         <h2 className="mb-4 text-base font-semibold text-[var(--color-foreground)]">Details</h2>
         <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm sm:grid-cols-3">
           {[
@@ -94,7 +94,7 @@ export default async function ClientDetailPage({
       </div>
 
       {/* Invoices */}
-      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
+      <div className="cm-panel-subtle p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-[var(--color-foreground)]">Invoices</h2>
           <Link href={`/invoices/new?clientId=${clientId}`}>

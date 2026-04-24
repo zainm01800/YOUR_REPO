@@ -48,7 +48,7 @@ const BG: Record<ToastVariant, string> = {
   success: "border-emerald-200 bg-emerald-50",
   error: "border-rose-200 bg-rose-50",
   warning: "border-amber-200 bg-amber-50",
-  info: "border-blue-200 bg-blue-50",
+  info: "border-[var(--accent-soft)] bg-[var(--accent-softer)]",
 };
 
 const TITLE_COLOR: Record<ToastVariant, string> = {

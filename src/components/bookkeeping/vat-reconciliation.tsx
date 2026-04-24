@@ -280,7 +280,7 @@ export function VatReconciliation({
   // ── Not VAT registered ──────────────────────────────────────────────────────
   if (!vatRegistered) {
     return (
-      <Card className="rounded-3xl border border-[var(--color-border)] p-10">
+      <Card className="cm-panel p-10">
         <div className="mx-auto max-w-md text-center">
           <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
             <ReceiptText className="h-7 w-7" />
@@ -302,7 +302,7 @@ export function VatReconciliation({
               <ArrowRight className="h-4 w-4" />
             </Link>
             <p className="text-xs text-[var(--color-muted-foreground)]">
-              You only need to register for VAT if your turnover exceeds £90,000.
+              You only need to register for VAT if your turnover exceeds the current threshold.
             </p>
           </div>
         </div>
@@ -411,7 +411,7 @@ export function VatReconciliation({
         <div>
           <div className="mb-3 flex items-center gap-2">
             <h2 className="text-base font-semibold text-[var(--color-foreground)]">
-              UK VAT return figures
+              VAT return figures
             </h2>
             <div className="group relative cursor-help" title="Based on your categorised transactions. Boxes 2, 8 and 9 (EU acquisitions) are omitted as they are not applicable for most UK sole traders.">
               <Info className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
@@ -428,7 +428,7 @@ export function VatReconciliation({
         <div className="space-y-4">
           {/* Net position highlight */}
           <Card
-            className={`rounded-3xl p-5 ${
+            className={`rounded-2xl p-5 ${
               netVat > 0
                 ? "border-amber-200 bg-amber-50"
                 : netVat < 0
@@ -451,12 +451,12 @@ export function VatReconciliation({
                 ? "Due to HMRC at next filing deadline"
                 : netVat < 0
                   ? "Reclaimable from HMRC on your next return"
-                  : "Your VAT is balanced — nothing owed or reclaimable"}
+                  : "Your VAT is balanced - nothing owed or reclaimable"}
             </p>
           </Card>
 
           {/* Filing deadlines */}
-          <Card className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-5">
+          <Card className="cm-panel-subtle p-5">
             <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
               Filing notes
             </p>

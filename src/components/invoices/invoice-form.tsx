@@ -112,7 +112,7 @@ export function InvoiceForm({ clients, invoice, defaultClientId, currency }: Inv
       )}
 
       {/* Header fields */}
-      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
+      <div className="cm-panel-subtle p-5">
         <h2 className="mb-4 text-base font-semibold">Invoice details</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
@@ -171,7 +171,7 @@ export function InvoiceForm({ clients, invoice, defaultClientId, currency }: Inv
       </div>
 
       {/* Line items */}
-      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
+      <div className="cm-panel-subtle p-5">
         <h2 className="mb-4 text-base font-semibold">Line items</h2>
         <div className="space-y-3">
           {/* Header row */}

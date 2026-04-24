@@ -12,7 +12,7 @@ export function Skeleton({ className, style }: { className?: string; style?: CSS
 
 export function SkeletonCard({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="rounded-3xl border border-[var(--color-border)] bg-white p-5 space-y-4">
+    <div className="cm-panel space-y-4 p-5">
       <Skeleton className="h-5 w-1/3" />
       {Array.from({ length: rows }).map((_, i) => (
         <Skeleton key={i} className="h-4" style={{ width: `${80 - i * 10}%` }} />
@@ -23,7 +23,7 @@ export function SkeletonCard({ rows = 3 }: { rows?: number }) {
 
 export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
   return (
-    <div className="rounded-3xl border border-[var(--color-border)] overflow-hidden bg-white">
+    <div className="cm-table-wrap">
       {/* Header */}
       <div className="flex items-center gap-4 bg-[var(--color-panel)] px-6 py-4">
         {Array.from({ length: cols }).map((_, i) => (

@@ -141,8 +141,8 @@ export function ExpensesPageClient({
       )}
 
       {/* List */}
-      <div className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)]">
-        <div className="border-b border-[var(--color-border)] bg-white px-5 py-3">
+      <div className="cm-table-wrap">
+        <div className="border-b border-[var(--line)] bg-[#f6f4ee] px-5 py-3">
           <h2 className="text-sm font-semibold text-[var(--color-foreground)]">
             {activeTab === "expenses" ? "Expense entries" : "Mileage entries"}
           </h2>

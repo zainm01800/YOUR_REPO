@@ -33,7 +33,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 function RoleBadge({ role }: { role: string }) {
   const colors: Record<string, string> = {
-    owner: "bg-blue-50 text-blue-700 border-blue-100",
+    owner: "cm-status-accent",
     admin: "bg-purple-50 text-purple-700 border-purple-100",
     accountant: "bg-emerald-50 text-emerald-700 border-emerald-100",
     viewer: "bg-slate-50 text-slate-600 border-slate-200",

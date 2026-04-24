@@ -32,7 +32,7 @@ function KpiCard({
 }) {
   const inner = (
     <Card
-      className={`space-y-3 transition-all ${accent ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)]" : ""} ${href ? "hover:scale-[1.02] hover:shadow-lg" : ""}`}
+      className={`cm-kpi space-y-3 p-4 transition-all ${accent ? "border-[var(--accent-soft)] bg-[var(--accent-softer)]" : ""} ${href ? "hover:border-[var(--color-border-strong)] hover:shadow-[var(--shadow-panel)]" : ""}`}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
@@ -40,7 +40,7 @@ function KpiCard({
         </div>
         {trend && (
           <div className={`flex items-center gap-1 text-[10px] font-bold ${trend.positive ? "text-emerald-600" : "text-[var(--color-danger)]"}`}>
-            {trend.positive ? "↑" : "↓"} {trend.value}
+            {trend.positive ? "up" : "down"} {trend.value}
           </div>
         )}
       </div>
@@ -156,10 +156,10 @@ export async function ReconciliationDashboard() {
 
       {!hasRuns ? (
         <div className="space-y-6">
-          <Card className="hover-lift border-[var(--color-accent)] bg-linear-to-br from-[var(--color-accent-soft)] to-white glass-panel lg:flex-row lg:items-center lg:justify-between flex flex-col gap-8 p-8 overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-accent)] opacity-[0.03] rounded-full -translate-y-1/2 translate-x-1/2" />
+          <Card className="cm-panel lg:flex-row lg:items-center lg:justify-between flex flex-col gap-8 overflow-hidden p-8 relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent-softer)] rounded-full -translate-y-1/2 translate-x-1/2" />
             <div className="flex items-start gap-6 relative z-10">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-tr from-[var(--color-accent)] to-[var(--color-accent-strong)] text-white premium-shadow">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]">
                 <ShieldCheck className="h-7 w-7" />
               </div>
               <div className="max-w-2xl">
@@ -175,8 +175,8 @@ export async function ReconciliationDashboard() {
                     { label: "Review auto-matches", desc: "AI-powered detection", icon: Zap },
                     { label: "Export posting file", desc: "Ready for ERP/Bank", icon: ArrowRight },
                   ].map((step) => (
-                    <div key={step.label} className="group relative rounded-2xl border border-[var(--color-border)] bg-white/40 p-4 transition-all hover:bg-white hover:shadow-md">
-                      <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-[var(--color-accent)] group-hover:bg-[var(--color-accent)] group-hover:text-white transition-colors">
+                    <div key={step.label} className="group relative rounded-2xl border border-[var(--line)] bg-white p-4 transition-all hover:border-[var(--color-border-strong)]">
+                      <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--accent-softer)] text-[var(--accent-ink)] transition-colors">
                         <step.icon className="h-4 w-4" />
                       </div>
                       <div className="text-xs font-bold text-[var(--color-foreground)] uppercase tracking-wider">{step.label}</div>
@@ -187,7 +187,7 @@ export async function ReconciliationDashboard() {
               </div>
             </div>
             <Link href="/runs/new" className="shrink-0 relative z-10">
-              <Button className="h-12 px-8 text-base hover-lift shadow-lg shadow-[var(--color-accent-soft)]">
+              <Button className="h-12 px-8 text-base">
                 Start first run
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
@@ -208,7 +208,7 @@ export async function ReconciliationDashboard() {
           </div>
 
           <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-            <Card className="hover-lift space-y-4">
+            <Card className="cm-panel space-y-4 p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">Spend over time</p>
@@ -222,7 +222,7 @@ export async function ReconciliationDashboard() {
                     <span className="truncate text-[var(--color-muted-foreground)] font-medium sm:font-normal">{entry.label}</span>
                     <span className="text-right font-semibold tabular-nums sm:hidden">{formatCurrency(entry.gross, currency)}</span>
                     <div className="col-span-2 sm:col-span-1 h-3 overflow-hidden rounded-full bg-[var(--color-panel)]">
-                      <div className="h-full rounded-full bg-linear-to-r from-[var(--color-accent-soft)] to-[var(--color-accent)]"
+                      <div className="h-full rounded-full bg-[var(--accent)]"
                         style={{ width: `${Math.max((entry.gross / maxTrendGross) * 100, entry.gross > 0 ? 8 : 0)}%` }} />
                     </div>
                     <span className="hidden sm:block text-right font-semibold tabular-nums">{formatCurrency(entry.gross, currency)}</span>
@@ -232,17 +232,17 @@ export async function ReconciliationDashboard() {
               </div>
             </Card>
 
-            <Card className="hover-lift space-y-4">
+            <Card className="cm-panel space-y-4 p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">Top suppliers</p>
                   <h2 className="mt-2 text-lg font-semibold">Recent peak spend</h2>
                 </div>
-                <Link href="/bookkeeping/spending" className="text-sm font-semibold text-[var(--color-accent)] decoration-[0.5px] hover:underline">Open analysis →</Link>
+                <Link href="/bookkeeping/spending" className="text-sm font-semibold text-[var(--accent-ink)] decoration-[0.5px] hover:underline">Open analysis -&gt;</Link>
               </div>
               <div className="space-y-3">
                 {topSuppliers.map((s) => (
-                  <div key={s.supplier} className="flex items-center justify-between gap-3 rounded-2xl bg-linear-to-br from-[var(--color-panel)] to-white px-4 py-3 premium-shadow transition-colors hover:bg-white">
+                  <div key={s.supplier} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--line-2)] bg-white px-4 py-3 transition-colors hover:border-[var(--line)]">
                     <div className="min-w-0">
                       <div className="truncate font-bold text-[var(--color-foreground)]">{s.supplier}</div>
                       <div className="mt-1 text-xs text-[var(--color-muted-foreground)]">{s.rowCount} row{s.rowCount !== 1 ? "s" : ""} · {s.exceptionRows} with exceptions</div>
@@ -288,7 +288,7 @@ export async function ReconciliationDashboard() {
           <Card className="overflow-hidden p-0">
             <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-panel)] px-6 py-4">
               <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">Recent runs</span>
-              <Link href="/runs" className="text-xs font-semibold text-[var(--color-accent)]">View all →</Link>
+              <Link href="/runs" className="text-xs font-semibold text-[var(--accent-ink)]">View all -&gt;</Link>
             </div>
             <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
               <thead className="bg-[var(--color-panel)] text-left text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
@@ -307,14 +307,14 @@ export async function ReconciliationDashboard() {
                     <td className="px-6 py-4">
                       <div className="font-semibold truncate max-w-[120px] sm:max-w-none">{run.name}</div>
                       <div className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
-                        {run.period ? `${run.period} · ` : ""}
+                        {run.period ? `${run.period} - ` : ""}
                         <span className="hidden sm:inline">{formatDate(run.createdAt)}</span>
                         {run.locked && <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">LOCKED</span>}
                       </div>
                     </td>
                     <td className="hidden px-6 py-4 sm:table-cell"><RunStatusPill status={run.status} /></td>
                     <td className="px-6 py-4 text-right tabular-nums font-medium">
-                      {(run.summary.totalGross ?? 0) > 0 ? formatCurrency(run.summary.totalGross ?? 0, currency) : "—"}
+                      {(run.summary.totalGross ?? 0) > 0 ? formatCurrency(run.summary.totalGross ?? 0, currency) : "-"}
                     </td>
                     <td className="hidden px-6 py-4 text-right tabular-nums lg:table-cell">
                       <span className={`font-medium ${(run.summary.matchRatePct ?? 0) >= 80 ? "text-emerald-600" : (run.summary.matchRatePct ?? 0) >= 50 ? "text-amber-600" : "text-[var(--color-danger)]"}`}>

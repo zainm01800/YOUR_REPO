@@ -17,7 +17,7 @@ export default function AppError({
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-[var(--color-danger-soft)]">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-danger-soft)]">
         <AlertTriangle className="h-7 w-7 text-[var(--color-danger)]" />
       </div>
       <h1 className="mt-6 text-2xl font-semibold tracking-tight text-[var(--color-foreground)]">

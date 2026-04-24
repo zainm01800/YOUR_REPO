@@ -80,7 +80,7 @@ export default async function ClientsPage() {
       </div>
 
       {clients.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-[var(--color-border)] bg-[var(--color-panel)] p-12 text-center">
+        <div className="cm-empty p-12">
           <UserPlus className="mx-auto mb-3 h-8 w-8 text-[var(--color-muted-foreground)]" />
           <p className="text-sm font-medium text-[var(--color-foreground)]">No clients yet</p>
           <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
@@ -91,9 +91,9 @@ export default async function ClientsPage() {
           </Link>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)]">
+        <div className="cm-table-wrap">
           <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
-            <thead className="bg-white text-left text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+            <thead className="cm-table-head text-left">
               <tr>
                 <th className="px-5 py-3">Name</th>
                 <th className="px-5 py-3">Email</th>
@@ -128,7 +128,7 @@ export default async function ClientsPage() {
                       </div>
                     </td>
                     <td className="px-5 py-3 text-[var(--color-muted-foreground)]">
-                      {client.email ?? "—"}
+                      {client.email ?? "-"}
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums text-[var(--color-muted-foreground)]">
                       {client.invoiceCount ?? 0}

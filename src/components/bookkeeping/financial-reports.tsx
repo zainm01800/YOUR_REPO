@@ -169,7 +169,7 @@ function StatementValueRow({
           <span style={{ paddingLeft: `${indent * 18}px` }}>{label}</span>
           {tooltip && (
             <div className="group relative cursor-help" title={tooltip}>
-              <Info className="h-3 w-3 text-indigo-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+              <Info className="h-3 w-3 text-[var(--accent-ink)] opacity-60 group-hover:opacity-100 transition-opacity" />
             </div>
           )}
         </div>
@@ -440,7 +440,7 @@ function PnLValueRow({
               className="group relative cursor-help"
               title={`Includes ${formatAmount(disallowedAmount, currency)} of non-allowable expenses (tax add-back).`}
             >
-              <Info className="h-3 w-3 text-indigo-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+              <Info className="h-3 w-3 text-[var(--accent-ink)] opacity-60 group-hover:opacity-100 transition-opacity" />
             </div>
           )}
         </div>

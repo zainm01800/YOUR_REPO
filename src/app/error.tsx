@@ -17,7 +17,7 @@ export default function Error({
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-[var(--color-danger-soft)]">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-danger-soft)]">
         <AlertTriangle className="h-7 w-7 text-[var(--color-danger)]" />
       </div>
       <h2 className="mt-6 text-2xl font-bold tracking-tight text-slate-900">Something went wrong</h2>

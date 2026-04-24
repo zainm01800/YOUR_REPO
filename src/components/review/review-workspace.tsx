@@ -1054,18 +1054,18 @@ export function ReviewWorkspace({
              </div>
           </Card>
 
-          <Card className="flex flex-col justify-between p-5 bg-gradient-to-br from-indigo-50 to-white border-indigo-100 shadow-sm">
+          <Card className="flex flex-col justify-between border-[var(--accent-soft)] bg-[var(--accent-softer)] p-5 shadow-sm">
              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-indigo-900/60 uppercase tracking-widest">Approval</span>
-                <CheckCheck className={`h-4 w-4 ${approvalPct === 100 ? "text-emerald-500" : "text-indigo-400 opacity-40"}`} />
+                <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest">Approval</span>
+                <CheckCheck className={`h-4 w-4 ${approvalPct === 100 ? "text-emerald-500" : "text-[var(--accent-ink)] opacity-40"}`} />
              </div>
              <div className="flex items-baseline gap-1 mt-2">
-                <span className="text-3xl font-black text-indigo-950">{approvalPct}%</span>
-                <span className="text-xs font-bold text-indigo-900/40">Approved</span>
+                <span className="text-3xl font-black text-[var(--ink)]">{approvalPct}%</span>
+                <span className="text-xs font-bold text-[var(--muted)]">Approved</span>
              </div>
              <Button 
                variant="secondary" 
-               className="mt-4 h-8 rounded-lg border-indigo-200 bg-white text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:bg-indigo-50"
+               className="mt-4 h-8 rounded-lg border-[var(--line)] bg-white text-[10px] font-bold uppercase tracking-wider text-[var(--accent-ink)] hover:bg-[var(--accent-softer)]"
               disabled={approvalPct === 100 || isLocked}
               onClick={handleBulkApproveMatched}
              >

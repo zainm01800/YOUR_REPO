@@ -137,7 +137,7 @@ function StatusBadge({ status }: { status: string }) {
 
 // ── Client avatar ──────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
-  "bg-blue-100 text-blue-700",
+  "bg-[var(--accent-softer)] text-[var(--accent-ink)]",
   "bg-purple-100 text-purple-700",
   "bg-amber-100 text-amber-700",
   "bg-rose-100 text-rose-700",

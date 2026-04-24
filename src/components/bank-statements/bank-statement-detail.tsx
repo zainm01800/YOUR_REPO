@@ -13,7 +13,7 @@ function StatusBadge({ status }: { status: ReconStatus }) {
     matched: "bg-emerald-50 text-emerald-700 border-emerald-200",
     confirmed: "bg-emerald-100 text-emerald-800 border-emerald-300",
     unreconciled: "bg-slate-50 text-slate-600 border-slate-200",
-    suggested_match: "bg-blue-50 text-blue-700 border-blue-200",
+    suggested_match: "cm-status-accent",
     partially_matched: "bg-amber-50 text-amber-700 border-amber-200",
     excluded: "bg-rose-50 text-rose-600 border-rose-200",
   };

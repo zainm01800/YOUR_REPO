@@ -1,4 +1,4 @@
-import { AlertTriangle, Info } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 interface TaxCalc {
   incomeTax: number;
@@ -36,6 +36,11 @@ interface Props {
   ukTax: UkTax;
 }
 
+function pct(val: number, total: number) {
+  if (total <= 0) return 0;
+  return Math.round(Math.min((val / total) * 100, 100));
+}
+
 export function TaxEstimatePanel({
   currency,
   grossIncome,
@@ -48,18 +53,25 @@ export function TaxEstimatePanel({
   ukTax,
 }: Props) {
   const fmt = (n: number) =>
+    new Intl.NumberFormat("en-GB", { style: "currency", currency, maximumFractionDigits: 2 }).format(n);
+  const fmtInt = (n: number) =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
-  const pct = (n: number) => `${n.toFixed(1)}%`;
 
   const paymentOnAccount = taxCalc.totalTax / 2;
   const jan31Deadline = `31 January ${taxYear + 2}`;
-  const jul31Deadline = `31 July ${taxYear + 2}`;
+  const keepAmount = profit - taxCalc.totalTax;
+
+  const bars = [
+    { label: "Income Tax", value: taxCalc.incomeTax, color: "bg-[var(--color-accent)]" },
+    { label: "Class 4 NI", value: taxCalc.class4Ni, color: "bg-amber-400" },
+    { label: "Class 2 NI", value: taxCalc.class2Ni, color: "bg-emerald-400" },
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Disclaimer */}
       <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
         <p>
           This is an <strong>estimate only</strong> based on transactions in your workspace. It does not account for
           other income, allowances, pension contributions, or personal circumstances. Always consult a qualified
@@ -67,9 +79,61 @@ export function TaxEstimatePanel({
         </p>
       </div>
 
-      {/* P&L summary */}
-      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
-        <h2 className="mb-4 text-base font-semibold">Profit & Loss — {taxYear}/{taxYear + 1}</h2>
+      {/* Hero — large centered total */}
+      <div className="rounded-2xl border border-[var(--color-border)] bg-white p-8 text-center shadow-[var(--shadow-sm)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+          Estimated tax due
+        </p>
+        <p className="mt-3 text-5xl font-bold tabular-nums tracking-tight text-[var(--color-foreground)]">
+          {fmt(taxCalc.totalTax)}
+        </p>
+        <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+          due by {jan31Deadline}
+        </p>
+
+        {/* Breakdown bars */}
+        <div className="mt-8 space-y-3 text-left">
+          {bars.map((bar) => (
+            <div key={bar.label}>
+              <div className="mb-1.5 flex items-center justify-between text-sm">
+                <span className="text-[var(--color-muted-foreground)]">{bar.label}</span>
+                <span className="font-semibold tabular-nums text-[var(--color-foreground)]">{fmt(bar.value)}</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-border)]">
+                <div
+                  className={`h-full rounded-full transition-all ${bar.color}`}
+                  style={{ width: `${pct(bar.value, taxCalc.totalTax)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Key figure chips */}
+        <div className="mt-6 grid grid-cols-3 gap-3">
+          {[
+            { label: "Taxable Profit", value: fmtInt(profit) },
+            { label: "Personal Allowance", value: fmtInt(ukTax.personalAllowance) },
+            { label: "Effective Rate", value: `${taxCalc.effectiveRate.toFixed(1)}%` },
+          ].map((chip) => (
+            <div
+              key={chip.label}
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-3"
+            >
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
+                {chip.label}
+              </p>
+              <p className="mt-1 text-base font-bold tabular-nums text-[var(--color-foreground)]">{chip.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* P&L bridge */}
+      <div className="rounded-2xl border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-sm)]">
+        <h2 className="mb-4 text-sm font-semibold text-[var(--color-foreground)]">
+          Profit & Loss — {taxYear}/{taxYear + 1}
+        </h2>
         <div className="space-y-2 text-sm">
           {[
             { label: "Gross income (including VAT)", value: fmt(grossIncome), muted: false },
@@ -77,83 +141,54 @@ export function TaxEstimatePanel({
             { label: "Net income (VAT exclusive)", value: fmt(netIncome), bold: true },
             { label: "Business expenses", value: `− ${fmt(totalExpenses)}`, muted: true },
           ].map((r) => (
-            <div key={r.label} className={`flex items-center justify-between ${r.muted ? "text-[var(--color-muted-foreground)]" : ""}`}>
+            <div
+              key={r.label}
+              className={`flex items-center justify-between ${r.muted ? "text-[var(--color-muted-foreground)]" : ""}`}
+            >
               <span>{r.label}</span>
               <span className={`tabular-nums ${r.bold ? "font-bold" : ""}`}>{r.value}</span>
             </div>
           ))}
-          <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-2 font-bold text-base">
+          <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-3 font-bold">
             <span>Taxable profit</span>
-            <span className="tabular-nums text-lg">{fmt(profit)}</span>
+            <span className="tabular-nums text-lg">{fmtInt(profit)}</span>
           </div>
         </div>
       </div>
 
-      {/* Tax calculation */}
-      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
-        <h2 className="mb-4 text-base font-semibold">Tax calculation</h2>
-
-        {/* Tax bands info */}
-        <div className="mb-4 flex flex-wrap gap-2 text-xs">
-          {[
-            { label: `Up to ${fmt(ukTax.personalAllowance)}`, note: "Personal allowance — 0%" },
-            { label: `${fmt(ukTax.personalAllowance)} – ${fmt(ukTax.basicRateLimit)}`, note: `Basic rate — ${ukTax.basicRate * 100}%` },
-            { label: `${fmt(ukTax.basicRateLimit)} – ${fmt(ukTax.higherRateLimit)}`, note: `Higher rate — ${ukTax.higherRate * 100}%` },
-          ].map((band) => (
-            <div key={band.label} className="rounded-lg border border-[var(--color-border)] bg-white px-3 py-1.5">
-              <span className="font-medium">{band.label}</span>
-              <span className="ml-1.5 text-[var(--color-muted-foreground)]">{band.note}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="space-y-2 text-sm">
-          {[
-            { label: "Taxable income (after personal allowance)", value: fmt(taxCalc.taxableIncome), muted: true },
-            { label: "Income tax", value: fmt(taxCalc.incomeTax) },
-            { label: `Class 4 NI (${ukTax.ni4LowerRate * 100}% / ${ukTax.ni4UpperRate * 100}%)`, value: fmt(taxCalc.class4Ni) },
-            { label: "Class 2 NI (flat rate)", value: fmt(taxCalc.class2Ni) },
-          ].map((r) => (
-            <div key={r.label} className={`flex items-center justify-between ${r.muted ? "text-[var(--color-muted-foreground)]" : ""}`}>
-              <span>{r.label}</span>
-              <span className="tabular-nums">{r.value}</span>
-            </div>
-          ))}
-          <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-2 font-bold text-base">
-            <span>Estimated total tax</span>
-            <span className="tabular-nums text-lg text-[var(--color-danger)]">{fmt(taxCalc.totalTax)}</span>
-          </div>
-          <div className="flex items-center justify-between text-[var(--color-muted-foreground)]">
-            <span>Effective rate</span>
-            <span className="tabular-nums">{pct(taxCalc.effectiveRate)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Set aside advice */}
-      <div className="rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-6">
-        <div className="flex items-start gap-3">
-          <Info className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-          <div>
-            <p className="font-semibold text-emerald-800">
-              Set aside <strong>{taxCalc.setAsidePercentage}%</strong> of each invoice
+      {/* Set-aside calculator */}
+      <div className="rounded-2xl border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-sm)]">
+        <h2 className="mb-1 text-sm font-semibold text-[var(--color-foreground)]">Set-aside calculator</h2>
+        <p className="mb-4 text-xs text-[var(--color-muted-foreground)]">
+          Put aside <strong>{taxCalc.setAsidePercentage}%</strong> of every payment to cover your tax bill.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] p-4 text-center">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
+              Next Payment
             </p>
-            <p className="mt-1 text-sm text-emerald-700">
-              Based on your current profit, putting aside {taxCalc.setAsidePercentage}% of every payment you receive
-              will build up roughly {fmt(taxCalc.totalTax)} in time for your tax bill.
+            <p className="mt-2 text-lg font-bold tabular-nums text-[var(--color-foreground)]">
+              {fmtInt(paymentOnAccount)}
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-xl border border-emerald-200 bg-white p-3">
-                <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Jan 31 {taxYear + 2}</p>
-                <p className="mt-1 font-bold text-emerald-800">{fmt(taxCalc.totalTax + paymentOnAccount)}</p>
-                <p className="text-xs text-emerald-600">Balancing payment + 1st payment on account</p>
-              </div>
-              <div className="rounded-xl border border-emerald-200 bg-white p-3">
-                <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Jul 31 {taxYear + 2}</p>
-                <p className="mt-1 font-bold text-emerald-800">{fmt(paymentOnAccount)}</p>
-                <p className="text-xs text-emerald-600">2nd payment on account</p>
-              </div>
-            </div>
+            <p className="mt-0.5 text-[10px] text-[var(--color-muted-foreground)]">{jan31Deadline}</p>
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-600">
+              Set Aside
+            </p>
+            <p className="mt-2 text-lg font-bold tabular-nums text-amber-700">
+              {fmtInt(taxCalc.totalTax)}
+            </p>
+            <p className="mt-0.5 text-[10px] text-amber-600">total tax estimate</p>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-600">
+              You&apos;ll Keep
+            </p>
+            <p className="mt-2 text-lg font-bold tabular-nums text-emerald-700">
+              {keepAmount > 0 ? fmtInt(keepAmount) : fmtInt(0)}
+            </p>
+            <p className="mt-0.5 text-[10px] text-emerald-600">after tax</p>
           </div>
         </div>
       </div>

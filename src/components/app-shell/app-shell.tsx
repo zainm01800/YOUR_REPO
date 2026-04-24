@@ -357,7 +357,7 @@ export function AppShell({
             <span className="text-sm font-semibold text-[var(--ink)] lg:hidden">
               {appConfig.name}
             </span>
-            {/* Workspace context pill — desktop only */}
+            {/* Workspace context pill - desktop only */}
             <div className="hidden shrink-0 items-center gap-3 rounded-[10px] border border-[var(--line)] bg-white px-3 py-2 text-[13px] shadow-[var(--shadow-sm)] lg:flex">
               <div className="flex h-6 w-6 items-center justify-center rounded-[8px] bg-[var(--accent-softer)] text-[var(--accent-ink)] font-bold text-[10px]">
                 {workspaceName.slice(0, 2).toUpperCase()}
@@ -381,13 +381,13 @@ export function AppShell({
               </div>
             </div>
 
-            {/* Global search bar — desktop */}
+            {/* Global search bar - desktop */}
             <div className="hidden flex-1 justify-end lg:flex">
               <div className="flex w-full max-w-[360px] cursor-text items-center gap-2 rounded-[10px] border border-[var(--line)] bg-white px-3 py-2 text-[13px] text-[var(--muted)] shadow-[var(--shadow-sm)] transition-colors hover:border-[var(--color-border-strong)]">
                 <Search className="h-4 w-4 shrink-0" />
-                <span className="flex-1 select-none">Search transactions, clients, invoices…</span>
+                <span className="flex-1 select-none">Search transactions, clients, invoices...</span>
                 <kbd className="hidden h-5 items-center gap-0.5 rounded bg-[#f4f2ed] px-1.5 font-mono text-[10px] text-[var(--muted)] sm:inline-flex">
-                  ⌘K
+                  Ctrl K
                 </kbd>
               </div>
             </div>

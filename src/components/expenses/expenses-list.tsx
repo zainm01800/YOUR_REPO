@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Car, Trash2 } from "lucide-react";
+import { Car, Paperclip, Trash2 } from "lucide-react";
 import type { ManualExpense } from "@/lib/domain/types";
 
 interface ExpensesListProps {
@@ -35,6 +35,9 @@ export function ExpensesList({ expenses, currency }: ExpensesListProps) {
     );
   }
 
+  // Separate mileage vs cash so we can show different columns
+  const isMileageTab = expenses.every((e) => e.isMileage);
+
   return (
     <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">
       <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
@@ -42,8 +45,13 @@ export function ExpensesList({ expenses, currency }: ExpensesListProps) {
           <tr>
             <th className="px-4 py-3">Date</th>
             <th className="px-4 py-3">Description</th>
+            {!isMileageTab && <th className="px-4 py-3">Merchant</th>}
             <th className="px-4 py-3">Category</th>
-            <th className="px-4 py-3">Mileage</th>
+            {isMileageTab ? (
+              <th className="px-4 py-3">Miles</th>
+            ) : (
+              <th className="px-4 py-3 text-center">Receipt</th>
+            )}
             <th className="px-4 py-3 text-right">Amount</th>
             <th className="px-4 py-3" />
           </tr>
@@ -51,25 +59,42 @@ export function ExpensesList({ expenses, currency }: ExpensesListProps) {
         <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-panel)]">
           {expenses.map((exp) => (
             <tr key={exp.id} className="hover:bg-white/60 transition-colors">
-              <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{exp.date}</td>
-              <td className="px-4 py-3">
-                <div className="font-medium text-[var(--color-foreground)]">{exp.description}</div>
-                {exp.merchant && (
-                  <div className="text-xs text-[var(--color-muted-foreground)]">{exp.merchant}</div>
+              <td className="px-4 py-3 text-[var(--color-muted-foreground)] whitespace-nowrap">{exp.date}</td>
+              <td className="px-4 py-3 max-w-[200px]">
+                <div className="font-medium text-[var(--color-foreground)] truncate">{exp.description}</div>
+                {exp.notes && (
+                  <div className="text-xs text-[var(--color-muted-foreground)] truncate">{exp.notes}</div>
                 )}
               </td>
+              {!isMileageTab && (
+                <td className="px-4 py-3 text-[var(--color-muted-foreground)]">
+                  {exp.merchant ?? <span className="text-[var(--color-muted-foreground)]">—</span>}
+                </td>
+              )}
               <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{exp.category ?? "—"}</td>
-              <td className="px-4 py-3">
-                {exp.isMileage && exp.mileageMiles != null ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-blue-600">
-                    <Car className="h-3 w-3" />
-                    {exp.mileageMiles} mi
-                  </span>
-                ) : (
-                  "—"
-                )}
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums font-semibold text-[var(--color-foreground)]">
+              {isMileageTab ? (
+                <td className="px-4 py-3">
+                  {exp.mileageMiles != null ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-[var(--color-accent)]">
+                      <Car className="h-3 w-3" />
+                      {exp.mileageMiles} mi
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              ) : (
+                <td className="px-4 py-3 text-center">
+                  {exp.receiptStorageKey ? (
+                    <span className="inline-flex items-center justify-center rounded-full border border-[var(--color-border)] bg-white p-1 text-[var(--color-accent)]">
+                      <Paperclip className="h-3 w-3" />
+                    </span>
+                  ) : (
+                    <span className="text-[var(--color-muted-foreground)]">—</span>
+                  )}
+                </td>
+              )}
+              <td className="px-4 py-3 text-right tabular-nums font-semibold text-[var(--color-foreground)] whitespace-nowrap">
                 {fmt(exp.amount)}
               </td>
               <td className="px-4 py-3 text-right">

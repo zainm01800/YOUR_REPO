@@ -11,7 +11,7 @@ export const metadata = { title: "Invoice" };
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-[var(--color-panel)] text-[var(--color-muted-foreground)] border-[var(--color-border)]",
-  sent: "bg-blue-50 text-blue-700 border-blue-200",
+  sent: "cm-status-accent",
   paid: "bg-emerald-50 text-emerald-700 border-emerald-200",
   overdue: "bg-[var(--color-danger-soft)] text-[var(--color-danger)] border-[var(--color-danger-border)]",
   void: "bg-gray-50 text-gray-400 border-gray-200",
@@ -35,7 +35,7 @@ export default async function InvoiceDetailPage({
       <PageHeader
         eyebrow="Invoices"
         title={invoice.invoiceNumber}
-        description={`${invoice.client.name} · Issued ${formatDate(invoice.issueDate)}`}
+        description={`${invoice.client.name} - Issued ${formatDate(invoice.issueDate)}`}
         breadcrumbs={[
           { label: "Invoices", href: "/invoices" },
           { label: invoice.invoiceNumber },
@@ -59,7 +59,7 @@ export default async function InvoiceDetailPage({
 
       {/* Status banner */}
       <div
-        className={`flex items-center gap-3 rounded-3xl border-2 p-4 ${
+        className={`flex items-center gap-3 rounded-2xl border p-4 ${
           invoice.status === "paid"
             ? "border-emerald-200 bg-emerald-50"
             : invoice.status === "overdue"
@@ -85,7 +85,7 @@ export default async function InvoiceDetailPage({
       </div>
 
       {/* Invoice body */}
-      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
+      <div className="cm-panel-subtle p-5">
         {/* Client block */}
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>

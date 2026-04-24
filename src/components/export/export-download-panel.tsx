@@ -65,7 +65,7 @@ export function ExportDownloadPanel({
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      // silently fail — user can retry
+      // Silently fail; user can retry.
     } finally {
       setDownloading(null);
     }
@@ -140,14 +140,14 @@ export function ExportDownloadPanel({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-5 flex items-center justify-between">
+      <div className="rounded-2xl border border-[var(--accent-soft)] bg-[var(--accent-softer)] p-5 flex items-center justify-between">
          <div className="space-y-1">
-            <h4 className="text-sm font-bold text-indigo-950">Management Pack</h4>
-            <p className="text-xs text-indigo-900/60">Generate a ZIP archive containing the reconciled ledger, trial balance, and all supporting PDF documents.</p>
+            <h4 className="text-sm font-bold text-[var(--ink)]">Management Pack</h4>
+            <p className="text-xs text-[var(--muted)]">Generate a ZIP archive containing the reconciled ledger, trial balance, and all supporting PDF documents.</p>
          </div>
          <Button 
           type="button"
-          className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+          className="bg-[var(--accent)] text-white shadow-sm hover:bg-[var(--color-accent-strong)]"
           onClick={() => handleDownload("management_pack")}
           disabled={downloading !== null}
          >

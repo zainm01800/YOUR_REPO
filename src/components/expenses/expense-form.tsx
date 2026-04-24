@@ -75,7 +75,7 @@ export function ExpenseForm({ categoryRules, vatCodes, currency, defaultIsMileag
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
+    <form onSubmit={handleSubmit} className="cm-panel-subtle space-y-4 p-5">
       <h3 className="text-base font-semibold text-[var(--color-foreground)]">
         {isMileage ? "Log mileage" : "Add expense"}
       </h3>

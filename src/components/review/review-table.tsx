@@ -278,7 +278,7 @@ function getColumnCellContent(
         classes = "bg-orange-100 text-orange-700";
       } else if (status === "duplicate_suspected") {
         label = "Duplicate";
-        classes = "bg-indigo-100 text-indigo-700";
+        classes = "cm-status-accent";
       }
 
       return (

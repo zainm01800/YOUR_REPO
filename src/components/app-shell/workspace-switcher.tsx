@@ -139,7 +139,7 @@ export function WorkspaceSwitcher({
                     setJoinDialogOpen(true);
                   }}
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50/50 border border-dashed border-indigo-200 text-indigo-500">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-[var(--accent-soft)] bg-[var(--accent-softer)] text-[var(--accent-ink)]">
                     <UserPlus className="h-4 w-4" />
                   </div>
                   Join Workspace

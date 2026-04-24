@@ -62,6 +62,13 @@ function BudgetCard({
   const monthlyOver = row.budgetMonthly > 0 && row.spendMonthly > row.budgetMonthly;
   const annualOver = row.budgetAnnual > 0 && row.spendAnnual > row.budgetAnnual;
   const hasAnyOver = monthlyOver || annualOver;
+  const noSpend = row.spendMonthly === 0 && row.spendAnnual === 0;
+  const statusLabel = hasAnyOver ? "Over budget" : noSpend ? "No spend" : "On track";
+  const statusStyle = hasAnyOver
+    ? "bg-[var(--color-danger-soft)] text-[var(--color-danger)] border-[var(--color-danger-border)]"
+    : noSpend
+      ? "bg-[var(--color-panel)] text-[var(--color-muted-foreground)] border-[var(--color-border)]"
+      : "bg-emerald-50 text-emerald-700 border-emerald-200";
 
   return (
     <div
@@ -71,7 +78,12 @@ function BudgetCard({
     >
       <div className="mb-4 flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold text-[var(--color-foreground)]">{row.category}</h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm font-semibold text-[var(--color-foreground)]">{row.category}</h3>
+            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusStyle}`}>
+              {statusLabel}
+            </span>
+          </div>
           {row.budgetMonthly > 0 && (
             <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
               {fmt(row.budgetMonthly)}/mo · {fmt(row.budgetAnnual)}/yr budget
@@ -183,8 +195,40 @@ export function BudgetPageClient({ rows, categoryRules, currency, currentMonth, 
 
   const editingRow = rows.find((r) => r.category === editingCategory);
 
+  // Summary stats
+  const budgetedRows = rows.filter((r) => r.budgetId);
+  const overBudgetCount = budgetedRows.filter(
+    (r) => r.spendMonthly > r.budgetMonthly || r.spendAnnual > r.budgetAnnual
+  ).length;
+  const onTrackCount = budgetedRows.length - overBudgetCount;
+  const totalBudgetAnnual = rows.reduce((s, r) => s + r.budgetAnnual, 0);
+  const totalSpentAnnual = rows.reduce((s, r) => s + r.spendAnnual, 0);
+
   return (
     <div className="space-y-6">
+      {/* Summary stat cards */}
+      {rows.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="flex flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-5 py-4">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">On Track</span>
+            <span className="mt-1.5 text-2xl font-bold tabular-nums text-emerald-600">
+              {onTrackCount}<span className="text-base font-medium text-[var(--color-muted-foreground)]">/{budgetedRows.length}</span>
+            </span>
+            <span className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">categories within budget</span>
+          </div>
+          <div className={`flex flex-col rounded-2xl border px-5 py-4 ${overBudgetCount > 0 ? "border-[var(--color-danger-border)] bg-[var(--color-danger-soft)]" : "border-[var(--color-border)] bg-[var(--color-panel)]"}`}>
+            <span className={`text-xs font-semibold uppercase tracking-[0.14em] ${overBudgetCount > 0 ? "text-[var(--color-danger)]" : "text-[var(--color-muted-foreground)]"}`}>Over Budget</span>
+            <span className={`mt-1.5 text-2xl font-bold tabular-nums ${overBudgetCount > 0 ? "text-[var(--color-danger)]" : "text-[var(--color-foreground)]"}`}>{overBudgetCount}</span>
+            <span className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">categories exceeded</span>
+          </div>
+          <div className="flex flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-5 py-4">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Total Spent</span>
+            <span className="mt-1.5 text-2xl font-bold tabular-nums text-[var(--color-foreground)]">{fmt(totalSpentAnnual)}</span>
+            <span className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">of {fmt(totalBudgetAnnual)} annual budget</span>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-1 rounded-2xl border border-[var(--line)] bg-[var(--color-panel)] p-1.5">

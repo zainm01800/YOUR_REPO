@@ -85,7 +85,7 @@ export function ClientForm({ client }: ClientFormProps) {
         </div>
       )}
 
-      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6 space-y-4">
+      <div className="cm-panel-subtle space-y-4 p-5">
         <h2 className="text-base font-semibold text-[var(--color-foreground)]">Basic details</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {field("Client name", "name", { required: true, placeholder: "Acme Ltd", defaultValue: client?.name })}
@@ -100,7 +100,7 @@ export function ClientForm({ client }: ClientFormProps) {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6 space-y-4">
+      <div className="cm-panel-subtle space-y-4 p-5">
         <h2 className="text-base font-semibold text-[var(--color-foreground)]">Address</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {field("Address line 1", "addressLine1", { placeholder: "123 High Street", defaultValue: client?.addressLine1 ?? "" })}
@@ -111,7 +111,7 @@ export function ClientForm({ client }: ClientFormProps) {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6 space-y-4">
+      <div className="cm-panel-subtle space-y-4 p-5">
         <h2 className="text-base font-semibold text-[var(--color-foreground)]">Notes</h2>
         <textarea
           name="notes"
