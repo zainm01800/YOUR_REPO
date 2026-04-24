@@ -7,7 +7,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "bg-[var(--color-accent)] text-[var(--color-accent-foreground)] shadow-[0_12px_32px_rgba(23,95,65,0.18)] hover:bg-[var(--color-accent-strong)]",
+    "bg-[var(--color-accent)] text-[var(--color-accent-foreground)] shadow-[var(--shadow-sm)] hover:bg-[var(--color-accent-strong)]",
   secondary:
     "border border-[var(--color-border)] bg-white text-[var(--color-foreground)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-panel)]",
   ghost: "text-[var(--color-muted-foreground)] hover:bg-[var(--color-panel)]",
@@ -24,7 +24,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex h-11 items-center justify-center rounded-2xl px-5 text-sm font-semibold transition duration-150 disabled:cursor-not-allowed disabled:opacity-60",
+        "inline-flex h-10 items-center justify-center rounded-[9px] px-4 text-sm font-medium transition duration-150 disabled:cursor-not-allowed disabled:opacity-60",
         variants[variant],
         className,
       )}
@@ -34,4 +34,3 @@ export function Button({
     </button>
   );
 }
-

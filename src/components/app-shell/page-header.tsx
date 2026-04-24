@@ -21,10 +21,10 @@ export function PageHeader({
   breadcrumbs?: Breadcrumb[];
 }) {
   return (
-    <Card className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+    <Card className="flex flex-col gap-5 border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)] lg:flex-row lg:items-end lg:justify-between">
       <div>
         {breadcrumbs && breadcrumbs.length > 0 && (
-          <nav aria-label="Breadcrumb" className="mb-3 flex items-center gap-1 text-xs text-[var(--color-muted-foreground)]">
+          <nav aria-label="Breadcrumb" className="mb-3 flex items-center gap-1 text-xs text-[var(--muted)]">
             {breadcrumbs.map((crumb, i) => (
               <span key={i} className="flex items-center gap-1">
                 {i > 0 && <ChevronRight className="h-3 w-3 shrink-0" />}
@@ -39,13 +39,13 @@ export function PageHeader({
             ))}
           </nav>
         )}
-        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-muted-foreground)]">
+        <div className="text-[11.5px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-2)]">
           {eyebrow}
         </div>
-        <h1 className="mt-4 text-2xl sm:text-3xl font-semibold tracking-tight text-[var(--color-foreground)]">
+        <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.03em] text-[var(--ink)]">
           {title}
         </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--color-muted-foreground)]">
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
           {description}
         </p>
       </div>
@@ -53,4 +53,3 @@ export function PageHeader({
     </Card>
   );
 }
-

@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import { IBM_Plex_Mono, Manrope } from "next/font/google";
+import { Inter, Inter_Tight, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { appConfig } from "@/lib/config";
 
-const sans = Manrope({
-  variable: "--font-manrope",
+const sans = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const mono = IBM_Plex_Mono({
-  variable: "--font-ibm-plex-mono",
+const display = Inter_Tight({
+  variable: "--font-inter-tight",
+  subsets: ["latin"],
+});
+
+const mono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   weight: ["400", "500", "600"],
   subsets: ["latin"],
 });
@@ -32,7 +37,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${sans.variable} ${mono.variable} h-full antialiased`}
+      className={`${sans.variable} ${display.variable} ${mono.variable} h-full antialiased`}
     >
       <ClerkProvider>
         <body className="min-h-full flex flex-col">{children}</body>

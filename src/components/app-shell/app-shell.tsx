@@ -214,10 +214,10 @@ function NavItems({
   const navigation = buildNavigation(businessType, viewerAccess);
 
   return (
-    <nav className="mt-6 space-y-5">
+    <nav className="space-y-5">
       {navigation.map((section) => (
         <div key={section.label}>
-          <div className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
+          <div className="mb-1.5 px-2.5 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-2)]">
             {section.label}
           </div>
           <div className="space-y-0.5">
@@ -236,13 +236,13 @@ function NavItems({
                   href={item.href}
                   onClick={onNavigate}
                   className={cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
+                    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition",
                     isActive
-                      ? "bg-white text-[var(--color-foreground)] shadow-[0_4px_12px_rgba(15,23,31,0.07)]"
-                      : "text-[var(--color-muted-foreground)] hover:bg-white/80 hover:text-[var(--color-foreground)]",
+                      ? "bg-white text-[var(--ink)] shadow-[var(--shadow-nav)]"
+                      : "text-[var(--ink-2)] hover:bg-[rgba(14,17,22,0.04)] hover:text-[var(--ink)]",
                   )}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
+                  <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-[var(--accent-ink)]" : "text-[var(--muted)]")} />
                   {item.label}
                 </Link>
               );
@@ -280,8 +280,20 @@ export function AppShell({
           ? "Sole trader mode"
           : "Business mode";
 
+  const brand = (
+    <Link href="/dashboard" className="flex items-center gap-2 px-2 pb-0.5">
+      <span className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] bg-[var(--accent)]">
+        <span className="absolute left-1.5 top-2 h-0.5 w-3.5 rounded bg-white/95" />
+        <span className="absolute left-1.5 top-3.5 h-0.5 w-2.5 rounded bg-white/65" />
+      </span>
+      <span className="text-base font-semibold tracking-[-0.01em] text-[var(--ink)]">
+        {appConfig.name}
+      </span>
+    </Link>
+  );
+
   const workspaceCard = (
-    <div className="mb-4">
+    <div className="rounded-2xl bg-white/70 p-1 shadow-[var(--shadow-sm)] ring-1 ring-[var(--line)]">
       <WorkspaceSwitcher 
         workspaces={workspaces} 
         currentWorkspaceId={currentWorkspaceId} 
@@ -291,9 +303,10 @@ export function AppShell({
 
   return (
     <ToastProvider>
-    <div className="flex h-screen bg-[var(--color-page)]">
+    <div className="grid h-screen grid-cols-1 bg-[var(--bg)] lg:grid-cols-[236px_1fr]">
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-sidebar)] p-5 lg:block">
+      <aside className="hidden h-screen shrink-0 overflow-y-auto border-r border-[var(--line)] bg-[var(--bg-side)] px-3.5 py-4 lg:flex lg:flex-col lg:gap-5">
+        {brand}
         {workspaceCard}
         <NavItems currentPath={currentPath} businessType={businessType} viewerAccess={viewerAccess} />
       </aside>
@@ -309,88 +322,89 @@ export function AppShell({
       {/* Mobile drawer */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-sidebar)] p-5 transition-transform duration-300 ease-in-out lg:hidden",
+          "fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto border-r border-[var(--line)] bg-[var(--bg-side)] p-4 transition-transform duration-300 ease-in-out lg:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="mb-4 flex items-center justify-between">
-          {workspaceCard}
+        <div className="mb-4 flex items-center justify-between gap-3">
+          {brand}
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
-            className="ml-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--color-muted-foreground)] hover:bg-white/80"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[var(--muted)] hover:bg-white/80"
             aria-label="Close navigation"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
+        <div className="mb-5">{workspaceCard}</div>
         <NavItems currentPath={currentPath} businessType={businessType} viewerAccess={viewerAccess} onNavigate={() => setMobileOpen(false)} />
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[1900px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
-          {/* Top bar */}
-          <div className="flex items-center justify-between gap-4">
+      <main className="min-w-0 overflow-y-auto">
+        {/* Top bar */}
+        <div className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-[var(--line)] bg-[var(--bg)]/92 px-4 py-3 backdrop-blur-md sm:px-6 lg:px-8">
             {/* Mobile hamburger */}
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-white text-[var(--color-muted-foreground)] shadow-sm transition hover:bg-[var(--color-panel)] lg:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-[var(--line)] bg-white text-[var(--muted)] shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)] lg:hidden"
               aria-label="Open navigation"
             >
               <Menu className="h-5 w-5" />
             </button>
             {/* Mobile logo */}
-            <span className="text-sm font-semibold text-[var(--color-foreground)] lg:hidden">
+            <span className="text-sm font-semibold text-[var(--ink)] lg:hidden">
               {appConfig.name}
             </span>
             {/* Workspace context pill — desktop only */}
-            <div className="hidden lg:flex items-center gap-3 px-4 py-1.5 rounded-2xl bg-white border border-[var(--color-border)] shadow-sm shrink-0">
-              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-bold text-[10px]">
+            <div className="hidden shrink-0 items-center gap-3 rounded-[10px] border border-[var(--line)] bg-white px-3 py-2 text-[13px] shadow-[var(--shadow-sm)] lg:flex">
+              <div className="flex h-6 w-6 items-center justify-center rounded-[8px] bg-[var(--accent-softer)] text-[var(--accent-ink)] font-bold text-[10px]">
                 {workspaceName.slice(0, 2).toUpperCase()}
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted-foreground)] leading-none">
+                <span className="text-[10.5px] font-medium uppercase leading-none tracking-[0.08em] text-[var(--muted-2)]">
                   Workspace
                 </span>
-                <span className="text-sm font-semibold text-[var(--color-foreground)] leading-tight">
+                <span className="font-medium leading-tight text-[var(--ink)]">
                   {workspaceName}
                 </span>
               </div>
-              <div className="h-6 w-px bg-[var(--color-border)] mx-1" />
+              <div className="mx-1 h-6 w-px bg-[var(--line-2)]" />
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted-foreground)] leading-none">
+                <span className="text-[10.5px] font-medium uppercase leading-none tracking-[0.08em] text-[var(--muted-2)]">
                   Mode
                 </span>
-                <span className="text-sm font-semibold text-[var(--color-foreground)] leading-tight">
+                <span className="font-medium leading-tight text-[var(--ink)]">
                   {businessTypeLabel}
                 </span>
               </div>
             </div>
 
             {/* Global search bar — desktop */}
-            <div className="hidden lg:flex flex-1 max-w-md mx-4">
-              <div className="flex w-full items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-muted-foreground)] shadow-sm cursor-text hover:border-[var(--color-accent)]/40 transition-colors">
+            <div className="hidden flex-1 justify-end lg:flex">
+              <div className="flex w-full max-w-[360px] cursor-text items-center gap-2 rounded-[10px] border border-[var(--line)] bg-white px-3 py-2 text-[13px] text-[var(--muted)] shadow-[var(--shadow-sm)] transition-colors hover:border-[var(--color-border-strong)]">
                 <Search className="h-4 w-4 shrink-0" />
                 <span className="flex-1 select-none">Search transactions, clients, invoices…</span>
-                <kbd className="hidden sm:inline-flex h-5 items-center gap-0.5 rounded border border-[var(--color-border)] bg-[var(--color-page)] px-1.5 font-mono text-[10px] text-[var(--color-muted-foreground)]">
+                <kbd className="hidden h-5 items-center gap-0.5 rounded bg-[#f4f2ed] px-1.5 font-mono text-[10px] text-[var(--muted)] sm:inline-flex">
                   ⌘K
                 </kbd>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 lg:ml-auto">
+            <div className="flex items-center gap-2">
               {/* Notification bell */}
               <button
                 type="button"
-                className="hidden lg:flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-border)] bg-white text-[var(--color-muted-foreground)] shadow-sm transition hover:bg-[var(--color-panel)] hover:text-[var(--color-foreground)]"
+                className="hidden h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--line)] bg-white text-[var(--ink-2)] shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)] lg:flex"
                 aria-label="Notifications"
               >
                 <Bell className="h-4 w-4" />
               </button>
               <UserButton />
             </div>
-          </div>
+        </div>
+        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8 lg:py-7">
           {children}
         </div>
       </main>

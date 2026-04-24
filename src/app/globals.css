@@ -2,27 +2,61 @@
 @import "react-data-grid/lib/styles.css";
 
 :root {
-  --color-page: #f2ede7;
-  --color-sidebar: #e8e2db;
-  --color-panel: #f7f3ee;
-  --color-border: #ddd5ca;
-  --color-border-strong: #b8a898;
-  --color-foreground: #1b2428;
-  --color-muted-foreground: #5f6b72;
-  --color-accent: #3a5599;
-  --color-accent-strong: #2d4480;
-  --color-accent-soft: rgba(58, 85, 153, 0.10);
-  --color-accent-foreground: #f4f6fb;
-  --color-danger: #9f2a3b;
-  --color-danger-soft: rgba(159, 42, 59, 0.08);
-  --color-danger-border: #e7b9c0;
+  --color-page: #f5f4f1;
+  --color-sidebar: #eeecea;
+  --color-panel: #fbfaf6;
+  --color-elevated: #ffffff;
+  --color-border: #e5e3dd;
+  --color-border-subtle: #edebe5;
+  --color-border-strong: #d6d3cb;
+  --color-foreground: #0e1116;
+  --color-foreground-soft: #2a2f3a;
+  --color-muted-foreground: #5c6472;
+  --color-muted-subtle: #8a92a0;
+  --color-accent: oklch(0.52 0.11 265);
+  --color-accent-strong: oklch(0.42 0.11 265);
+  --color-accent-soft: oklch(0.52 0.11 265 / 0.12);
+  --color-accent-softer: oklch(0.52 0.11 265 / 0.06);
+  --color-accent-ink: oklch(0.32 0.09 265);
+  --color-accent-foreground: #ffffff;
+  --color-danger: #c94a4a;
+  --color-danger-soft: #fbedec;
+  --color-danger-border: #f1cfcc;
+  --color-success: #2e7d5b;
+  --color-success-soft: #e8f3ed;
+  --color-warning: #b4791f;
+  --color-warning-soft: #fbf1dd;
+  --shadow-sm: 0 1px 2px rgba(14, 17, 22, 0.04);
+  --shadow-panel: 0 1px 2px rgba(14, 17, 22, 0.03), 0 6px 16px -6px rgba(14, 17, 22, 0.08);
+  --shadow-nav: 0 1px 0 rgba(14, 17, 22, 0.04), 0 2px 4px rgba(14, 17, 22, 0.04);
+
+  /* Aliases used by the standalone-inspired page utilities. */
+  --bg: var(--color-page);
+  --bg-side: var(--color-sidebar);
+  --bg-elev: var(--color-elevated);
+  --ink: var(--color-foreground);
+  --ink-2: var(--color-foreground-soft);
+  --muted: var(--color-muted-foreground);
+  --muted-2: var(--color-muted-subtle);
+  --line: var(--color-border);
+  --line-2: var(--color-border-subtle);
+  --accent: var(--color-accent);
+  --accent-soft: var(--color-accent-soft);
+  --accent-softer: var(--color-accent-softer);
+  --accent-ink: var(--color-accent-ink);
+  --danger: var(--color-danger);
+  --danger-soft: var(--color-danger-soft);
+  --good: var(--color-success);
+  --good-soft: var(--color-success-soft);
+  --amber: var(--color-warning);
+  --amber-soft: var(--color-warning-soft);
 }
 
 @theme inline {
   --color-background: #ffffff;
   --color-foreground: var(--color-foreground);
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 * {
@@ -30,16 +64,24 @@
 }
 
 html {
-  background:
-    radial-gradient(circle at top left, rgba(58, 85, 153, 0.06), transparent 35%),
-    linear-gradient(180deg, #f2ede7 0%, #f7f3ee 100%);
+  background: var(--color-page);
 }
 
 body {
   min-height: 100vh;
   color: var(--color-foreground);
-  font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   background: transparent;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-inter-tight), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.02em;
 }
 
 a {
@@ -57,7 +99,7 @@ textarea {
 .rdg-review-grid {
   --rdg-color-scheme: light;
   --rdg-background-color: #ffffff;
-  --rdg-header-background-color: #f8f4ed;
+  --rdg-header-background-color: #fbfaf6;
   --rdg-row-hover-background-color: rgba(58, 85, 153, 0.04);
   --rdg-border-color: var(--color-border);
   --rdg-summary-border-color: var(--color-border);
@@ -144,8 +186,8 @@ textarea {
 }
 
 .rdg-review-grid .rdg-summary-row > .rdg-cell {
-  background: #f1ece3;
-  border-top: 1px solid rgba(184, 157, 130, 0.9);
+  background: #fbfaf6;
+  border-top: 1px solid var(--color-border);
   color: var(--color-foreground);
   font-weight: 600;
 }
@@ -175,14 +217,14 @@ textarea {
 
 /* Update Base Components */
 .card-premium {
-  @apply rounded-3xl bg-white p-6 transition-all duration-300;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  border: 1px solid rgba(221, 208, 191, 0.4);
+  @apply rounded-2xl bg-white p-5 transition-all duration-200;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
 }
 
 .card-premium:hover {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
-  border-color: var(--color-accent-soft);
+  box-shadow: var(--shadow-panel);
+  border-color: var(--color-border-strong);
 }
 
 /* Skeleton Loading Animation */
@@ -199,11 +241,10 @@ textarea {
 }
 .mesh-gradient {
   background:
-    radial-gradient(at 0% 0%, hsla(224, 45%, 37%, 1) 0, transparent 50%),
-    radial-gradient(at 50% 0%, hsla(224, 40%, 44%, 1) 0, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(224, 35%, 50%, 1) 0, transparent 50%),
-    radial-gradient(at 50% 100%, hsla(224, 45%, 37%, 1) 0, transparent 50%),
-    #1e2d56;
+    radial-gradient(at 0% 0%, oklch(0.52 0.11 265 / 0.95) 0, transparent 52%),
+    radial-gradient(at 100% 0%, oklch(0.52 0.11 265 / 0.75) 0, transparent 50%),
+    radial-gradient(at 50% 100%, oklch(0.42 0.11 265 / 0.85) 0, transparent 55%),
+    #303a68;
 }
 
 .hero-glow {
@@ -212,7 +253,7 @@ textarea {
   left: 0;
   right: 0;
   height: 600px;
-  background: radial-gradient(circle at 50% -10%, rgba(58, 85, 153, 0.12) 0%, transparent 70%);
+  background: radial-gradient(circle at 50% -10%, var(--color-accent-softer) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
