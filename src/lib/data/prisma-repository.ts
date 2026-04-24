@@ -2275,11 +2275,18 @@ export const basePrismaRepository: Repository = {
   async getManualExpenses() {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
-    const rows = await prisma.manualExpense.findMany({
-      where: { workspaceId: workspace.id },
-      orderBy: { date: "desc" },
-    });
-    return rows.map(mapManualExpense);
+    try {
+      const rows = await prisma.manualExpense.findMany({
+        where: { workspaceId: workspace.id },
+        orderBy: { date: "desc" },
+      });
+      return rows.map(mapManualExpense);
+    } catch (error) {
+      if (isMissingManualExpenseTable(error)) {
+        return [];
+      }
+      throw error;
+    }
   },
 
   async createManualExpense(input: import("@/lib/domain/types").CreateManualExpenseInput) {
@@ -3049,11 +3056,18 @@ export async function createPrismaRepository(
     async getManualExpenses() {
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
-      const rows = await prisma.manualExpense.findMany({
-        where: { workspaceId: workspace.id },
-        orderBy: { date: "desc" },
-      });
-      return rows.map(mapManualExpense);
+      try {
+        const rows = await prisma.manualExpense.findMany({
+          where: { workspaceId: workspace.id },
+          orderBy: { date: "desc" },
+        });
+        return rows.map(mapManualExpense);
+      } catch (error) {
+        if (isMissingManualExpenseTable(error)) {
+          return [];
+        }
+        throw error;
+      }
     },
 
     async createManualExpense(input: import("@/lib/domain/types").CreateManualExpenseInput) {
@@ -3215,4 +3229,19 @@ function mapManualExpense(exp: PrismaManualExpense): import("@/lib/domain/types"
     workspaceId: exp.workspaceId,
     createdAt: exp.createdAt.toISOString(),
   };
+}
+
+function isMissingManualExpenseTable(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const maybe = error as { code?: string; message?: string; meta?: { modelName?: string; table?: string } };
+  const message = maybe.message ?? "";
+  return (
+    maybe.code === "P2021" ||
+    maybe.code === "P2022" ||
+    maybe.meta?.modelName === "ManualExpense" ||
+    maybe.meta?.table === "ManualExpense" ||
+    message.includes("ManualExpense") ||
+    message.includes("manualExpense") ||
+    message.includes("manual_expenses")
+  );
 }
