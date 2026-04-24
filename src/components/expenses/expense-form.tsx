@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CategoryRule } from "@/lib/domain/types";
+import { categorySection } from "@/lib/categories/sections";
 
 interface ExpenseFormProps {
   categoryRules: CategoryRule[];
@@ -22,9 +23,10 @@ export function ExpenseForm({ categoryRules, vatCodes, currency, defaultIsMileag
   const categorySections = useMemo(() => {
     const map = new Map<string, CategoryRule[]>();
     for (const rule of categoryRules) {
-      const existing = map.get(rule.section) ?? [];
+      const section = categorySection(rule);
+      const existing = map.get(section) ?? [];
       existing.push(rule);
-      map.set(rule.section, existing);
+      map.set(section, existing);
     }
     return map;
   }, [categoryRules]);

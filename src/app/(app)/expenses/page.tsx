@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { getRepository } from "@/lib/data";
 import { ExpensesPageClient } from "@/components/expenses/expenses-page-client";
+import { categorySectionSort } from "@/lib/categories/sections";
 
 export const metadata = { title: "Expenses" };
 
@@ -20,7 +21,7 @@ export default async function ExpensesPage({
   const currency = settings.workspace.defaultCurrency ?? "GBP";
   const categoryRules = settings.categoryRules
     .filter((r) => r.isActive && r.isVisible)
-    .sort((a, b) => a.section.localeCompare(b.section) || a.sortOrder - b.sortOrder || a.category.localeCompare(b.category));
+    .sort(categorySectionSort);
   const vatCodes = [...new Set(settings.vatRules.map((v) => v.taxCode))].sort();
 
   const totalExpenses = expenses.filter((e) => !e.isMileage).reduce((s, e) => s + e.amount, 0);

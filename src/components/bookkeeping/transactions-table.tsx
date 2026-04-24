@@ -4,6 +4,7 @@ import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
 import { resolveCategoryWithConfidence } from "@/lib/categories/suggester";
+import { categorySection } from "@/lib/categories/sections";
 import { fmtAmount, fmtDate } from "./transaction-row";
 import {
   updateTransactionCategoryAction,
@@ -157,9 +158,10 @@ export function TransactionsTable({
   const pickerSections = useMemo(() => {
     const map = new Map<string, CategoryRule[]>();
     for (const rule of uniquePickerRules) {
-      const existing = map.get(rule.section) ?? [];
+      const section = categorySection(rule);
+      const existing = map.get(section) ?? [];
       existing.push(rule);
-      map.set(rule.section, existing);
+      map.set(section, existing);
     }
     return map;
   }, [uniquePickerRules]);

@@ -2275,6 +2275,7 @@ export const basePrismaRepository: Repository = {
   async getManualExpenses() {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureManualExpenseStorage(prisma);
     try {
       const rows = await prisma.manualExpense.findMany({
         where: { workspaceId: workspace.id },
@@ -2292,6 +2293,7 @@ export const basePrismaRepository: Repository = {
   async createManualExpense(input: import("@/lib/domain/types").CreateManualExpenseInput) {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureManualExpenseStorage(prisma);
     const exp = await prisma.manualExpense.create({
       data: {
         date: new Date(input.date),
@@ -2315,6 +2317,7 @@ export const basePrismaRepository: Repository = {
   async updateManualExpense(expenseId: string, input: Partial<import("@/lib/domain/types").CreateManualExpenseInput>) {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureManualExpenseStorage(prisma);
     const data: Record<string, unknown> = { ...input };
     if (input.date) data.date = new Date(input.date);
     const exp = await prisma.manualExpense.update({
@@ -2327,6 +2330,7 @@ export const basePrismaRepository: Repository = {
   async deleteManualExpense(expenseId: string) {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureManualExpenseStorage(prisma);
     await prisma.manualExpense.delete({ where: { id: expenseId, workspaceId: workspace.id } as any });
   },
 
@@ -3056,6 +3060,7 @@ export async function createPrismaRepository(
     async getManualExpenses() {
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureManualExpenseStorage(prisma);
       try {
         const rows = await prisma.manualExpense.findMany({
           where: { workspaceId: workspace.id },
@@ -3073,6 +3078,7 @@ export async function createPrismaRepository(
     async createManualExpense(input: import("@/lib/domain/types").CreateManualExpenseInput) {
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureManualExpenseStorage(prisma);
       const exp = await prisma.manualExpense.create({
         data: {
           date: new Date(input.date),
@@ -3096,6 +3102,7 @@ export async function createPrismaRepository(
     async updateManualExpense(expenseId: string, input: Partial<import("@/lib/domain/types").CreateManualExpenseInput>) {
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureManualExpenseStorage(prisma);
       const data: Record<string, unknown> = { ...input };
       if (input.date) data.date = new Date(input.date);
       const exp = await prisma.manualExpense.update({
@@ -3108,6 +3115,7 @@ export async function createPrismaRepository(
     async deleteManualExpense(expenseId: string) {
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureManualExpenseStorage(prisma);
       await prisma.manualExpense.delete({ where: { id: expenseId, workspaceId: workspace.id } as any });
     },
 
@@ -3244,4 +3252,51 @@ function isMissingManualExpenseTable(error: unknown): boolean {
     message.includes("manualExpense") ||
     message.includes("manual_expenses")
   );
+}
+
+async function ensureManualExpenseStorage(prisma: PrismaClient) {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "ManualExpense" (
+      "id" TEXT NOT NULL,
+      "date" TIMESTAMP(3) NOT NULL,
+      "description" TEXT NOT NULL,
+      "merchant" TEXT,
+      "category" TEXT,
+      "vatCode" TEXT,
+      "glCode" TEXT,
+      "amount" DECIMAL(12,2) NOT NULL,
+      "currency" TEXT NOT NULL DEFAULT 'GBP',
+      "isMileage" BOOLEAN NOT NULL DEFAULT false,
+      "mileageMiles" DECIMAL(10,2),
+      "mileageRatePerMile" DECIMAL(6,4),
+      "receiptStorageKey" TEXT,
+      "notes" TEXT,
+      "workspaceId" TEXT NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "ManualExpense_pkey" PRIMARY KEY ("id")
+    )
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "ManualExpense_workspaceId_date_idx"
+    ON "ManualExpense"("workspaceId", "date" DESC)
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "ManualExpense_workspaceId_category_idx"
+    ON "ManualExpense"("workspaceId", "category")
+  `);
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'ManualExpense_workspaceId_fkey'
+      ) THEN
+        ALTER TABLE "ManualExpense"
+        ADD CONSTRAINT "ManualExpense_workspaceId_fkey"
+        FOREIGN KEY ("workspaceId") REFERENCES "Workspace"("id")
+        ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+  `);
 }

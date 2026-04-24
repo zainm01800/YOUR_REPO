@@ -3,6 +3,7 @@ import { getRepository } from "@/lib/data";
 import { TransactionsTable } from "@/components/bookkeeping/transactions-table";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { categorySectionSort } from "@/lib/categories/sections";
 
 export default async function BookkeepingTransactionsPage({
   searchParams,
@@ -26,11 +27,7 @@ export default async function BookkeepingTransactionsPage({
   const canUseAi = Boolean(aiOwnerEmail && currentUser.email.toLowerCase() === aiOwnerEmail);
 
   const pickerCategoryRules = [...settingsSnapshot.categoryRules].sort(
-    (a, b) =>
-      a.section.localeCompare(b.section) ||
-      a.sortOrder - b.sortOrder ||
-      a.priority - b.priority ||
-      a.category.localeCompare(b.category),
+    categorySectionSort,
   );
 
   return (
