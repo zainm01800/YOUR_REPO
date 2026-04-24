@@ -2629,13 +2629,21 @@ export async function createPrismaRepository(
         select: { category: true, statementType: true },
       });
 
-      // Total in / total out aggregates
-      const totalInPromise = prisma.transaction.aggregate({
+      // Total in / total out aggregates — must cover BOTH tables
+      const totalInRunPromise = prisma.transaction.aggregate({
         where: { run: { workspaceId: workspace.id }, amount: { gt: 0 } },
         _sum: { amount: true },
       });
-      const totalOutPromise = prisma.transaction.aggregate({
+      const totalOutRunPromise = prisma.transaction.aggregate({
         where: { run: { workspaceId: workspace.id }, amount: { lt: 0 } },
+        _sum: { amount: true },
+      });
+      const totalInBankPromise = prisma.bankTransaction.aggregate({
+        where: { bankStatement: { workspaceId: workspace.id }, runTransactions: { none: {} }, amount: { gt: 0 } },
+        _sum: { amount: true },
+      });
+      const totalOutBankPromise = prisma.bankTransaction.aggregate({
+        where: { bankStatement: { workspaceId: workspace.id }, runTransactions: { none: {} }, amount: { lt: 0 } },
         _sum: { amount: true },
       });
 
@@ -2645,9 +2653,11 @@ export async function createPrismaRepository(
         catRunTxCount,
         catBankTxCount,
         distinctCats,
-        categoryRules,
-        totalInAgg,
-        totalOutAgg,
+        ,
+        totalInRunAgg,
+        totalOutRunAgg,
+        totalInBankAgg,
+        totalOutBankAgg,
       ] = await Promise.all([
         runTxPromise,
         bankTxPromise,
@@ -2655,12 +2665,16 @@ export async function createPrismaRepository(
         categorisedBankTxPromise,
         distinctCategoriesPromise,
         categoryRulesPromise,
-        totalInPromise,
-        totalOutPromise,
+        totalInRunPromise,
+        totalOutRunPromise,
+        totalInBankPromise,
+        totalOutBankPromise,
       ]);
 
       const totalCount = runTxCount + bankTxCount;
       const categorisedCount = catRunTxCount + catBankTxCount;
+      const totalIn = Number(totalInRunAgg._sum.amount ?? 0) + Number(totalInBankAgg._sum.amount ?? 0);
+      const totalOut = Math.abs(Number(totalOutRunAgg._sum.amount ?? 0)) + Math.abs(Number(totalOutBankAgg._sum.amount ?? 0));
 
       return {
         totalCount,
@@ -2670,8 +2684,8 @@ export async function createPrismaRepository(
         pnlCount: 0,
         balanceSheetCount: 0,
         equityCount: 0,
-        totalIn: Number(totalInAgg._sum.amount ?? 0),
-        totalOut: Math.abs(Number(totalOutAgg._sum.amount ?? 0)),
+        totalIn,
+        totalOut,
       };
     },
 
