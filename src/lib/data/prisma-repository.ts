@@ -310,10 +310,12 @@ function requirePrisma() {
   return prisma;
 }
 
-function isSchemaMismatchError(error: unknown) {
+function isSchemaMismatchError(error: any) {
+  if (!error) return false;
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    (error.code === "P2021" || error.code === "P2022")
+    error.code === "P2021" || 
+    error.code === "P2022" || 
+    (typeof error.message === "string" && error.message.includes("does not exist in the current database"))
   );
 }
 
