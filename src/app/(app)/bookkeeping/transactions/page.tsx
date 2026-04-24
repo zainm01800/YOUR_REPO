@@ -20,7 +20,20 @@ export default async function BookkeepingTransactionsPage({
   const [settingsSnapshot, currentUser, stats] = await Promise.all([
     repository.getSettingsSnapshot(),
     repository.getCurrentUser(),
-    repository.getTransactionStats(),
+    repository.getTransactionStats().catch((err: unknown) => {
+      console.error("[transactions/page] getTransactionStats failed:", err);
+      return {
+        totalCount: 0,
+        categorisedCount: 0,
+        uncategorisedCount: 0,
+        categoryCount: 0,
+        pnlCount: 0,
+        balanceSheetCount: 0,
+        equityCount: 0,
+        totalIn: 0,
+        totalOut: 0,
+      };
+    }),
   ]);
 
   const aiOwnerEmail = process.env.AI_OWNER_EMAIL?.trim().toLowerCase();
@@ -80,7 +93,10 @@ async function TransactionListWrapper({
   canUseAi: boolean;
 }) {
   const repository = await getRepository();
-  const allTransactions = await repository.getPaginatedTransactions(skip, pageSize);
+  const allTransactions = await repository.getPaginatedTransactions(skip, pageSize).catch((err) => {
+    console.error("[transactions page] getPaginatedTransactions failed:", err);
+    return [];
+  });
 
   if (totalCount === 0) {
     return (
