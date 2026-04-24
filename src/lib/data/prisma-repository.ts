@@ -1786,10 +1786,20 @@ export const basePrismaRepository: Repository = {
         return true;
       } catch (error) {
         if (isSchemaMismatchError(error)) {
-          await updater(legacyUpdate);
-          return true;
+          try {
+            await updater(legacyUpdate);
+            return true;
+          } catch (legacyError: any) {
+            if (legacyError?.code === "P2025") {
+              return false; // Record not found, let caller try the next table
+            }
+            throw legacyError;
+          }
         }
-        return false;
+        if ((error as any)?.code === "P2025") {
+          return false; // Record not found, let caller try the next table
+        }
+        throw error; // Unexpected error, e.g. disconnect or validation failure
       }
     };
 
