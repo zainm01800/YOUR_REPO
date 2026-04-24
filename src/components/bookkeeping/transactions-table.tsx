@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useTransition, useCallback } from "react";
+import { Fragment, useEffect, useMemo, useState, useTransition, useCallback } from "react";
 import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
@@ -84,6 +84,51 @@ export function TransactionsTable({
       );
     });
   }, [rowsWithCategory, search, filterCategory, filterType]);
+
+  const monthGroups = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        label: string;
+        income: number;
+        expense: number;
+        rows: typeof filtered;
+      }
+    >();
+
+    for (const tx of filtered) {
+      const date = tx.transactionDate ? new Date(tx.transactionDate) : null;
+      const validDate = date && !Number.isNaN(date.getTime());
+      const key = validDate
+        ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+        : "no-date";
+      const label = validDate
+        ? date.toLocaleDateString("en-GB", { month: "long", year: "numeric" })
+        : "No date";
+
+      const group = groups.get(key) ?? {
+        label,
+        income: 0,
+        expense: 0,
+        rows: [],
+      };
+      if (tx.amount >= 0) {
+        group.income += tx.amount;
+      } else {
+        group.expense += Math.abs(tx.amount);
+      }
+      group.rows.push(tx);
+      groups.set(key, group);
+    }
+
+    return Array.from(groups.entries())
+      .sort(([a], [b]) => {
+        if (a === "no-date") return 1;
+        if (b === "no-date") return -1;
+        return b.localeCompare(a);
+      })
+      .map(([, group]) => group);
+  }, [filtered]);
 
   const uniqueCategories = useMemo(() => {
     const seen = new Set<string>();
@@ -279,7 +324,31 @@ export function TransactionsTable({
                   </td>
                 </tr>
               ) : (
-                filtered.map((tx) => {
+                monthGroups.map((group) => (
+                  <Fragment key={group.label}>
+                    <tr className="bg-[#f6f4ee]">
+                      <td colSpan={6} className="px-5 py-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--muted)]">
+                              {group.label}
+                            </p>
+                            <p className="text-xs text-[var(--muted)]">
+                              {group.rows.length} transaction{group.rows.length !== 1 ? "s" : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs">
+                            <span className="rounded-full bg-white px-2.5 py-1 font-medium text-emerald-700">
+                              In {fmt(group.income)}
+                            </span>
+                            <span className="rounded-full bg-white px-2.5 py-1 font-medium text-[var(--color-danger)]">
+                              Out {fmt(group.expense)}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                    {group.rows.map((tx) => {
                   const isIncome = tx.amount >= 0;
                   const isEditing = editingId === tx.id;
                   const isSaving = saving === tx.id;
@@ -374,7 +443,9 @@ export function TransactionsTable({
                       </td>
                     </tr>
                   );
-                })
+                })}
+                  </Fragment>
+                ))
               )}
             </tbody>
           </table>

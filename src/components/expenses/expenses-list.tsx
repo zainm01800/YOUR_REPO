@@ -8,9 +8,18 @@ import type { ManualExpense } from "@/lib/domain/types";
 interface ExpensesListProps {
   expenses: ManualExpense[];
   currency: string;
+  title?: string;
+  description?: string;
+  claimStatus?: "claimable" | "not_claimable" | "needs_review";
 }
 
-export function ExpensesList({ expenses, currency }: ExpensesListProps) {
+export function ExpensesList({
+  expenses,
+  currency,
+  title = "Entries",
+  description,
+  claimStatus,
+}: ExpensesListProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -27,89 +36,109 @@ export function ExpensesList({ expenses, currency }: ExpensesListProps) {
     }
   }
 
-  if (expenses.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-white px-4 py-8 text-center text-sm text-[var(--color-muted-foreground)]">
-        No expenses logged yet. Use the form above to add your first expense or mileage entry.
-      </div>
-    );
-  }
+  const isMileageTab = expenses.length > 0 && expenses.every((e) => e.isMileage);
 
-  // Separate mileage vs cash so we can show different columns
-  const isMileageTab = expenses.every((e) => e.isMileage);
+  const statusClass =
+    claimStatus === "claimable"
+      ? "bg-[var(--good-soft)] text-[var(--good)]"
+      : claimStatus === "not_claimable"
+        ? "bg-[var(--danger-soft)] text-[var(--danger)]"
+        : claimStatus === "needs_review"
+          ? "bg-[var(--amber-soft)] text-[var(--amber)]"
+          : "bg-[#f0eee8] text-[var(--muted)]";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">
-      <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
-        <thead className="bg-white text-left text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
-          <tr>
-            <th className="px-4 py-3">Date</th>
-            <th className="px-4 py-3">Description</th>
-            {!isMileageTab && <th className="px-4 py-3">Merchant</th>}
-            <th className="px-4 py-3">Category</th>
-            {isMileageTab ? (
-              <th className="px-4 py-3">Miles</th>
-            ) : (
-              <th className="px-4 py-3 text-center">Receipt</th>
-            )}
-            <th className="px-4 py-3 text-right">Amount</th>
-            <th className="px-4 py-3" />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-panel)]">
-          {expenses.map((exp) => (
-            <tr key={exp.id} className="hover:bg-white/60 transition-colors">
-              <td className="px-4 py-3 text-[var(--color-muted-foreground)] whitespace-nowrap">{exp.date}</td>
-              <td className="px-4 py-3 max-w-[200px]">
-                <div className="font-medium text-[var(--color-foreground)] truncate">{exp.description}</div>
-                {exp.notes && (
-                  <div className="text-xs text-[var(--color-muted-foreground)] truncate">{exp.notes}</div>
+    <section className="cm-panel overflow-hidden p-0">
+      <div className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-5 py-4">
+        <div>
+          <h2 className="text-base font-semibold text-[var(--ink)]">{title}</h2>
+          {description ? <p className="mt-1 text-xs text-[var(--muted)]">{description}</p> : null}
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass}`}>
+          {expenses.length} item{expenses.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {expenses.length === 0 ? (
+        <div className="m-4 rounded-2xl border border-dashed border-[var(--line)] bg-white px-4 py-8 text-center text-sm text-[var(--muted)]">
+          Nothing to show here yet.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-[var(--line)] text-sm">
+            <thead className="cm-table-head text-left">
+              <tr>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Description</th>
+                {!isMileageTab && <th className="px-4 py-3">Merchant</th>}
+                <th className="px-4 py-3">Category</th>
+                {isMileageTab ? (
+                  <th className="px-4 py-3">Miles</th>
+                ) : (
+                  <th className="px-4 py-3 text-center">Receipt</th>
                 )}
-              </td>
-              {!isMileageTab && (
-                <td className="px-4 py-3 text-[var(--color-muted-foreground)]">
-                  {exp.merchant ?? <span className="text-[var(--color-muted-foreground)]">—</span>}
-                </td>
-              )}
-              <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{exp.category ?? "—"}</td>
-              {isMileageTab ? (
-                <td className="px-4 py-3">
-                  {exp.mileageMiles != null ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-[var(--color-accent)]">
-                      <Car className="h-3 w-3" />
-                      {exp.mileageMiles} mi
-                    </span>
-                  ) : (
-                    "—"
+                <th className="px-4 py-3 text-right">Amount</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--line-2)] bg-white">
+              {expenses.map((exp) => (
+                <tr key={exp.id} className="transition hover:bg-[#f8f6f0]">
+                  <td className="whitespace-nowrap px-4 py-3 text-[var(--muted)]">{exp.date}</td>
+                  <td className="max-w-[220px] px-4 py-3">
+                    <div className="truncate font-medium text-[var(--ink)]">{exp.description}</div>
+                    {exp.notes ? (
+                      <div className="truncate text-xs text-[var(--muted)]">{exp.notes}</div>
+                    ) : null}
+                  </td>
+                  {!isMileageTab && (
+                    <td className="px-4 py-3 text-[var(--muted)]">
+                      {exp.merchant ?? "-"}
+                    </td>
                   )}
-                </td>
-              ) : (
-                <td className="px-4 py-3 text-center">
-                  {exp.receiptStorageKey ? (
-                    <span className="inline-flex items-center justify-center rounded-full border border-[var(--color-border)] bg-white p-1 text-[var(--color-accent)]">
-                      <Paperclip className="h-3 w-3" />
-                    </span>
+                  <td className="px-4 py-3 text-[var(--muted)]">{exp.category ?? "-"}</td>
+                  {isMileageTab ? (
+                    <td className="px-4 py-3">
+                      {exp.mileageMiles != null ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-[var(--accent-ink)]">
+                          <Car className="h-3 w-3" />
+                          {exp.mileageMiles} mi
+                        </span>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
                   ) : (
-                    <span className="text-[var(--color-muted-foreground)]">—</span>
+                    <td className="px-4 py-3 text-center">
+                      {exp.receiptStorageKey ? (
+                        <span className="inline-flex items-center justify-center rounded-full border border-[var(--line)] bg-white p-1 text-[var(--accent-ink)]">
+                          <Paperclip className="h-3 w-3" />
+                        </span>
+                      ) : (
+                        <span className="text-[var(--muted)]">-</span>
+                      )}
+                    </td>
                   )}
-                </td>
-              )}
-              <td className="px-4 py-3 text-right tabular-nums font-semibold text-[var(--color-foreground)] whitespace-nowrap">
-                {fmt(exp.amount)}
-              </td>
-              <td className="px-4 py-3 text-right">
-                <button
-                  onClick={() => handleDelete(exp.id)}
-                  disabled={deleting === exp.id}
-                  className="rounded-lg p-1.5 text-[var(--color-muted-foreground)] hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)] disabled:opacity-40"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-semibold tabular-nums text-[var(--ink)]">
+                    {fmt(exp.amount)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(exp.id)}
+                      disabled={deleting === exp.id}
+                      className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] disabled:opacity-40"
+                      aria-label="Delete expense"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }

@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/app-shell/page-header";
 import { getRepository } from "@/lib/data";
 import { TransactionsTable } from "@/components/bookkeeping/transactions-table";
 import { Suspense } from "react";
+import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default async function BookkeepingTransactionsPage({
@@ -40,6 +41,26 @@ export default async function BookkeepingTransactionsPage({
         title="Transactions"
         description="Every line from every statement, categorised."
       />
+
+      <div className="flex w-fit items-center gap-1 rounded-2xl border border-[var(--line)] bg-[var(--color-panel)] p-1">
+        {[
+          { label: "Bank transactions", href: "/bookkeeping/transactions", active: true },
+          { label: "Expense claims", href: "/expenses?tab=expenses", active: false },
+          { label: "Mileage claims", href: "/expenses?tab=mileage", active: false },
+        ].map((tab) => (
+          <Link
+            key={tab.href}
+            href={tab.href}
+            className={`rounded-xl px-3 py-1.5 text-sm font-medium transition ${
+              tab.active
+                ? "bg-white text-[var(--ink)] shadow-[var(--shadow-sm)]"
+                : "text-[var(--muted)] hover:text-[var(--ink)]"
+            }`}
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </div>
 
       <Suspense fallback={<TableSkeleton />}>
         <TransactionListWrapper

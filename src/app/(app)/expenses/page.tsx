@@ -4,7 +4,12 @@ import { ExpensesPageClient } from "@/components/expenses/expenses-page-client";
 
 export const metadata = { title: "Expenses & Mileage" };
 
-export default async function ExpensesPage() {
+export default async function ExpensesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
   const repository = await getRepository();
   const [expenses, settings] = await Promise.all([
     repository.getManualExpenses(),
@@ -38,6 +43,7 @@ export default async function ExpensesPage() {
         totalExpenses={totalExpenses}
         totalMileage={totalMileage}
         totalMiles={totalMiles}
+        initialTab={tab === "mileage" ? "mileage" : "expenses"}
       />
     </>
   );

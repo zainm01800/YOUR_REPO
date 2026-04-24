@@ -16,6 +16,7 @@ interface Props {
   totalExpenses: number;
   totalMileage: number;
   totalMiles: number;
+  initialTab?: Tab;
 }
 
 type Tab = "expenses" | "mileage";
@@ -28,10 +29,11 @@ export function ExpensesPageClient({
   totalExpenses,
   totalMileage,
   totalMiles,
+  initialTab = "expenses",
 }: Props) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("expenses");
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   const fmt = (n: number) =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(n);
@@ -40,6 +42,19 @@ export function ExpensesPageClient({
   const mileageEntries = expenses.filter((e) => e.isMileage);
 
   const displayedExpenses = activeTab === "expenses" ? cashExpenses : mileageEntries;
+  const categoryMap = new Map(categoryRules.map((rule) => [rule.category.toLowerCase(), rule]));
+  const getClaimStatus = (expense: ManualExpense): "claimable" | "not_claimable" | "needs_review" => {
+    if (expense.isMileage) return "claimable";
+    if (!expense.category) return "needs_review";
+    const rule = categoryMap.get(expense.category.toLowerCase());
+    if (!rule) return "needs_review";
+    return rule.allowableForTax && rule.allowablePercentage > 0 ? "claimable" : "not_claimable";
+  };
+  const claimableExpenses = displayedExpenses.filter((expense) => getClaimStatus(expense) === "claimable");
+  const nonClaimableExpenses = displayedExpenses.filter((expense) => getClaimStatus(expense) === "not_claimable");
+  const needsReviewExpenses = displayedExpenses.filter((expense) => getClaimStatus(expense) === "needs_review");
+  const claimableTotal = claimableExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const nonClaimableTotal = nonClaimableExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   return (
     <div className="space-y-6">
@@ -86,9 +101,40 @@ export function ExpensesPageClient({
         ))}
       </div>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="cm-kpi">
+          <p className="cm-kpi-label">Claimable</p>
+          <p className="cm-kpi-value text-[var(--good)]">{fmt(claimableTotal)}</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            {claimableExpenses.length} item{claimableExpenses.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <div className="cm-kpi">
+          <p className="cm-kpi-label">Not claimable</p>
+          <p className="cm-kpi-value text-[var(--color-danger)]">{fmt(nonClaimableTotal)}</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            {nonClaimableExpenses.length} item{nonClaimableExpenses.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <div className="cm-kpi">
+          <p className="cm-kpi-label">Needs review</p>
+          <p className="cm-kpi-value text-[var(--amber)]">{needsReviewExpenses.length}</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Missing or unknown category
+          </p>
+        </div>
+      </div>
+
       {/* Tabs + Add button */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-1">
+          <button
+            type="button"
+            onClick={() => router.push("/bookkeeping/transactions")}
+            className="rounded-xl px-3 py-1.5 text-sm font-medium text-[var(--color-muted-foreground)] transition hover:text-[var(--color-foreground)]"
+          >
+            Bank transactions
+          </button>
           {(["expenses", "mileage"] as Tab[]).map((tab) => (
             <button
               key={tab}
@@ -96,6 +142,7 @@ export function ExpensesPageClient({
               onClick={() => {
                 setActiveTab(tab);
                 setShowForm(false);
+                router.replace(`/expenses?tab=${tab}`);
               }}
               className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium transition capitalize ${
                 activeTab === tab
@@ -140,17 +187,32 @@ export function ExpensesPageClient({
         />
       )}
 
-      {/* List */}
-      <div className="cm-table-wrap">
-        <div className="border-b border-[var(--line)] bg-[#f6f4ee] px-5 py-3">
-          <h2 className="text-sm font-semibold text-[var(--color-foreground)]">
-            {activeTab === "expenses" ? "Expense entries" : "Mileage entries"}
-          </h2>
-        </div>
-        <div className="p-4">
-          <ExpensesList expenses={displayedExpenses} currency={currency} />
-        </div>
+      {/* Claimability sections */}
+      <div className="grid gap-4 xl:grid-cols-2">
+        <ExpensesList
+          title="Claimable"
+          description="These reduce taxable profit based on your category settings."
+          expenses={claimableExpenses}
+          currency={currency}
+          claimStatus="claimable"
+        />
+        <ExpensesList
+          title="Not claimable"
+          description="These are tracked, but currently excluded from tax claim calculations."
+          expenses={nonClaimableExpenses}
+          currency={currency}
+          claimStatus="not_claimable"
+        />
       </div>
+      {needsReviewExpenses.length > 0 && (
+        <ExpensesList
+          title="Needs review"
+          description="Add or correct the category before relying on the claimable total."
+          expenses={needsReviewExpenses}
+          currency={currency}
+          claimStatus="needs_review"
+        />
+      )}
     </div>
   );
 }
