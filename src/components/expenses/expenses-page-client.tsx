@@ -6,11 +6,11 @@ import { Car, Plus, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExpenseForm } from "./expense-form";
 import { ExpensesList } from "./expenses-list";
-import type { ManualExpense } from "@/lib/domain/types";
+import type { CategoryRule, ManualExpense } from "@/lib/domain/types";
 
 interface Props {
   expenses: ManualExpense[];
-  categories: string[];
+  categoryRules: CategoryRule[];
   vatCodes: string[];
   currency: string;
   totalExpenses: number;
@@ -20,7 +20,7 @@ interface Props {
 
 export function ExpensesPageClient({
   expenses,
-  categories,
+  categoryRules,
   vatCodes,
   currency,
   totalExpenses,
@@ -65,7 +65,7 @@ export function ExpensesPageClient({
 
       {showForm && (
         <ExpenseForm
-          categories={categories}
+          categoryRules={categoryRules}
           vatCodes={vatCodes}
           currency={currency}
           onSaved={() => {

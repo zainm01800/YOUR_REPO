@@ -1,8 +1,7 @@
 export const appConfig = {
   name: "ClearMatch",
-  tagline: "Reconciliation and review workflow for transaction exports and receipts.",
-  niche:
-    "Finance teams and bookkeepers working from card exports, AP spreadsheets, and batches of receipts.",
+  tagline: "Bookkeeping built for the self-employed.",
+  niche: "UK sole traders and freelancers who want simple, clear bookkeeping without accountant fees.",
   workspaceId: "ws_northstar",
   workspaceSlug: "northstar-finance",
   demoCredentials: {

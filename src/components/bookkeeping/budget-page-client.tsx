@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { CategoryRule } from "@/lib/domain/types";
 
 interface BudgetRow {
   category: string;
@@ -17,7 +18,7 @@ interface BudgetRow {
 
 interface Props {
   rows: BudgetRow[];
-  categories: string[];
+  categoryRules: CategoryRule[];
   currency: string;
   currentMonth: string;
   currentYear: string;
@@ -37,7 +38,7 @@ function ProgressBar({ spent, budget }: { spent: number; budget: number }) {
   );
 }
 
-export function BudgetPageClient({ rows, categories, currency, currentMonth, currentYear }: Props) {
+export function BudgetPageClient({ rows, categoryRules, currency, currentMonth, currentYear }: Props) {
   const router = useRouter();
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState("");
@@ -70,7 +71,18 @@ export function BudgetPageClient({ rows, categories, currency, currentMonth, cur
     router.refresh();
   }
 
-  const unbudgetedCategories = categories.filter((c) => !rows.find((r) => r.budgetId && r.category === c));
+  // Group unbudgeted categories by section for the optgroup dropdown
+  const unbudgetedSections = useMemo(() => {
+    const budgetedSet = new Set(rows.filter((r) => r.budgetId).map((r) => r.category));
+    const map = new Map<string, CategoryRule[]>();
+    for (const rule of categoryRules) {
+      if (budgetedSet.has(rule.category)) continue;
+      const existing = map.get(rule.section) ?? [];
+      existing.push(rule);
+      map.set(rule.section, existing);
+    }
+    return map;
+  }, [categoryRules, rows]);
 
   return (
     <div className="space-y-6">
@@ -92,7 +104,13 @@ export function BudgetPageClient({ rows, categories, currency, currentMonth, cur
               className="rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:outline-none"
             >
               <option value="">Select category…</option>
-              {unbudgetedCategories.map((c) => <option key={c} value={c}>{c}</option>)}
+              {Array.from(unbudgetedSections.entries()).map(([section, rules]) => (
+                <optgroup key={section} label={section}>
+                  {rules.map((rule) => (
+                    <option key={rule.slug} value={rule.category}>{rule.category}</option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
           </div>
           <div>

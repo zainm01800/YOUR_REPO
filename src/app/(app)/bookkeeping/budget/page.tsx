@@ -67,10 +67,9 @@ export default async function BudgetPage() {
     })
     .sort((a, b) => b.spendAnnual - a.spendAnnual);
 
-  const activeCategories = settings.categoryRules
+  const activeCategoryRules = settings.categoryRules
     .filter((r) => r.isActive && r.isVisible && r.accountType === "expense")
-    .map((r) => r.category)
-    .sort();
+    .sort((a, b) => a.section.localeCompare(b.section) || a.sortOrder - b.sortOrder || a.category.localeCompare(b.category));
 
   return (
     <>
@@ -81,7 +80,7 @@ export default async function BudgetPage() {
       />
       <BudgetPageClient
         rows={rows}
-        categories={activeCategories}
+        categoryRules={activeCategoryRules}
         currency={currency}
         currentMonth={now.toLocaleString("en-GB", { month: "long", year: "numeric" })}
         currentYear={thisYear}

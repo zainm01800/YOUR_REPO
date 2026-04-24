@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { CategoryRule } from "@/lib/domain/types";
 
 interface ExpenseFormProps {
-  categories: string[];
+  categoryRules: CategoryRule[];
   vatCodes: string[];
   currency: string;
   onSaved: () => void;
@@ -13,8 +14,19 @@ interface ExpenseFormProps {
 
 const HMRC_MILEAGE_RATE = 0.45; // £0.45 per mile (first 10,000 miles)
 
-export function ExpenseForm({ categories, vatCodes, currency, onSaved, onCancel }: ExpenseFormProps) {
+export function ExpenseForm({ categoryRules, vatCodes, currency, onSaved, onCancel }: ExpenseFormProps) {
   const [isMileage, setIsMileage] = useState(false);
+
+  // Group categories by section for the optgroup dropdown
+  const categorySections = useMemo(() => {
+    const map = new Map<string, CategoryRule[]>();
+    for (const rule of categoryRules) {
+      const existing = map.get(rule.section) ?? [];
+      existing.push(rule);
+      map.set(rule.section, existing);
+    }
+    return map;
+  }, [categoryRules]);
   const [miles, setMiles] = useState("");
   const [rate, setRate] = useState(HMRC_MILEAGE_RATE.toString());
   const [loading, setLoading] = useState(false);
@@ -185,8 +197,12 @@ export function ExpenseForm({ categories, vatCodes, currency, onSaved, onCancel 
             className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
           >
             <option value="">No category</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>{c}</option>
+            {Array.from(categorySections.entries()).map(([section, rules]) => (
+              <optgroup key={section} label={section}>
+                {rules.map((rule) => (
+                  <option key={rule.slug} value={rule.category}>{rule.category}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>

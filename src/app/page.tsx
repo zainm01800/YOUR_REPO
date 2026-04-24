@@ -1,292 +1,260 @@
 import Link from "next/link";
 import {
-  ArrowRight,
-  BarChart3,
   Calculator,
-  CheckCircle2,
-  Clock3,
-  FileSpreadsheet,
-  FolderCog,
-  SearchCheck,
-  Settings2,
-  ShieldCheck,
-  Table2,
+  Car,
+  Check,
+  FileText,
+  PieChart,
+  Receipt,
+  ScanText,
+  Target,
+  TrendingUp,
 } from "lucide-react";
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { appConfig } from "@/lib/config";
 
-const heroProof = [
-  "Review rows in an Excel-style workspace with totals, filters, notes, and audit history",
-  "Apply VAT rules, FX conversion, GL mappings, and lock periods once finance signs off",
-  "Generate CSV, Excel, and posting-template outputs without rebuilding the file manually",
-];
-
-const capabilityCards = [
+const features = [
   {
-    icon: Table2,
-    title: "Review workspace first",
+    icon: ScanText,
+    title: "Bank import & OCR",
     description:
-      "Inline review table, grouped multi-line VAT rows, bulk GL assignment, row notes, and approval progress.",
+      "Upload bank statements or scan receipts with AI extraction. ClearMatch reads the numbers so you don't have to type them.",
   },
   {
-    icon: Calculator,
-    title: "VAT and FX controls",
+    icon: FileText,
+    title: "Invoices & clients",
     description:
-      "Country-aware VAT claimability, live VAT-rule sync, native-currency original value, and home-currency reporting.",
+      "Create professional invoices in seconds, track what's outstanding, and mark payments with one click.",
   },
   {
-    icon: SearchCheck,
-    title: "Exception handling",
+    icon: Car,
+    title: "Expenses & mileage",
     description:
-      "Duplicate receipts, duplicate transactions, missing codes, missing receipts, suspicious VAT, and mismatch triage.",
+      "Log cash expenses and claim HMRC mileage at £0.45/mile. Every deductible penny counted automatically.",
   },
   {
-    icon: FolderCog,
-    title: "Settings-driven workflows",
+    icon: Target,
+    title: "Budget vs. actual",
     description:
-      "Import or edit GL rules and VAT codes, save mapping templates, and keep workspace tolerances consistent.",
+      "Set spending targets by category and see exactly where you're on track or overspending — month and year.",
   },
   {
-    icon: FileSpreadsheet,
-    title: "Posting-file builder",
+    icon: PieChart,
+    title: "Tax estimate",
     description:
-      "Map reconciled data into real posting templates and generate ERP-ready files without rekeying invoice values.",
+      "Live UK Self Assessment estimate with income tax, Class 4 NI, and payment on account dates. No spreadsheet required.",
   },
   {
-    icon: BarChart3,
-    title: "Management reporting",
+    icon: Receipt,
+    title: "VAT reconciliation",
     description:
-      "Dashboard trend lines, top suppliers, export history, and a supplier analysis page for audit and close reviews.",
+      "MTD-ready VAT summary that reconciles what you've charged against what you owe. Built for Making Tax Digital.",
   },
 ];
 
-const workflowSteps = [
-  {
-    step: "01",
-    title: "Create a run and upload files",
-    description:
-      "Bring in the transaction export you already have, plus PDFs, images, or ZIPs of receipts and invoices.",
-  },
-  {
-    step: "02",
-    title: "Process with rules, extraction, and matching",
-    description:
-      "ClearMatch extracts fields, applies VAT logic, detects duplicates, and scores candidate matches with explainable logic.",
-  },
-  {
-    step: "03",
-    title: "Work the exceptions properly",
-    description:
-      "Use the review table to resolve missing VAT codes, assign GL codes in bulk, leave notes, and verify tricky rows.",
-  },
-  {
-    step: "04",
-    title: "Lock the period when it is clean",
-    description:
-      "Once the review is approved, lock the run to make it read-only and preserve the final state for export and audit.",
-  },
-  {
-    step: "05",
-    title: "Download the outputs finance needs",
-    description:
-      "Export CSV, Excel, or a posting-template workbook with export history stored against the run.",
-  },
-];
-
-const controlPoints = [
-  "Duplicate transaction detection before the review team wastes time on a dirty import",
-  "Live VAT-rate sync plus editable VAT and GL rule tables in Settings",
-  "Country-aware non-claimable VAT handling for foreign invoices",
-  "Export history per run so finance can prove what was downloaded and when",
-  "Locked periods enforced at the API layer, not only in the interface",
-  "Supplier spend analysis and spend-over-time reporting across runs",
-];
-
-const nicheBullets = [
-  "Finance teams reconciling card exports, AP files, and uploaded invoices",
-  "Bookkeepers who still close in Excel but need a cleaner workflow",
-  "SMEs that want repeatable review and export controls before ERP upload",
-];
-
-const navLinks = [
-  { id: "features", label: "Current product" },
-  { id: "how-it-works", label: "Workflow" },
-  { id: "controls", label: "Controls" },
+const trustBadges = [
+  "No card required",
+  "Open Banking supported",
+  "MTD-ready for VAT",
 ];
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen overflow-x-hidden pt-16">
-      <div className="hero-glow" />
+    <div className="min-h-screen" style={{ background: "#F5F4F1" }}>
       <LandingNav />
 
-      <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-24 px-4 py-10 sm:px-6 lg:px-10">
-        <section className="animate-in overflow-hidden rounded-[48px] border border-[var(--color-border)] bg-white/40 shadow-[0_34px_120px_rgba(15,23,31,0.08)] backdrop-blur-sm transition-all duration-700 hover:shadow-[0_40px_140px_rgba(15,23,31,0.12)]">
-          <div className="grid gap-0 lg:grid-cols-2">
-            <div className="flex flex-col justify-center px-6 py-12 lg:px-12 lg:py-16">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-white/60 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-muted-foreground)] shadow-sm backdrop-blur-md transition-transform hover:scale-105">
-                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent)]" />
-                Reconciliation workflow for finance teams
+      <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-10">
+
+        {/* ── Hero ─────────────────────────────────────────────────────────── */}
+        <section className="pt-16 pb-8 lg:pt-24 lg:pb-12">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-white px-4 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+            Built for UK sole traders · Self Assessment ready
+          </div>
+
+          {/* Headline */}
+          <h1 className="mt-6 max-w-2xl text-[clamp(2.6rem,6vw,4.5rem)] font-extrabold leading-[1.05] tracking-tight text-[#0f1623]">
+            Bookkeeping built for{" "}
+            <span className="text-[var(--color-accent)]">the self-employed.</span>
+          </h1>
+
+          {/* Subheadline */}
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--color-muted-foreground)]">
+            Cash in, cash out, tax sorted. ClearMatch is the tidy, no-jargon way to
+            keep your numbers in order — without paying an accountant.
+          </p>
+
+          {/* CTAs */}
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Link href="/sign-up">
+              <Button className="h-12 rounded-2xl px-7 text-base font-semibold shadow-lg transition-all hover:scale-[1.02]">
+                Start free — 30 days
+              </Button>
+            </Link>
+            <Link href="/sign-in">
+              <Button
+                variant="secondary"
+                className="h-12 rounded-2xl border border-[var(--color-border)] bg-white px-7 text-base font-semibold transition-all hover:bg-white/80"
+              >
+                See a demo account
+              </Button>
+            </Link>
+          </div>
+
+          {/* Trust badges */}
+          <div className="mt-5 flex flex-wrap gap-4">
+            {trustBadges.map((badge) => (
+              <span key={badge} className="flex items-center gap-1.5 text-sm text-[var(--color-muted-foreground)]">
+                <Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} />
+                {badge}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Dashboard Mockup ─────────────────────────────────────────────── */}
+        <section className="pb-20 lg:pb-28">
+          {/* Browser chrome */}
+          <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white shadow-[0_24px_80px_rgba(15,23,31,0.12)]">
+            {/* Title bar */}
+            <div className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[#f8f7f4] px-5 py-3">
+              <div className="flex gap-1.5">
+                <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+                <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
+                <span className="h-3 w-3 rounded-full bg-[#28c840]" />
               </div>
-
-              <h1 className="mt-8 text-5xl font-semibold tracking-tight text-[var(--color-foreground)] lg:text-6xl">
-                Reconcile, <span className="text-[var(--color-accent)]">validate</span>, and export.
-              </h1>
-
-              <p className="mt-6 text-lg leading-8 text-[var(--color-muted-foreground)]">
-                {appConfig.name} is the opinionated workflow for finance teams who need something stronger than email folders
-                and stitched spreadsheets. Reconcile transaction exports at scale with absolute confidence.
-              </p>
-
-              <div className="mt-10 flex flex-wrap gap-4">
-                <Link href="/sign-up">
-                  <Button className="h-12 gap-2 rounded-2xl px-8 text-base shadow-[0_10px_30px_rgba(25,94,65,0.2)] transition-all hover:scale-105 hover:bg-[var(--color-accent-strong)]">
-                    Start free workspace
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <Link href="/sign-in">
-                  <Button variant="secondary" className="h-12 rounded-2xl px-8 text-base transition-all hover:bg-white">
-                    Sign in
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="mt-12 grid gap-4">
-                {heroProof.map((point) => (
-                  <div
-                    key={point}
-                    className="group flex items-start gap-4 rounded-3xl border border-[var(--color-border)] bg-white/40 p-5 text-sm leading-7 text-[var(--color-foreground)] transition-all hover:bg-white/60 hover:shadow-sm"
-                  >
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent)] group-hover:scale-110">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                    </div>
-                    <span>{point}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-12 flex flex-wrap gap-3">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.id}
-                    href={`#${link.id}`}
-                    className="rounded-2xl border border-[var(--color-border)] bg-white/30 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-foreground)] backdrop-blur-sm transition-all hover:border-[var(--color-accent)] hover:bg-white/50 hover:text-[var(--color-accent)]"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
+              <span className="mx-auto text-xs text-[var(--color-muted-foreground)]">
+                app.clearmatch.co.uk/dashboard
+              </span>
             </div>
 
-            <div className="mesh-gradient relative flex flex-col justify-center overflow-hidden p-6 text-white lg:rounded-r-[48px] lg:p-10">
-              {/* Decorative Elements */}
-              <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
-              <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-[var(--color-accent)]/10 blur-3xl" />
-
-              <div className="relative z-10 space-y-8">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">
-                      Product snapshot
-                    </div>
-                    <div className="text-3xl font-bold tracking-tight">System behavior</div>
+            {/* App shell */}
+            <div className="flex" style={{ minHeight: 520 }}>
+              {/* Sidebar */}
+              <div className="hidden w-44 shrink-0 border-r border-[var(--color-border)] bg-[#f8f7f4] p-4 lg:block">
+                <div className="mb-5 flex items-center gap-2 px-1">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--color-accent)]">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h8M2 12h10" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
                   </div>
-                  <div className="rounded-full border border-white/20 bg-white/10 px-5 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/90 backdrop-blur-xl shadow-lg">
-                    Active Environment
+                  <span className="text-sm font-bold text-[var(--color-foreground)]">ClearMatch</span>
+                </div>
+                {["Dashboard", "Transactions", "Invoices", "Expenses", "Mileage", "Tax estimate", "VAT"].map((item, i) => (
+                  <div
+                    key={item}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${i === 0 ? "bg-white text-[var(--color-foreground)] shadow-sm" : "text-[var(--color-muted-foreground)]"}`}
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+
+              {/* Main content */}
+              <div className="flex-1 overflow-hidden p-5">
+                {/* Header */}
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)]">
+                      Overview · 2026/27 Tax Year
+                    </p>
+                    <h2 className="text-xl font-bold text-[var(--color-foreground)]">Good morning, Ellie</h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="hidden rounded-lg border border-[var(--color-border)] bg-white px-3 py-1.5 text-xs font-medium sm:block">
+                      Apr — Jul
+                    </span>
+                    <div className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white">
+                      Import statement
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid gap-5 sm:grid-cols-2">
+                {/* Stat cards */}
+                <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
                   {[
-                    { label: "Interface", value: "Review-first" },
-                    { label: "Controls", value: "Locked periods" },
-                    { label: "Security", value: "Multi-tenant" },
-                    { label: "Output", value: "ERP-ready files" },
-                  ].map((item) => (
-                    <div key={item.label} className="group rounded-[32px] border border-white/10 bg-white/5 p-6 backdrop-blur-md transition-all hover:bg-white/10 hover:shadow-xl">
-                      <div className="text-xs font-medium text-white/40">{item.label}</div>
-                      <div className="mt-2 text-xl font-bold tracking-tight group-hover:text-white">{item.value}</div>
+                    { label: "Income (YTD)", value: "£28,412", sub: "+12.4%", subColor: "text-emerald-600" },
+                    { label: "Expenses", value: "£6,104", sub: "+3.1%", subColor: "text-[var(--color-muted-foreground)]" },
+                    { label: "Est. tax owed", value: "£4,287", sub: "On track", subColor: "text-emerald-600" },
+                    { label: "Overdue invoices", value: "£1,820", sub: "2 clients", subColor: "text-[var(--color-danger)]" },
+                  ].map((card) => (
+                    <div key={card.label} className="rounded-xl border border-[var(--color-border)] bg-white p-3 shadow-sm">
+                      <p className="text-[10px] font-medium text-[var(--color-muted-foreground)]">{card.label}</p>
+                      <p className="mt-0.5 text-lg font-bold text-[var(--color-foreground)]">{card.value}</p>
+                      <p className={`text-[10px] font-medium ${card.subColor}`}>{card.sub}</p>
                     </div>
                   ))}
                 </div>
 
-                {/* The Mockup - Aggressive Cutoff Fix */}
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-[40px] bg-[var(--color-accent)]/10 blur-2xl" />
-                  <div className="hover-lift relative z-20 overflow-hidden rounded-[32px] border border-white/20 bg-white/10 p-1.5 backdrop-blur-2xl shadow-[0_48px_100px_rgba(0,0,0,0.3)]">
-                    <div className="overflow-hidden rounded-[28px] bg-[#f8f6f2]/95 backdrop-blur-sm">
-                      <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-white/80 px-6 py-5 backdrop-blur-md">
-                        <div className="flex gap-2">
-                          <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-                          <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
-                          <div className="h-3 w-3 rounded-full bg-[#28c840]" />
-                        </div>
-                        <div className="ml-6 rounded-lg bg-[var(--color-panel)] px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
-                          Production workspace
-                        </div>
+                {/* Bottom panels */}
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {/* Tax estimate */}
+                  <div className="rounded-xl border border-[var(--color-border)] bg-white p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-muted-foreground)]">
+                          Live Self Assessment Estimate
+                        </p>
+                        <p className="text-sm font-bold text-[var(--color-foreground)]">£4,287.50 due by Jan 2027</p>
                       </div>
-
-                      <div className="p-6">
-                        <div className="mb-5 grid grid-cols-4 gap-4">
-                          {[
-                            ["Matched", "12"],
-                            ["To review", "6"],
-                            ["Locked", "Run 004"],
-                            ["Files", "4 CSVs"],
-                          ].map(([label, value]) => (
-                            <div key={label} className="rounded-2xl border border-[var(--color-border)] bg-white/90 p-4 shadow-sm backdrop-blur-sm transition-all hover:bg-white">
-                              <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                                {label}
-                              </div>
-                              <div className="mt-1.5 text-lg font-black text-[var(--color-foreground)]">{value}</div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white shadow-xl">
-                          <table className="min-w-full text-left text-[12px]">
-                            <thead className="bg-[var(--color-panel)]/80 text-[var(--color-muted-foreground)] backdrop-blur-sm">
-                              <tr>
-                                {["Supplier", "Gross", "Net", "VAT", "GL"].map((heading) => (
-                                  <th
-                                    key={heading}
-                                    className="px-5 py-4 font-black uppercase tracking-[0.2em]"
-                                  >
-                                    {heading}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--color-border)]">
-                              {[
-                                ["Amazon.co.uk", "£420.00", "£350.00", "£70.00", "6500"],
-                                ["Stripe Tech", "£2,400.00", "£2,400.00", "£0.00", "6200"],
-                                ["Uber", "£12.60", "£10.50", "£2.10", "6500"],
-                              ].map((row, index) => (
-                                <tr key={index} className="transition-colors hover:bg-[var(--color-accent-soft)]">
-                                  {row.map((value, cellIndex) => (
-                                    <td key={cellIndex} className="whitespace-nowrap px-5 py-4 font-medium text-[var(--color-foreground)]">
-                                      {value}
-                                    </td>
-                                  ))}
-                                </tr>
-                              ))}
-                              <tr className="border-t border-[var(--color-border)] bg-[#f1ece3] font-black">
-                                <td className="px-5 py-4">Summary</td>
-                                <td className="px-5 py-4 text-[var(--color-accent)]">£2,832.60</td>
-                                <td className="px-5 py-4">£2,760.50</td>
-                                <td className="px-5 py-4">£72.10</td>
-                                <td className="px-5 py-4 text-[var(--color-muted-foreground)]">OK</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
+                      <span className="rounded bg-[var(--color-accent-soft)] px-2 py-0.5 text-[9px] font-bold text-[var(--color-accent)]">
+                        UK · 2026/27
+                      </span>
                     </div>
+                    {[
+                      { label: "Income Tax (20%)", amount: "£2,842", pct: 66, color: "bg-[var(--color-accent)]" },
+                      { label: "Class 4 NI (6%)", amount: "£1,178", pct: 27, color: "bg-[var(--color-accent)]" },
+                      { label: "Class 2 NI", amount: "£267", pct: 6, color: "bg-gray-300" },
+                    ].map((row) => (
+                      <div key={row.label} className="mb-2">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="text-[var(--color-muted-foreground)]">{row.label}</span>
+                          <span className="font-semibold text-[var(--color-foreground)]">{row.amount}</span>
+                        </div>
+                        <div className="mt-1 h-1.5 w-full rounded-full bg-[var(--color-border)]">
+                          <div className={`h-full rounded-full ${row.color}`} style={{ width: `${row.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                    <div className="mt-3 flex gap-4 border-t border-[var(--color-border)] pt-2 text-[9px]">
+                      {[["Taxable profit", "£22,308"], ["Personal allowance", "£12,570"], ["Effective rate", "19.2%"]].map(([k, v]) => (
+                        <div key={k}>
+                          <p className="uppercase tracking-wide text-[var(--color-muted-foreground)]">{k}</p>
+                          <p className="font-bold text-[var(--color-foreground)]">{v}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Budget vs actual */}
+                  <div className="rounded-xl border border-[var(--color-border)] bg-white p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-muted-foreground)]">
+                        Budget vs. Actual
+                      </p>
+                      <span className="text-[10px] font-medium text-[var(--color-accent)]">April</span>
+                    </div>
+                    {[
+                      { label: "Software & subscriptions", spent: 184, budget: 200, over: false },
+                      { label: "Travel & mileage", spent: 312, budget: 250, over: true },
+                      { label: "Equipment", spent: 48, budget: 150, over: false },
+                      { label: "Marketing", spent: 72, budget: 120, over: false },
+                    ].map((row) => (
+                      <div key={row.label} className="mb-3">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="text-[var(--color-foreground)]">{row.label}</span>
+                          <span className={`font-semibold ${row.over ? "text-[var(--color-danger)]" : "text-[var(--color-muted-foreground)]"}`}>
+                            £{row.spent} / £{row.budget}
+                          </span>
+                        </div>
+                        <div className="mt-1 h-1.5 w-full rounded-full bg-[var(--color-border)]">
+                          <div
+                            className={`h-full rounded-full ${row.over ? "bg-[var(--color-danger)]" : "bg-[var(--color-accent)]"}`}
+                            style={{ width: `${Math.min((row.spent / row.budget) * 100, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -294,191 +262,65 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className="scroll-mt-20">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
-              Modular Capabilities
-            </div>
-            <h2 className="mt-4 text-4xl font-semibold tracking-tight text-[var(--color-foreground)]">
-              This is already more than document extraction.
+        {/* ── Features ─────────────────────────────────────────────────────── */}
+        <section id="features" className="pb-20 lg:pb-28">
+          <div className="mb-12 max-w-2xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--color-accent)]">
+              Everything you need
+            </p>
+            <h2 className="mt-3 text-4xl font-extrabold tracking-tight text-[#0f1623]">
+              Your whole business, in one place.
             </h2>
-            <p className="mt-4 text-base leading-7 text-[var(--color-muted-foreground)]">
-              The product now covers the finance workflow around the receipt, not just the receipt itself. That means
-              calculations, controls, history, settings, export structure, and review discipline all sit in one place.
+            <p className="mt-4 text-base leading-relaxed text-[var(--color-muted-foreground)]">
+              From your first invoice to your Self Assessment return — ClearMatch handles the
+              bookkeeping so you can focus on the work.
             </p>
           </div>
 
-          <div className="mt-12 grid gap-6 lg:grid-cols-3">
-            {capabilityCards.map((card) => {
-              const Icon = card.icon;
-
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => {
+              const Icon = feature.icon;
               return (
-                <Card key={card.title} className="hover-lift card-premium flex flex-col gap-6 border-none bg-white/60 shadow-md backdrop-blur-sm">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-accent-soft)] text-[var(--color-accent)] transition-transform hover:rotate-3">
-                    <Icon className="h-6 w-6" />
+                <div
+                  key={feature.title}
+                  className="rounded-2xl border border-[var(--color-border)] bg-white p-6 shadow-sm transition-all hover:shadow-md"
+                >
+                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
+                    <Icon className="h-5 w-5" />
                   </div>
-                  <div className="space-y-3">
-                    <h3 className="text-xl font-semibold text-[var(--color-foreground)]">{card.title}</h3>
-                    <p className="text-sm leading-7 text-[var(--color-muted-foreground)]">{card.description}</p>
-                  </div>
-                </Card>
+                  <h3 className="text-base font-bold text-[var(--color-foreground)]">{feature.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--color-muted-foreground)]">
+                    {feature.description}
+                  </p>
+                </div>
               );
             })}
           </div>
         </section>
 
-        <section id="how-it-works" className="scroll-mt-20">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-accent-soft)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
-              The Roadmap
-            </div>
-            <h2 className="mt-4 text-4xl font-semibold tracking-tight text-[var(--color-foreground)]">
-              The month-end path from upload to final posting file.
-            </h2>
-          </div>
-
-          <div className="mt-12 grid gap-6 lg:grid-cols-5">
-            {workflowSteps.map((item) => (
-              <div
-                key={item.step}
-                className="hover-lift group relative overflow-hidden rounded-[32px] border border-[var(--color-border)] bg-white p-6 shadow-sm transition-all hover:shadow-xl"
+        {/* ── CTA strip ────────────────────────────────────────────────────── */}
+        <section className="mb-20 overflow-hidden rounded-3xl bg-[var(--color-accent)] px-8 py-14 text-center shadow-xl lg:mb-28">
+          <h2 className="text-3xl font-extrabold tracking-tight text-white lg:text-4xl">
+            Start sorting your books today.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-white/75">
+            Free for 30 days. No credit card. No accountant needed.
+            Cancel any time.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/sign-up">
+              <Button className="h-12 rounded-2xl bg-white px-8 text-base font-bold text-[var(--color-accent)] transition-all hover:scale-[1.02] hover:bg-white/90">
+                Start free — 30 days
+              </Button>
+            </Link>
+            <Link href="/sign-in">
+              <Button
+                variant="ghost"
+                className="h-12 rounded-2xl border border-white/30 px-8 text-base font-semibold text-white transition-all hover:bg-white/10 hover:text-white"
               >
-                <div className="absolute -right-4 -top-4 font-mono text-7xl font-bold text-[var(--color-accent)] opacity-[0.03] transition-all group-hover:scale-110">
-                  {item.step}
-                </div>
-                <div className="relative z-10">
-                  <div className="font-mono text-2xl font-bold text-[var(--color-accent)] opacity-40">{item.step}</div>
-                  <h3 className="mt-6 text-lg font-bold text-[var(--color-foreground)]">{item.title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-[var(--color-muted-foreground)]">{item.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section id="controls" className="grid gap-10 lg:grid-cols-2">
-          <Card className="mesh-gradient relative overflow-hidden rounded-[48px] p-10 text-white border-none shadow-2xl">
-            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
-            
-            <div className="relative z-10 space-y-8">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/50">
-                  Built for control
-                </p>
-                <h2 className="mt-4 text-4xl font-semibold tracking-tight leading-tight">
-                  Finance can trust the output because the workflow is opinionated.
-                </h2>
-              </div>
-
-              <div className="grid gap-4">
-                {[
-                  {
-                    icon: ShieldCheck,
-                    label: "Lock periods after sign-off",
-                    text: "Runs become read-only once a period is locked, and the lock is enforced through the data layer.",
-                  },
-                  {
-                    icon: Settings2,
-                    label: "Control the rule base",
-                    text: "Workspace settings now manage GL rules, VAT rules, tolerance settings, and mapping imports.",
-                  },
-                  {
-                    icon: Clock3,
-                    label: "Track what was exported",
-                    text: "Each run keeps export history so the team can see which files were generated and when.",
-                  },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={item.label} className="group rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur-sm transition-all hover:bg-white/10">
-                      <div className="flex items-center gap-3 text-base font-bold">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-white group-hover:bg-white group-hover:text-[var(--color-accent)] transition-all">
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        {item.label}
-                      </div>
-                      <p className="mt-3 text-sm leading-7 text-white/60">{item.text}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </Card>
-
-          <div className="space-y-6">
-            <Card className="card-premium space-y-6 rounded-[40px] border-[var(--color-border)] shadow-lg hover:shadow-2xl transition-all">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
-                  Continuous Improvement
-                </p>
-                <h3 className="mt-3 text-3xl font-semibold text-[var(--color-foreground)]">
-                  Native controls already in the app
-                </h3>
-              </div>
-              <div className="grid gap-3">
-                {controlPoints.map((point) => (
-                  <div
-                    key={point}
-                    className="flex items-center gap-4 rounded-[20px] border border-[var(--color-border)] bg-[var(--color-panel)] px-5 py-4 text-sm font-medium transition-all hover:bg-white hover:shadow-md"
-                  >
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
-                      <CheckCircle2 className="h-3 w-3" />
-                    </div>
-                    <span>{point}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="mesh-gradient relative overflow-hidden rounded-[40px] px-8 py-10 text-white shadow-xl border-none">
-              <div className="absolute -right-10 -bottom-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-              <div className="relative z-10 space-y-5">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
-                    Target User
-                  </p>
-                  <h3 className="mt-2 text-2xl font-bold">
-                    Focused on the high-end niche
-                  </h3>
-                </div>
-                <div className="grid gap-3">
-                  {nicheBullets.map((point) => (
-                    <div key={point} className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-sm leading-6 text-white/70 backdrop-blur-sm transition-all hover:bg-white/20">
-                      {point}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          </div>
-        </section>
-
-        <section className="mesh-gradient relative overflow-hidden rounded-[64px] px-8 py-20 text-center shadow-[0_30px_120px_rgba(15,23,31,0.25)] border-none">
-          <div className="absolute inset-0 bg-white/5 opacity-50" />
-          <div className="relative z-10">
-            <h2 className="mx-auto max-w-4xl text-4xl font-bold tracking-tight text-white lg:text-6xl leading-[1.1]">
-              Give finance a review workflow, not another inbox of files.
-            </h2>
-            <p className="mx-auto mt-8 max-w-2xl text-lg leading-8 text-white/70">
-              Start a workspace, upload the exports and invoices you already have, and move from extraction to approval,
-              reporting, and ERP-ready output in one product.
-            </p>
-            <div className="mt-12 flex flex-wrap justify-center gap-6">
-              <Link href="/sign-up">
-                <Button className="h-14 gap-3 rounded-2xl bg-white px-10 text-lg font-bold text-[var(--color-accent)] shadow-2xl transition-all hover:scale-105 hover:bg-white/90">
-                  Start free workspace
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
-              </Link>
-              <Link href="/sign-in">
-                <Button
-                  variant="ghost"
-                  className="h-14 rounded-2xl border border-white/20 px-10 text-lg font-bold text-white transition-all hover:bg-white/10 hover:text-white"
-                >
-                  Sign in
-                </Button>
-              </Link>
-            </div>
+                Sign in
+              </Button>
+            </Link>
           </div>
         </section>
       </main>
