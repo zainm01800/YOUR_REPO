@@ -26,17 +26,19 @@ export async function updateTransactionCategoryAction(
   reason?: string,
   confidenceScore?: number
 ) {
-  await requireAuthenticatedUser();
-  const repository = await getRepository();
   try {
+    await requireAuthenticatedUser();
+    const repository = await getRepository();
     await repository.setTransactionCategory(transactionId, category, reason, confidenceScore);
-  } catch (err) {
+  } catch (err: any) {
     console.error(`[actions/bookkeeping] updateTransactionCategoryAction failed for ID ${transactionId} (category: ${category}):`, err);
-    throw err;
+    return { error: err.message || "Could not save category" };
   }
 
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/bookkeeping/tax-summary");
+  
+  return { success: true };
 }
 
 /**

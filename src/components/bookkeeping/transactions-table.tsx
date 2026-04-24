@@ -335,7 +335,9 @@ export function TransactionsTable({
       setSaving(txId);
       setSaveError(null);
       try {
-        await updateTransactionCategoryAction(txId, newCategory);
+        const result = await updateTransactionCategoryAction(txId, newCategory);
+        if (result && result.error) throw new Error(result.error);
+        
         setLocalTransactions((prev) =>
           prev.map((tx) => (tx.id === txId ? { ...tx, category: newCategory } : tx)),
         );
@@ -379,9 +381,11 @@ export function TransactionsTable({
     if (!bulkPrompt) return;
     setBulkApplying(true);
     try {
-      await Promise.all(
+      const results = await Promise.all(
         bulkPrompt.txIds.map((id) => updateTransactionCategoryAction(id, bulkPrompt.category)),
       );
+      const firstError = results.find((r) => r && r.error);
+      if (firstError) throw new Error(firstError.error);
       setLocalTransactions((prev) =>
         prev.map((tx) =>
           bulkPrompt.txIds.includes(tx.id) ? { ...tx, category: bulkPrompt.category } : tx,
