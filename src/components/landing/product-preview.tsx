@@ -8,7 +8,7 @@ export function ProductPreview() {
   ];
 
   const statusStyles: Record<string, string> = {
-    matched: "bg-[rgba(25,94,65,0.1)] text-[#195e41]",
+    matched: "bg-[rgba(58,85,153,0.10)] text-[#3a5599]",
     probable: "bg-[rgba(217,119,6,0.1)] text-[#b45309]",
     unmatched: "bg-[rgba(159,42,59,0.1)] text-[#9f2a3b]",
   };
@@ -101,7 +101,7 @@ export function ProductPreview() {
                 {rows.map((row) => (
                   <tr
                     key={row.supplier}
-                    className={row.approved ? "" : "bg-[rgba(25,94,65,0.02)]"}
+                    className={row.approved ? "" : "bg-[rgba(58,85,153,0.02)]"}
                   >
                     <td className="px-3 py-2.5 font-medium text-[var(--color-foreground)]">{row.supplier}</td>
                     <td className="px-3 py-2.5 text-[var(--color-muted-foreground)]">{row.date}</td>

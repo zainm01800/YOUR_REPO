@@ -114,9 +114,9 @@ export function UploadForm({ token }: UploadFormProps) {
             border: "1px solid rgba(221,208,191,0.4)",
           }}
         >
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(25,94,65,0.1)]">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(58,85,153,0.10)]">
             <svg
-              className="h-8 w-8 text-[#195e41]"
+              className="h-8 w-8 text-[#3a5599]"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -151,7 +151,7 @@ export function UploadForm({ token }: UploadFormProps) {
       >
         {/* Header */}
         <div className="mb-7">
-          <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#195e41]">
+          <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#3a5599]">
             <svg
               className="h-5 w-5 text-white"
               fill="none"
@@ -195,7 +195,7 @@ export function UploadForm({ token }: UploadFormProps) {
               onChange={(e) => setClientName(e.target.value)}
               placeholder="e.g. John Smith or Acme Ltd"
               required
-              className="h-11 w-full rounded-2xl border border-[#ddd0bf] bg-white px-4 text-sm text-[#1b2428] outline-none transition focus:border-[#b89d82] focus:ring-4 focus:ring-[rgba(25,94,65,0.12)]"
+              className="h-11 w-full rounded-2xl border border-[#ddd0bf] bg-white px-4 text-sm text-[#1b2428] outline-none transition focus:border-[#8b9dc0] focus:ring-4 focus:ring-[rgba(58,85,153,0.12)]"
             />
           </div>
 
@@ -207,7 +207,7 @@ export function UploadForm({ token }: UploadFormProps) {
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="h-11 w-full rounded-2xl border border-[#ddd0bf] bg-white px-4 text-sm text-[#1b2428] outline-none transition focus:border-[#b89d82] focus:ring-4 focus:ring-[rgba(25,94,65,0.12)]"
+              className="h-11 w-full rounded-2xl border border-[#ddd0bf] bg-white px-4 text-sm text-[#1b2428] outline-none transition focus:border-[#8b9dc0] focus:ring-4 focus:ring-[rgba(58,85,153,0.12)]"
             >
               <option value="GBP">GBP — British Pound</option>
               <option value="EUR">EUR — Euro</option>
@@ -229,14 +229,14 @@ export function UploadForm({ token }: UploadFormProps) {
               className="cursor-pointer rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-colors"
               style={{
                 borderColor: dragging
-                  ? "#195e41"
+                  ? "#3a5599"
                   : file
-                  ? "rgba(25,94,65,0.5)"
+                  ? "rgba(58,85,153,0.5)"
                   : "#ddd0bf",
                 backgroundColor: dragging
-                  ? "rgba(25,94,65,0.04)"
+                  ? "rgba(58,85,153,0.04)"
                   : file
-                  ? "rgba(25,94,65,0.03)"
+                  ? "rgba(58,85,153,0.03)"
                   : "transparent",
               }}
             >
@@ -252,9 +252,9 @@ export function UploadForm({ token }: UploadFormProps) {
               />
               {file ? (
                 <div>
-                  <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(25,94,65,0.1)]">
+                  <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(58,85,153,0.10)]">
                     <svg
-                      className="h-5 w-5 text-[#195e41]"
+                      className="h-5 w-5 text-[#3a5599]"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -293,7 +293,7 @@ export function UploadForm({ token }: UploadFormProps) {
                   </div>
                   <p className="text-sm font-medium text-[#1b2428]">
                     Drop your file here, or{" "}
-                    <span className="text-[#195e41]">browse</span>
+                    <span className="text-[#3a5599]">browse</span>
                   </p>
                   <p className="mt-1 text-xs text-[#5f6b72]">
                     CSV, XLSX, XLS, OFX, QFX, QIF
@@ -307,9 +307,9 @@ export function UploadForm({ token }: UploadFormProps) {
           <button
             type="submit"
             disabled={state === "uploading"}
-            className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-[#195e41] px-5 text-sm font-semibold text-[#f6f7f3] transition duration-150 hover:bg-[#0f4e35] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-[#3a5599] px-5 text-sm font-semibold text-white transition duration-150 hover:bg-[#2d4480] disabled:cursor-not-allowed disabled:opacity-60"
             style={{
-              boxShadow: "0 12px 32px rgba(23,95,65,0.18)",
+              boxShadow: "0 12px 32px rgba(58,85,153,0.20)",
             }}
           >
             {state === "uploading" ? (

@@ -2,17 +2,17 @@
 @import "react-data-grid/lib/styles.css";
 
 :root {
-  --color-page: #f4efe7;
-  --color-sidebar: #e7ded1;
-  --color-panel: #f8f4ed;
-  --color-border: #ddd0bf;
-  --color-border-strong: #b89d82;
+  --color-page: #f2ede7;
+  --color-sidebar: #e8e2db;
+  --color-panel: #f7f3ee;
+  --color-border: #ddd5ca;
+  --color-border-strong: #b8a898;
   --color-foreground: #1b2428;
   --color-muted-foreground: #5f6b72;
-  --color-accent: #195e41;
-  --color-accent-strong: #0f4e35;
-  --color-accent-soft: rgba(25, 94, 65, 0.12);
-  --color-accent-foreground: #f6f7f3;
+  --color-accent: #3a5599;
+  --color-accent-strong: #2d4480;
+  --color-accent-soft: rgba(58, 85, 153, 0.10);
+  --color-accent-foreground: #f4f6fb;
   --color-danger: #9f2a3b;
   --color-danger-soft: rgba(159, 42, 59, 0.08);
   --color-danger-border: #e7b9c0;
@@ -31,8 +31,8 @@
 
 html {
   background:
-    radial-gradient(circle at top left, rgba(25, 94, 65, 0.08), transparent 35%),
-    linear-gradient(180deg, #f3ede4 0%, #f7f3ec 100%);
+    radial-gradient(circle at top left, rgba(58, 85, 153, 0.06), transparent 35%),
+    linear-gradient(180deg, #f2ede7 0%, #f7f3ee 100%);
 }
 
 body {
@@ -58,10 +58,10 @@ textarea {
   --rdg-color-scheme: light;
   --rdg-background-color: #ffffff;
   --rdg-header-background-color: #f8f4ed;
-  --rdg-row-hover-background-color: rgba(25, 94, 65, 0.04);
+  --rdg-row-hover-background-color: rgba(58, 85, 153, 0.04);
   --rdg-border-color: var(--color-border);
   --rdg-summary-border-color: var(--color-border);
-  --rdg-selection-color: rgba(25, 94, 65, 0.18);
+  --rdg-selection-color: rgba(58, 85, 153, 0.15);
   --rdg-font-size: 14px;
   block-size: 100% !important;
   inline-size: 100% !important;
@@ -86,7 +86,7 @@ textarea {
 }
 
 .rdg-review-grid .rdg-review-group-0 > .rdg-cell {
-  background: rgba(25, 94, 65, 0.035);
+  background: rgba(58, 85, 153, 0.04);
 }
 
 .rdg-review-grid .rdg-review-group-1 > .rdg-cell {
@@ -123,7 +123,7 @@ textarea {
 }
 
 .rdg-review-grid .rdg-review-row-selected > .rdg-cell {
-  background: rgba(25, 94, 65, 0.12) !important;
+  background: rgba(58, 85, 153, 0.10) !important;
 }
 
 .rdg-review-grid .rdg-vat-zero {
@@ -198,12 +198,12 @@ textarea {
   @apply rounded-lg;
 }
 .mesh-gradient {
-  background: 
-    radial-gradient(at 0% 0%, hsla(158, 58%, 22%, 1) 0, transparent 50%),
-    radial-gradient(at 50% 0%, hsla(158, 48%, 29%, 1) 0, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(158, 38%, 35%, 1) 0, transparent 50%),
-    radial-gradient(at 50% 100%, hsla(158, 58%, 22%, 1) 0, transparent 50%),
-    #133b2f;
+  background:
+    radial-gradient(at 0% 0%, hsla(224, 45%, 37%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(224, 40%, 44%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(224, 35%, 50%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 100%, hsla(224, 45%, 37%, 1) 0, transparent 50%),
+    #1e2d56;
 }
 
 .hero-glow {
@@ -212,7 +212,7 @@ textarea {
   left: 0;
   right: 0;
   height: 600px;
-  background: radial-gradient(circle at 50% -10%, rgba(25, 94, 65, 0.15) 0%, transparent 70%);
+  background: radial-gradient(circle at 50% -10%, rgba(58, 85, 153, 0.12) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
