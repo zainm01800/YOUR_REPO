@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { Car, Plus, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExpenseForm } from "./expense-form";
-import { ExpensesList } from "./expenses-list";
-import type { CategoryRule, ManualExpense } from "@/lib/domain/types";
+import { ExpensesList, type ExpenseEntry } from "./expenses-list";
+import type { CategoryRule } from "@/lib/domain/types";
 
 interface Props {
-  expenses: ManualExpense[];
+  expenses: ExpenseEntry[];
   categoryRules: CategoryRule[];
   vatCodes: string[];
   currency: string;
@@ -33,7 +33,7 @@ export function ExpensesPageClient({
 }: Props) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const activeTab: Tab = initialTab;
 
   const fmt = (n: number) =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(n);
@@ -43,8 +43,9 @@ export function ExpensesPageClient({
 
   const displayedExpenses = activeTab === "expenses" ? cashExpenses : mileageEntries;
   const categoryMap = new Map(categoryRules.map((rule) => [rule.category.toLowerCase(), rule]));
-  const getClaimStatus = (expense: ManualExpense): "claimable" | "not_claimable" | "needs_review" => {
+  const getClaimStatus = (expense: ExpenseEntry): "claimable" | "not_claimable" | "needs_review" => {
     if (expense.isMileage) return "claimable";
+    if (expense.source === "transaction" && !expense.category) return "needs_review";
     if (!expense.category) return "needs_review";
     const rule = categoryMap.get(expense.category.toLowerCase());
     if (!rule) return "needs_review";

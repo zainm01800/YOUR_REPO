@@ -5,8 +5,13 @@ import { useRouter } from "next/navigation";
 import { Car, Paperclip, Trash2 } from "lucide-react";
 import type { ManualExpense } from "@/lib/domain/types";
 
+export type ExpenseEntry = ManualExpense & {
+  source?: "manual" | "transaction";
+  sourceLabel?: string;
+};
+
 interface ExpensesListProps {
-  expenses: ManualExpense[];
+  expenses: ExpenseEntry[];
   currency: string;
   title?: string;
   description?: string;
@@ -87,9 +92,9 @@ export function ExpensesList({
                   <td className="whitespace-nowrap px-4 py-3 text-[var(--muted)]">{exp.date}</td>
                   <td className="max-w-[220px] px-4 py-3">
                     <div className="truncate font-medium text-[var(--ink)]">{exp.description}</div>
-                    {exp.notes ? (
-                      <div className="truncate text-xs text-[var(--muted)]">{exp.notes}</div>
-                    ) : null}
+                    <div className="truncate text-xs text-[var(--muted)]">
+                      {exp.source === "transaction" ? exp.sourceLabel ?? "Imported bank transaction" : exp.notes}
+                    </div>
                   </td>
                   {!isMileageTab && (
                     <td className="px-4 py-3 text-[var(--muted)]">
@@ -123,15 +128,21 @@ export function ExpensesList({
                     {fmt(exp.amount)}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(exp.id)}
-                      disabled={deleting === exp.id}
-                      className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] disabled:opacity-40"
-                      aria-label="Delete expense"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {exp.source === "transaction" ? (
+                      <span className="rounded-full bg-[#f0eee8] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+                        Bank
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(exp.id)}
+                        disabled={deleting === exp.id}
+                        className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] disabled:opacity-40"
+                        aria-label="Delete expense"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

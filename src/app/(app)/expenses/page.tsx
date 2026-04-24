@@ -1,7 +1,10 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { getRepository } from "@/lib/data";
 import { ExpensesPageClient } from "@/components/expenses/expenses-page-client";
+import type { ExpenseEntry } from "@/components/expenses/expenses-list";
 import { categorySectionSort } from "@/lib/categories/sections";
+import { classifyTransactions } from "@/lib/accounting/classifier";
+import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
 
 export const metadata = { title: "Expenses" };
 
@@ -13,9 +16,11 @@ export default async function ExpensesPage({
   const { tab } = await searchParams;
   const initialTab = tab === "mileage" ? "mileage" : "expenses";
   const repository = await getRepository();
-  const [expenses, settings] = await Promise.all([
+  const [manualExpenses, settings, runs, unassignedBankTransactions] = await Promise.all([
     repository.getManualExpenses(),
     repository.getSettingsSnapshot(),
+    repository.getRunsWithTransactions(),
+    repository.getUnassignedBankTransactions(),
   ]);
 
   const currency = settings.workspace.defaultCurrency ?? "GBP";
@@ -23,6 +28,27 @@ export default async function ExpensesPage({
     .filter((r) => r.isActive && r.isVisible)
     .sort(categorySectionSort);
   const vatCodes = [...new Set(settings.vatRules.map((v) => v.taxCode))].sort();
+
+  const transactionExpenses = buildTransactionExpenses(
+    [
+      ...runs.flatMap((run) =>
+        run.transactions.map((transaction) => ({
+          ...transaction,
+          runId: run.id,
+          runName: run.name,
+          period: run.period,
+        })),
+      ),
+      ...unassignedBankTransactions,
+    ],
+    settings.categoryRules,
+    settings.workspace.vatRegistered,
+    currency,
+    settings.workspace.id,
+  );
+  const expenses = [...manualExpenses, ...transactionExpenses].sort((a, b) =>
+    b.date.localeCompare(a.date),
+  );
 
   const totalExpenses = expenses.filter((e) => !e.isMileage).reduce((s, e) => s + e.amount, 0);
   const totalMileage = expenses.filter((e) => e.isMileage).reduce((s, e) => s + e.amount, 0);
@@ -53,4 +79,41 @@ export default async function ExpensesPage({
       />
     </>
   );
+}
+
+function buildTransactionExpenses(
+  transactions: TransactionRecord[],
+  categoryRules: CategoryRule[],
+  vatRegistered: boolean,
+  currency: string,
+  workspaceId: string,
+): ExpenseEntry[] {
+  const classified = classifyTransactions(transactions, categoryRules, vatRegistered);
+  const byId = new Map(transactions.map((transaction) => [transaction.id, transaction]));
+
+  return classified
+    .filter((transaction) => transaction.accountType === "expense" && transaction.statementType === "p_and_l")
+    .map((transaction) => {
+      const source = byId.get(transaction.transactionId);
+      return {
+        id: `tx:${transaction.transactionId}`,
+        date: transaction.date ?? source?.postedDate ?? "",
+        description: transaction.description || transaction.merchant || "Imported expense",
+        merchant: transaction.merchant || null,
+        category: transaction.category === "Uncategorised" ? null : transaction.category,
+        vatCode: source?.vatCode ?? null,
+        glCode: transaction.glCode ?? null,
+        amount: transaction.grossAmount,
+        currency: transaction.currency || currency,
+        isMileage: false,
+        mileageMiles: null,
+        mileageRatePerMile: null,
+        receiptStorageKey: null,
+        notes: source?.runName ?? source?.bankStatementName ?? "Imported bank transaction",
+        workspaceId,
+        createdAt: transaction.date ?? source?.postedDate ?? "",
+        source: "transaction",
+        sourceLabel: source?.runName ?? source?.bankStatementName ?? "Imported bank transaction",
+      };
+    });
 }

@@ -277,6 +277,8 @@ export function VatReconciliation({
   currency: string;
   vatRegistered: boolean;
 }) {
+  const router = useRouter();
+
   // ── Not VAT registered ──────────────────────────────────────────────────────
   if (!vatRegistered) {
     return (
@@ -310,7 +312,6 @@ export function VatReconciliation({
     );
   }
 
-  const router = useRouter();
   const boxes = buildReturnBoxes(vatReport, currency);
   const netVat = vatReport.netVatPosition;
   const hasTransactions =
