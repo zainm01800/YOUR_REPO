@@ -50,19 +50,21 @@ export async function bulkUpdateTransactionCategoryAction(
   reason?: string,
   confidenceScore?: number
 ) {
-  await requireAuthenticatedUser();
-  const repository = await getRepository();
   try {
+    await requireAuthenticatedUser();
+    const repository = await getRepository();
     await Promise.all(
       transactionIds.map(id => repository.setTransactionCategory(id, category, reason, confidenceScore))
     );
-  } catch (err) {
+  } catch (err: any) {
     console.error(`[actions/bookkeeping] bulkUpdateTransactionCategoryAction failed for ${transactionIds.length} IDs (category: ${category}):`, err);
-    throw err;
+    return { error: err.message || "Could not apply bulk category" };
   }
 
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/bookkeeping/tax-summary");
+  
+  return { success: true };
 }
 
 /**

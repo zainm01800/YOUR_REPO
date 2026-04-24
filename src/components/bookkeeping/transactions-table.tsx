@@ -7,7 +7,7 @@ import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
 import { resolveCategoryWithConfidence } from "@/lib/categories/suggester";
 import { categorySection } from "@/lib/categories/sections";
 import { fmtDate } from "./transaction-row";
-import { updateTransactionCategoryAction } from "@/app/actions/bookkeeping";
+import { updateTransactionCategoryAction, bulkUpdateTransactionCategoryAction } from "@/app/actions/bookkeeping";
 
 interface Props {
   transactions: TransactionRecord[];
@@ -144,33 +144,45 @@ function CategoryPicker({ sections, value, onSelect, onCancel, isSaving }: Categ
             No categories match &ldquo;{search}&rdquo;
           </div>
         ) : (
-          Array.from(filtered.entries()).map(([section, rules]) => (
-            <div key={section}>
-              <div className="sticky top-0 bg-[var(--color-panel)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
-                {section}
+          <>
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onSelect("");
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-foreground)]"
+            >
+              Clear category (Uncategorised)
+            </button>
+            {Array.from(filtered.entries()).map(([section, rules]) => (
+              <div key={section}>
+                <div className="sticky top-0 bg-[var(--color-panel)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
+                  {section}
+                </div>
+                {rules.map((rule) => (
+                  <button
+                    key={rule.slug}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault(); // keep focus on input, prevent outside-click race
+                      onSelect(rule.category);
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs transition hover:bg-[var(--color-accent-soft)] ${
+                      value === rule.category
+                        ? "bg-[var(--color-accent-soft)] font-semibold text-[var(--color-accent)]"
+                        : "text-[var(--color-foreground)]"
+                    }`}
+                  >
+                    {value === rule.category && (
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-accent)]" />
+                    )}
+                    {rule.category}
+                  </button>
+                ))}
               </div>
-              {rules.map((rule) => (
-                <button
-                  key={rule.slug}
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault(); // keep focus on input, prevent outside-click race
-                    onSelect(rule.category);
-                  }}
-                  className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs transition hover:bg-[var(--color-accent-soft)] ${
-                    value === rule.category
-                      ? "bg-[var(--color-accent-soft)] font-semibold text-[var(--color-accent)]"
-                      : "text-[var(--color-foreground)]"
-                  }`}
-                >
-                  {value === rule.category && (
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-accent)]" />
-                  )}
-                  {rule.category}
-                </button>
-              ))}
-            </div>
-          ))
+            ))}
+          </>
         )}
       </div>,
       document.body,
@@ -356,7 +368,9 @@ export function TransactionsTable({
               const otherCat = categoryOverrides[other.id] ?? other.category ?? "";
               if (otherCat && otherCat.toLowerCase() === newCategory.toLowerCase()) return false;
               const otherTokens = merchantTokens(other.merchant || other.description || "");
-              return sharedTokenCount(savedTokens, otherTokens) >= 2;
+              const shared = sharedTokenCount(savedTokens, otherTokens);
+              const minTokens = Math.min(2, savedTokens.size, otherTokens.size);
+              return shared > 0 && shared >= minTokens;
             });
             if (similar.length > 0) {
               setBulkPrompt({
@@ -381,11 +395,11 @@ export function TransactionsTable({
     if (!bulkPrompt) return;
     setBulkApplying(true);
     try {
-      const results = await Promise.all(
-        bulkPrompt.txIds.map((id) => updateTransactionCategoryAction(id, bulkPrompt.category)),
+      const result = await bulkUpdateTransactionCategoryAction(
+        bulkPrompt.txIds,
+        bulkPrompt.category
       );
-      const firstError = results.find((r) => r && r.error);
-      if (firstError) throw new Error(firstError.error);
+      if (result && result.error) throw new Error(result.error);
       setLocalTransactions((prev) =>
         prev.map((tx) =>
           bulkPrompt.txIds.includes(tx.id) ? { ...tx, category: bulkPrompt.category } : tx,
