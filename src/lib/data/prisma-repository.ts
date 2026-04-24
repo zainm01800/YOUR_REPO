@@ -1809,6 +1809,7 @@ export const basePrismaRepository: Repository = {
       prisma.transaction.update({
         where: { id: transactionId },
         data,
+        select: { id: true },
       }),
     );
 
@@ -1820,6 +1821,7 @@ export const basePrismaRepository: Repository = {
       prisma.bankTransaction.update({
         where: { id: transactionId },
         data,
+        select: { id: true },
       }),
     );
 
@@ -1836,11 +1838,13 @@ export const basePrismaRepository: Repository = {
       await prisma.transaction.update({
         where: { id: transactionId },
         data: { noReceiptRequired: !allowable }, // Mapping "Allowable" to the inverse of "No Receipt Required" field which is used for tax-readiness in this schema
+        select: { id: true },
       });
     } catch {
       await prisma.bankTransaction.update({
         where: { id: transactionId },
         data: { noReceiptRequired: !allowable },
+        select: { id: true },
       }).catch(() => {
         console.warn(`[setTransactionAllowable] Failed to update transaction ${transactionId}`);
       });
