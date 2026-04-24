@@ -262,6 +262,151 @@ textarea {
   @apply bg-clip-text text-transparent bg-gradient-to-br from-[var(--color-foreground)] to-[var(--color-muted-foreground)];
 }
 
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+  gap: 16px;
+}
+
+.panel-eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted-2);
+  font-weight: 600;
+}
+
+.panel-title {
+  font-family: var(--font-inter-tight), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+  color: var(--ink);
+}
+
+.panel-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.panel-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  background: var(--accent-softer);
+  color: var(--accent-ink);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  border: 1px solid var(--accent-soft);
+  white-space: nowrap;
+}
+
+.tax-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 0 14px;
+  border-bottom: 1px dashed var(--line);
+  margin-bottom: 18px;
+}
+
+.tax-hero-amt {
+  font-family: var(--font-inter-tight), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.tax-hero-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.tax-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tax-bar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.tax-bar-label {
+  color: var(--ink-2);
+}
+
+.tax-bar-val {
+  color: var(--ink);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-inter-tight), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+.tax-track {
+  height: 6px;
+  background: #f0eee8;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.tax-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.tax-a {
+  background: var(--accent);
+}
+
+.tax-b {
+  background: color-mix(in oklch, var(--accent), white 30%);
+}
+
+.tax-c {
+  background: color-mix(in oklch, var(--accent), white 55%);
+}
+
+.tax-foot {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-2);
+}
+
+.mini-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted-2);
+  font-weight: 600;
+}
+
+.mini-value {
+  font-family: var(--font-inter-tight), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
 .animate-in {
   animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
