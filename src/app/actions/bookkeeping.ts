@@ -82,6 +82,43 @@ export async function bulkUpdateTransactionAllowableAction(transactionIds: strin
 }
 
 /**
+ * Toggles whether an individual expense explicitly overrides its claimable status.
+ * Used on the Expenses tab to manually mark items as claimable or non-claimable.
+ */
+export async function toggleExpenseClaimabilityAction(
+  rawId: string, 
+  source: "manual" | "transaction", 
+  claimable: boolean
+) {
+  try {
+    await requireAuthenticatedUser();
+    const repository = await getRepository();
+    // For imported bank transactions, the ID is prefixed with tx: to prevent collision in the unified table
+    const id = rawId.startsWith("tx:") ? rawId.slice(3) : rawId;
+
+    if (source === "transaction") {
+      await repository.setTransactionAllowable(id, claimable);
+    } else {
+      const { PrismaClient } = await import("@prisma/client");
+      const prisma = new PrismaClient();
+      await prisma.manualExpense.update({
+        where: { id },
+        data: { isClaimableOverride: claimable },
+        select: { id: true },
+      });
+    }
+  } catch (err: any) {
+    console.error(`[actions/bookkeeping] toggleExpenseClaimabilityAction failed for ID ${rawId}:`, err);
+    return { error: err.message || "Could not toggle claimability" };
+  }
+
+  revalidatePath("/expenses");
+  revalidatePath("/bookkeeping/tax-summary");
+  
+  return { success: true };
+}
+
+/**
  * Toggles whether a particular category is tax-allowable.
  */
 export async function updateCategoryAllowabilityAction(category: string, allowableForTax: boolean) {

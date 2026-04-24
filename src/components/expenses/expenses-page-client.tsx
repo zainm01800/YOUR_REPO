@@ -44,6 +44,9 @@ export function ExpensesPageClient({
   const displayedExpenses = activeTab === "expenses" ? cashExpenses : mileageEntries;
   const categoryMap = new Map(categoryRules.map((rule) => [rule.category.toLowerCase(), rule]));
   const getClaimStatus = (expense: ExpenseEntry): "claimable" | "not_claimable" | "needs_review" => {
+    if (typeof expense.allowableOverride === "boolean") {
+      return expense.allowableOverride ? "claimable" : "not_claimable";
+    }
     if (expense.isMileage) return "claimable";
     if (expense.source === "transaction" && !expense.category) return "needs_review";
     if (!expense.category) return "needs_review";
@@ -168,6 +171,11 @@ export function ExpensesPageClient({
           expenses={claimableExpenses}
           currency={currency}
           claimStatus="claimable"
+          onToggleClaimable={async (id, source, currentStatus, currentlyOverridden) => {
+            const { toggleExpenseClaimabilityAction } = await import("@/app/actions/bookkeeping");
+            await toggleExpenseClaimabilityAction(id, source, false);
+            router.refresh();
+          }}
         />
         <ExpensesList
           title="Not claimable"
@@ -175,6 +183,11 @@ export function ExpensesPageClient({
           expenses={nonClaimableExpenses}
           currency={currency}
           claimStatus="not_claimable"
+          onToggleClaimable={async (id, source, currentStatus, currentlyOverridden) => {
+            const { toggleExpenseClaimabilityAction } = await import("@/app/actions/bookkeeping");
+            await toggleExpenseClaimabilityAction(id, source, true);
+            router.refresh();
+          }}
         />
       </div>
       {needsReviewExpenses.length > 0 && (
@@ -184,6 +197,11 @@ export function ExpensesPageClient({
           expenses={needsReviewExpenses}
           currency={currency}
           claimStatus="needs_review"
+          onToggleClaimable={async (id, source, currentStatus, currentlyOverridden) => {
+            const { toggleExpenseClaimabilityAction } = await import("@/app/actions/bookkeeping");
+            await toggleExpenseClaimabilityAction(id, source, true);
+            router.refresh();
+          }}
         />
       )}
     </div>

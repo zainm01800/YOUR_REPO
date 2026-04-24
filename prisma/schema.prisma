@@ -487,6 +487,7 @@ model ManualExpense {
   mileageRatePerMile Decimal? @db.Decimal(6, 4)
   receiptStorageKey String?
   notes             String?
+  isClaimableOverride Boolean?
   workspaceId       String
   workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdAt         DateTime  @default(now())

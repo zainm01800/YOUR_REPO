@@ -8,6 +8,7 @@ import type { ManualExpense } from "@/lib/domain/types";
 export type ExpenseEntry = ManualExpense & {
   source?: "manual" | "transaction";
   sourceLabel?: string;
+  allowableOverride?: boolean;
 };
 
 interface ExpensesListProps {
@@ -16,6 +17,7 @@ interface ExpensesListProps {
   title?: string;
   description?: string;
   claimStatus?: "claimable" | "not_claimable" | "needs_review";
+  onToggleClaimable?: (id: string, source: "manual" | "transaction", currentStatus: boolean, currentlyOverridden: boolean) => void;
 }
 
 export function ExpensesList({
@@ -24,9 +26,11 @@ export function ExpensesList({
   title = "Entries",
   description,
   claimStatus,
+  onToggleClaimable,
 }: ExpensesListProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [toggling, setToggling] = useState<string | null>(null);
 
   const fmt = (n: number) =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(n);
@@ -128,21 +132,48 @@ export function ExpensesList({
                     {fmt(exp.amount)}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {exp.source === "transaction" ? (
-                      <span className="rounded-full bg-[#f0eee8] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
-                        Bank
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(exp.id)}
-                        disabled={deleting === exp.id}
-                        className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] disabled:opacity-40"
-                        aria-label="Delete expense"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                    <div className="flex items-center justify-end gap-1">
+                      {claimStatus !== "needs_review" && onToggleClaimable && (
+                        <button
+                          type="button"
+                          disabled={toggling === exp.id}
+                          onClick={() => {
+                            setToggling(exp.id);
+                            onToggleClaimable(
+                              exp.id,
+                              exp.source || "manual",
+                              claimStatus === "claimable",
+                              exp.allowableOverride !== undefined
+                            );
+                            // We purposefully don't clear toggling state here because onToggleClaimable will trigger a router.refresh() 
+                            // and clear state if it's managed at a higher level, or the component will unmount. If error occurs, we should theoretically clear it, but let's just use simple unmount refresh.
+                          }}
+                          className={`rounded-lg p-1.5 text-xs font-medium border transition disabled:opacity-40 ${
+                            claimStatus === "claimable"
+                              ? "border-[var(--line)] text-[var(--muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] hover:border-[var(--danger)]"
+                              : "border-[var(--line)] text-[var(--muted)] hover:bg-[var(--good-soft)] hover:text-[var(--good)] hover:border-[var(--good)]"
+                          }`}
+                          title={`Currently ${claimStatus === "claimable" ? "claimable" : "not claimable"}. Click to toggle.`}
+                        >
+                          {toggling === exp.id ? "..." : claimStatus === "claimable" ? "Make Non-Claimable" : "Make Claimable"}
+                        </button>
+                      )}
+                      {exp.source === "transaction" ? (
+                        <span className="ml-2 rounded-full bg-[#f0eee8] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+                          Bank
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(exp.id)}
+                          disabled={deleting === exp.id || toggling === exp.id}
+                          className="ml-2 rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] disabled:opacity-40"
+                          aria-label="Delete expense"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -46,7 +46,13 @@ export default async function ExpensesPage({
     currency,
     settings.workspace.id,
   );
-  const expenses = [...manualExpenses, ...transactionExpenses].sort((a, b) =>
+  
+  const manualExpensesWithOverride = manualExpenses.map(me => ({
+    ...me,
+    allowableOverride: me.isClaimableOverride ?? undefined,
+  }));
+
+  const expenses = [...manualExpensesWithOverride, ...transactionExpenses].sort((a, b) =>
     b.date.localeCompare(a.date),
   );
 
@@ -114,6 +120,7 @@ function buildTransactionExpenses(
         createdAt: transaction.date ?? source?.postedDate ?? "",
         source: "transaction",
         sourceLabel: source?.runName ?? source?.bankStatementName ?? "Imported bank transaction",
+        allowableOverride: typeof source?.noReceiptRequired === "boolean" ? !source.noReceiptRequired : undefined,
       };
     });
 }

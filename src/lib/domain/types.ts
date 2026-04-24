@@ -689,6 +689,7 @@ export interface ManualExpense {
   mileageRatePerMile?: number | null;
   receiptStorageKey?: string | null;
   notes?: string | null;
+  isClaimableOverride?: boolean | null;
   workspaceId: string;
   createdAt: string;
 }
