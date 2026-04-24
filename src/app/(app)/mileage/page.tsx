@@ -2,15 +2,9 @@ import { PageHeader } from "@/components/app-shell/page-header";
 import { getRepository } from "@/lib/data";
 import { ExpensesPageClient } from "@/components/expenses/expenses-page-client";
 
-export const metadata = { title: "Expenses" };
+export const metadata = { title: "Mileage" };
 
-export default async function ExpensesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string }>;
-}) {
-  const { tab } = await searchParams;
-  const initialTab = tab === "mileage" ? "mileage" : "expenses";
+export default async function MileagePage() {
   const repository = await getRepository();
   const [expenses, settings] = await Promise.all([
     repository.getManualExpenses(),
@@ -33,12 +27,8 @@ export default async function ExpensesPage({
     <>
       <PageHeader
         eyebrow="Import"
-        title={initialTab === "mileage" ? "Mileage" : "Expenses"}
-        description={
-          initialTab === "mileage"
-            ? "Log business mileage and see what can be claimed separately from bank transactions."
-            : "Log cash expenses and see which costs are claimable or need review."
-        }
+        title="Mileage"
+        description="Log business mileage and see what can be claimed separately from bank transactions."
       />
       <ExpensesPageClient
         expenses={expenses}
@@ -48,7 +38,7 @@ export default async function ExpensesPage({
         totalExpenses={totalExpenses}
         totalMileage={totalMileage}
         totalMiles={totalMiles}
-        initialTab={initialTab}
+        initialTab="mileage"
       />
     </>
   );

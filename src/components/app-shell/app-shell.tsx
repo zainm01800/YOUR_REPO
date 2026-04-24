@@ -77,7 +77,8 @@ function buildNavigation(
         items: [
           { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
           { href: "/ocr-extraction", label: "OCR Extraction", icon: ScanText },
-          { href: "/expenses", label: "Expenses & Mileage", icon: Car },
+          { href: "/expenses", label: "Expenses", icon: Receipt },
+          { href: "/mileage", label: "Mileage", icon: Car },
         ],
       },
       {
@@ -124,6 +125,8 @@ function buildNavigation(
         label: "Process",
         items: [
           { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
+          { href: "/expenses", label: "Expenses", icon: Receipt },
+          { href: "/mileage", label: "Mileage", icon: Car },
           { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
         ],
       },
@@ -156,15 +159,19 @@ function buildNavigation(
       label: "Ingest",
       items: [
         { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
-        { href: "/ocr-extraction", label: "OCR Extraction", icon: ScanText },
-      ],
-    },
+      { href: "/ocr-extraction", label: "OCR Extraction", icon: ScanText },
+      { href: "/expenses", label: "Expenses", icon: Receipt },
+      { href: "/mileage", label: "Mileage", icon: Car },
+    ],
+  },
     {
       label: "Process",
       items: [
-        { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
-        { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
-        { href: "/templates", label: "Mapping Templates", icon: LayoutTemplate },
+      { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
+      { href: "/expenses", label: "Expenses", icon: Receipt },
+      { href: "/mileage", label: "Mileage", icon: Car },
+      { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
+      { href: "/templates", label: "Mapping Templates", icon: LayoutTemplate },
       ],
     },
     {

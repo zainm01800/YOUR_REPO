@@ -125,46 +125,18 @@ export function ExpensesPageClient({
         </div>
       </div>
 
-      {/* Tabs + Add button */}
+      {/* Add button */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-1">
-          <button
-            type="button"
-            onClick={() => router.push("/bookkeeping/transactions")}
-            className="rounded-xl px-3 py-1.5 text-sm font-medium text-[var(--color-muted-foreground)] transition hover:text-[var(--color-foreground)]"
-          >
-            Bank transactions
-          </button>
-          {(["expenses", "mileage"] as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => {
-                setActiveTab(tab);
-                setShowForm(false);
-                router.replace(`/expenses?tab=${tab}`);
-              }}
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium transition capitalize ${
-                activeTab === tab
-                  ? "bg-white text-[var(--color-foreground)] shadow-sm"
-                  : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
-              }`}
-            >
-              {tab === "expenses" ? <Receipt className="h-3.5 w-3.5" /> : <Car className="h-3.5 w-3.5" />}
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              <span
-                className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${
-                  activeTab === tab
-                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
-                    : "bg-[var(--color-border)] text-[var(--color-muted-foreground)]"
-                }`}
-              >
-                {tab === "expenses" ? cashExpenses.length : mileageEntries.length}
-              </span>
-            </button>
-          ))}
+        <div>
+          <p className="text-sm font-semibold text-[var(--ink)]">
+            {activeTab === "expenses" ? "Expense entries" : "Mileage entries"}
+          </p>
+          <p className="mt-0.5 text-xs text-[var(--muted)]">
+            {activeTab === "expenses"
+              ? "Cash/card costs that are not already imported from bank statements."
+              : "Business mileage claims calculated separately from supplier spend."}
+          </p>
         </div>
-
         {!showForm && (
           <Button onClick={() => setShowForm(true)}>
             <Plus className="mr-2 h-4 w-4" />
