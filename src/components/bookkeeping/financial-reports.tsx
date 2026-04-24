@@ -61,7 +61,7 @@ function StatementCover({
   meta: string;
 }) {
   return (
-    <div className="rounded-t-[1.5rem] bg-[var(--color-accent-strong)] px-8 py-7 text-[var(--color-accent-foreground)]">
+    <div className="rounded-t-2xl bg-[var(--accent)] px-8 py-7 text-white">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-base font-semibold">ClearMatch</p>
@@ -542,7 +542,7 @@ function MetricTile({
         : "border-[var(--color-border)] bg-white text-[var(--color-foreground)]";
 
   return (
-    <div className={`rounded-3xl border p-5 ${className}`}>
+    <div className={`rounded-2xl border p-5 shadow-[var(--shadow-sm)] ${className}`}>
       <p className="text-xs font-semibold uppercase tracking-[0.14em]">{label}</p>
       <p className="mt-2 font-mono text-2xl font-bold">{formatAmount(value, currency)}</p>
     </div>
@@ -752,14 +752,14 @@ export function FinancialReports({
         </Card>
       ) : null}
 
-      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)] p-2">
+      <div className="rounded-2xl border border-[var(--line)] bg-[var(--color-panel)] p-1.5">
         <div className="flex flex-wrap gap-2">
           {tabs.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setTab(item.id)}
-              className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium transition ${
+              className={`inline-flex items-center gap-2 rounded-[10px] px-4 py-2 text-sm font-medium transition ${
                 tab === item.id
                   ? "bg-white text-[var(--color-foreground)] shadow-sm"
                   : "text-[var(--color-muted-foreground)] hover:bg-white/60 hover:text-[var(--color-foreground)]"

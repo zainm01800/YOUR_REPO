@@ -113,8 +113,8 @@ function ReturnBox({
         : "text-[var(--color-foreground)]";
 
   return (
-    <div className="flex gap-4 rounded-2xl border border-[var(--color-border)] bg-white p-5">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent-soft)] text-[11px] font-black text-[var(--color-accent)]">
+    <div className="flex gap-4 rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)]">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--accent-softer)] text-[11px] font-black text-[var(--accent-ink)]">
         {box}
       </div>
       <div className="flex-1 min-w-0">
@@ -148,9 +148,9 @@ function BreakdownTable({
 
   if (lines.length === 0) {
     return (
-      <Card className="rounded-3xl border border-[var(--color-border)] p-6">
+      <Card className="rounded-2xl border border-[var(--line)] p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="rounded-2xl bg-[var(--color-accent-soft)] p-2 text-[var(--color-accent)]">
+          <div className="rounded-[10px] bg-[var(--accent-softer)] p-2 text-[var(--accent-ink)]">
             {icon}
           </div>
           <h3 className="text-base font-semibold text-[var(--color-foreground)]">{title}</h3>
@@ -161,12 +161,12 @@ function BreakdownTable({
   }
 
   return (
-    <Card className="rounded-3xl border border-[var(--color-border)] overflow-hidden">
+    <Card className="overflow-hidden rounded-2xl border border-[var(--line)] p-0">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 p-6 text-left hover:bg-[var(--color-panel)] transition-colors"
+        className="flex w-full items-center gap-3 p-6 text-left transition-colors hover:bg-[var(--color-panel)]"
       >
-        <div className="rounded-2xl bg-[var(--color-accent-soft)] p-2 text-[var(--color-accent)]">
+        <div className="rounded-[10px] bg-[var(--accent-softer)] p-2 text-[var(--accent-ink)]">
           {icon}
         </div>
         <div className="flex-1">
@@ -184,7 +184,7 @@ function BreakdownTable({
       </button>
 
       {open && (
-        <div className="border-t border-[var(--color-border)]">
+        <div className="border-t border-[var(--line)]">
           <table className="w-full text-sm">
             <thead className="bg-[var(--color-panel)]">
               <tr>

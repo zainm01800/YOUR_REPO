@@ -155,78 +155,82 @@ export default async function SpendingPage() {
     <>
       <PageHeader
         eyebrow="Bookkeeping"
-        title="Spending"
-        description="See transaction activity grouped by the statement each category flows into, not just by label. This makes it much easier to separate P&L, Balance Sheet, and Equity movements."
+        title="Supplier Analysis"
+        description="Review transaction activity by category, supplier, and statement area using the same compact ClearMatch layout as the rest of the workspace."
       />
 
       {allTransactions.length === 0 ? (
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-10 text-center">
-          <p className="text-sm text-[var(--color-muted-foreground)]">
+        <div className="cm-panel-subtle p-10 text-center">
+          <p className="text-sm text-[var(--muted)]">
             No transactions yet.{" "}
-            <Link href="/runs/new" className="text-[var(--color-accent)] hover:underline">
+            <Link href="/runs/new" className="text-[var(--accent-ink)] hover:underline">
               Create a run
             </Link>{" "}
             and import a bank statement to get started.
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
-            <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+            <div className="cm-kpi">
+              <p className="cm-kpi-label">
                 Total movement
               </p>
-              <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">
+              <p className="cm-kpi-value">
                 {fmtAmount(totalSpend, settingsSnapshot.workspace.defaultCurrency)}
               </p>
             </div>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+            <div className="cm-kpi">
+              <p className="cm-kpi-label">
                 Transactions
               </p>
-              <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">
+              <p className="cm-kpi-value">
                 {allTransactions.length}
               </p>
             </div>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+            <div className="cm-kpi">
+              <p className="cm-kpi-label">
                 P&amp;L categories
               </p>
-              <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">
+              <p className="cm-kpi-value">
                 {statementGroups.find((group) => group.key === "p_and_l")?.rows.length ?? 0}
               </p>
             </div>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+            <div className="cm-kpi">
+              <p className="cm-kpi-label">
                 Balance Sheet
               </p>
-              <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">
+              <p className="cm-kpi-value">
                 {statementGroups.find((group) => group.key === "balance_sheet")?.rows.length ?? 0}
               </p>
             </div>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+            <div className="cm-kpi">
+              <p className="cm-kpi-label">
                 Equity
               </p>
-              <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">
+              <p className="cm-kpi-value">
                 {statementGroups.find((group) => group.key === "equity_movement")?.rows.length ?? 0}
               </p>
             </div>
-            <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+            <div className="cm-kpi">
+              <p className="cm-kpi-label">
                 Uncategorized
               </p>
-              <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">
+              <p className="cm-kpi-value">
                 {spendingRows.filter((row) => row.category === "Uncategorised").length}
               </p>
             </div>
           </div>
 
           {monthlyTrend.length > 1 && (
-            <div className="rounded-2xl border border-[var(--color-border)] bg-white p-5">
-              <h2 className="mb-4 text-sm font-semibold text-[var(--color-foreground)]">
-                Monthly movement
-              </h2>
+            <div className="cm-panel p-5">
+              <div className="panel-head mb-4">
+                <div>
+                  <p className="panel-eyebrow">Trend</p>
+                  <h2 className="panel-title">Monthly movement</h2>
+                  <p className="panel-sub">Last six months of categorised transaction movement.</p>
+                </div>
+              </div>
               <div className="flex items-end gap-3">
                 {monthlyTrend.map(([month, total]) => {
                   const pct = (total / maxMonthly) * 100;
@@ -238,16 +242,16 @@ export default async function SpendingPage() {
 
                   return (
                     <div key={month} className="flex flex-1 flex-col items-center gap-1">
-                      <span className="text-xs font-mono text-[var(--color-muted-foreground)]">
+                      <span className="font-mono text-xs text-[var(--muted)]">
                         {fmtAmount(total, settingsSnapshot.workspace.defaultCurrency).replace(/\.00$/, "")}
                       </span>
-                      <div className="relative w-full rounded-lg bg-[var(--color-panel)]" style={{ height: 80 }}>
+                      <div className="relative w-full rounded-lg bg-[#f0eee8]" style={{ height: 80 }}>
                         <div
-                          className="absolute bottom-0 left-0 w-full rounded-lg bg-[var(--color-accent)]"
+                          className="absolute bottom-0 left-0 w-full rounded-lg bg-[var(--accent)]"
                           style={{ height: `${pct}%`, opacity: 0.8 }}
                         />
                       </div>
-                      <span className="text-xs text-[var(--color-muted-foreground)]">{label}</span>
+                      <span className="text-xs text-[var(--muted)]">{label}</span>
                     </div>
                   );
                 })}
@@ -255,28 +259,29 @@ export default async function SpendingPage() {
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {statementGroups
               .filter((group) => group.rows.length > 0)
               .map((group) => (
-                <div key={group.key} className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white">
-                  <div className="border-b border-[var(--color-border)] bg-[var(--color-panel)] px-5 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <h2 className="text-sm font-semibold text-[var(--color-foreground)]">
+                <div key={group.key} className="cm-panel overflow-hidden">
+                  <div className="cm-section-head">
+                    <div>
+                      <p className="panel-eyebrow">Statement area</p>
+                      <h2 className="panel-title">
                         {STATEMENT_TYPE_LABELS[group.key] ?? group.label}
                       </h2>
-                      <span className="text-xs text-[var(--color-muted-foreground)]">
+                    </div>
+                    <span className="panel-tag">
                         {group.rows.length} categor{group.rows.length === 1 ? "y" : "ies"}
                       </span>
-                    </div>
                   </div>
                   <div>
-                    {group.rows.map((row, index) => {
+                    {group.rows.map((row) => {
                       const pct = totalSpend > 0 ? (row.totalAmount / totalSpend) * 100 : 0;
                       return (
                         <div
                           key={`${group.key}-${row.category}`}
-                          className={`flex items-center gap-4 px-5 py-4 ${index > 0 ? "border-t border-[var(--color-border)]" : ""}`}
+                          className="cm-row flex items-center gap-4"
                         >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
@@ -284,40 +289,40 @@ export default async function SpendingPage() {
                                 className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                                   ACCOUNT_TYPE_COLORS[
                                     row.accountType as keyof typeof ACCOUNT_TYPE_COLORS
-                                  ] ?? "bg-[var(--color-panel)] text-[var(--color-muted-foreground)]"
+                                  ] ?? "bg-[var(--color-panel)] text-[var(--muted)]"
                                 }`}
                               >
                                 {ACCOUNT_TYPE_LABELS[
                                   row.accountType as keyof typeof ACCOUNT_TYPE_LABELS
                                 ] ?? row.accountType}
                               </span>
-                              <span className="font-medium text-[var(--color-foreground)]">
+                              <span className="font-medium text-[var(--ink)]">
                                 {row.category}
                               </span>
-                              <span className="rounded-full bg-[var(--color-panel)] px-2 py-0.5 text-xs text-[var(--color-muted-foreground)]">
+                              <span className="rounded-full bg-[#f4f2ed] px-2 py-0.5 text-xs text-[var(--muted)]">
                                 {row.count} txn{row.count !== 1 ? "s" : ""}
                               </span>
                             </div>
-                            <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
+                            <p className="mt-0.5 text-xs text-[var(--muted)]">
                               {row.reportingBucket}
                             </p>
                             {row.topMerchants.length > 0 && (
-                              <p className="mt-1 truncate text-xs text-[var(--color-muted-foreground)]">
+                              <p className="mt-1 truncate text-xs text-[var(--muted)]">
                                 {row.topMerchants.join(", ")}
                               </p>
                             )}
-                            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-panel)]">
+                            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#f0eee8]">
                               <div
-                                className="h-full rounded-full bg-[var(--color-accent)]"
+                                className="h-full rounded-full bg-[var(--accent)]"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
                           </div>
                           <div className="shrink-0 text-right">
-                            <p className="font-mono font-semibold text-[var(--color-foreground)]">
+                            <p className="font-mono font-semibold text-[var(--ink)]">
                               {fmtAmount(row.totalAmount, row.primaryCurrency)}
                             </p>
-                            <p className="text-xs text-[var(--color-muted-foreground)]">
+                            <p className="text-xs text-[var(--muted)]">
                               {pct.toFixed(1)}%
                             </p>
                           </div>
@@ -329,13 +334,13 @@ export default async function SpendingPage() {
               ))}
           </div>
 
-          <p className="text-center text-xs text-[var(--color-muted-foreground)]">
+          <p className="text-center text-xs text-[var(--muted)]">
             Categories are assigned on the{" "}
-            <Link href="/bookkeeping/transactions" className="text-[var(--color-accent)] hover:underline">
+            <Link href="/bookkeeping/transactions" className="text-[var(--accent-ink)] hover:underline">
               Transactions
             </Link>{" "}
             page and carry statement and tax metadata from{" "}
-            <Link href="/settings" className="text-[var(--color-accent)] hover:underline">
+            <Link href="/settings" className="text-[var(--accent-ink)] hover:underline">
               Category rules
             </Link>
             .

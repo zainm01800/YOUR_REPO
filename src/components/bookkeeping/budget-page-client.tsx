@@ -65,8 +65,8 @@ function BudgetCard({
 
   return (
     <div
-      className={`rounded-2xl border bg-[var(--color-panel)] p-5 transition hover:shadow-sm ${
-        hasAnyOver ? "border-[var(--color-danger-border)]" : "border-[var(--color-border)]"
+      className={`rounded-2xl border bg-white p-5 shadow-[var(--shadow-sm)] transition hover:shadow-[var(--shadow-panel)] ${
+        hasAnyOver ? "border-[var(--color-danger-border)]" : "border-[var(--line)]"
       }`}
     >
       <div className="mb-4 flex items-start justify-between gap-2">
@@ -187,13 +187,13 @@ export function BudgetPageClient({ rows, categoryRules, currency, currentMonth, 
     <div className="space-y-6">
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-1">
+        <div className="flex items-center gap-1 rounded-2xl border border-[var(--line)] bg-[var(--color-panel)] p-1.5">
           <button
             type="button"
             onClick={() => setViewMode("grid")}
             className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium transition ${
               viewMode === "grid"
-                ? "bg-white text-[var(--color-foreground)] shadow-sm"
+                ? "bg-white text-[var(--ink)] shadow-[var(--shadow-sm)]"
                 : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
             }`}
           >
@@ -205,7 +205,7 @@ export function BudgetPageClient({ rows, categoryRules, currency, currentMonth, 
             onClick={() => setViewMode("list")}
             className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium transition ${
               viewMode === "list"
-                ? "bg-white text-[var(--color-foreground)] shadow-sm"
+                ? "bg-white text-[var(--ink)] shadow-[var(--shadow-sm)]"
                 : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
             }`}
           >
@@ -224,7 +224,7 @@ export function BudgetPageClient({ rows, categoryRules, currency, currentMonth, 
 
       {/* Add new budget form */}
       {addingNew && (
-        <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-4">
+        <div className="cm-panel-subtle flex flex-wrap items-end gap-3 p-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-[var(--color-muted-foreground)]">Category</label>
             <select
@@ -282,7 +282,7 @@ export function BudgetPageClient({ rows, categoryRules, currency, currentMonth, 
 
       {/* Edit inline form */}
       {editingCategory && editingRow && (
-        <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-4">
+        <div className="cm-panel-subtle flex flex-wrap items-end gap-3 p-4">
           <div className="flex-1">
             <label className="mb-1 block text-xs font-medium text-[var(--color-muted-foreground)]">
               Editing: <span className="text-[var(--color-foreground)]">{editingCategory}</span>
@@ -325,7 +325,7 @@ export function BudgetPageClient({ rows, categoryRules, currency, currentMonth, 
       )}
 
       {rows.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-[var(--color-border)] bg-[var(--color-panel)] p-12 text-center">
+          <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--color-panel)] p-12 text-center">
           <p className="text-sm font-medium text-[var(--color-foreground)]">No spending data yet</p>
           <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
             Set a category budget above to start tracking.
@@ -352,7 +352,7 @@ export function BudgetPageClient({ rows, categoryRules, currency, currentMonth, 
         </div>
       ) : (
         /* Table view */
-        <div className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-panel)]">
+          <div className="cm-panel overflow-hidden">
           <div className="border-b border-[var(--color-border)] bg-white px-5 py-3">
             <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_56px] gap-4 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
               <span>Category</span>
