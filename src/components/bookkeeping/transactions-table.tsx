@@ -1,5 +1,6 @@
 "use client";
-import { Fragment, useEffect, useMemo, useRef, useState, useTransition, useCallback } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Search, Download, ChevronLeft, ChevronRight, X, Copy } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
@@ -65,23 +66,51 @@ interface CategoryPickerProps {
 
 function CategoryPicker({ sections, value, onSelect, onCancel, isSaving }: CategoryPickerProps) {
   const [search, setSearch] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
-  useEffect(() => {
-    inputRef.current?.focus();
+  // Calculate fixed position from the wrapper's bounding rect
+  useLayoutEffect(() => {
+    if (!wrapperRef.current) return;
+    const r = wrapperRef.current.getBoundingClientRect();
+    setPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 256) });
   }, []);
 
-  // Close on outside click
+  // Focus the input once position is known
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        onCancel();
-      }
+    if (pos) {
+      const input = wrapperRef.current?.querySelector("input");
+      input?.focus();
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+  }, [pos]);
+
+  // Close when clicking outside wrapper or dropdown portal
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      const t = e.target as Node;
+      if (wrapperRef.current?.contains(t)) return;
+      if (dropdownRef.current?.contains(t)) return;
+      onCancel();
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
   }, [onCancel]);
+
+  // Reposition on scroll/resize
+  useEffect(() => {
+    function reposition() {
+      if (!wrapperRef.current) return;
+      const r = wrapperRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 256) });
+    }
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -100,36 +129,20 @@ function CategoryPicker({ sections, value, onSelect, onCancel, isSaving }: Categ
     return n;
   }, [filtered]);
 
-  return (
-    <div ref={containerRef} className="relative z-50">
-      {/* Search input */}
-      <div className="flex items-center gap-1.5">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search categories…"
-            className="h-7 w-52 rounded-lg border border-[var(--color-accent)] bg-white pl-7 pr-2 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="h-7 rounded-lg border border-[var(--color-border)] px-2 text-xs text-[var(--color-muted-foreground)] hover:bg-[var(--color-panel)]"
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* Dropdown list */}
-      <div className="absolute left-0 top-full z-50 mt-1 max-h-72 w-64 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-white shadow-xl">
+  const dropdown =
+    pos &&
+    createPortal(
+      <div
+        ref={dropdownRef}
+        style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
+        className="max-h-72 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-white shadow-2xl"
+      >
         {isSaving ? (
           <div className="px-4 py-3 text-xs text-[var(--color-muted-foreground)]">Saving…</div>
         ) : totalMatches === 0 ? (
-          <div className="px-4 py-3 text-xs text-[var(--color-muted-foreground)]">No categories match "{search}"</div>
+          <div className="px-4 py-3 text-xs text-[var(--color-muted-foreground)]">
+            No categories match &ldquo;{search}&rdquo;
+          </div>
         ) : (
           Array.from(filtered.entries()).map(([section, rules]) => (
             <div key={section}>
@@ -140,15 +153,18 @@ function CategoryPicker({ sections, value, onSelect, onCancel, isSaving }: Categ
                 <button
                   key={rule.slug}
                   type="button"
-                  onClick={() => onSelect(rule.category)}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition hover:bg-[var(--color-accent-soft)] ${
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // keep focus on input, prevent outside-click race
+                    onSelect(rule.category);
+                  }}
+                  className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs transition hover:bg-[var(--color-accent-soft)] ${
                     value === rule.category
                       ? "bg-[var(--color-accent-soft)] font-semibold text-[var(--color-accent)]"
                       : "text-[var(--color-foreground)]"
                   }`}
                 >
                   {value === rule.category && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-accent)]" />
                   )}
                   {rule.category}
                 </button>
@@ -156,8 +172,33 @@ function CategoryPicker({ sections, value, onSelect, onCancel, isSaving }: Categ
             </div>
           ))
         )}
+      </div>,
+      document.body,
+    );
+
+  return (
+    <>
+      <div ref={wrapperRef} className="flex items-center gap-1.5">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search categories…"
+            className="h-7 w-48 rounded-lg border border-[var(--color-accent)] bg-white pl-7 pr-2 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="h-7 rounded-lg border border-[var(--color-border)] px-2 text-xs text-[var(--color-muted-foreground)] hover:bg-[var(--color-panel)]"
+        >
+          ✕
+        </button>
       </div>
-    </div>
+      {dropdown}
+    </>
   );
 }
 
