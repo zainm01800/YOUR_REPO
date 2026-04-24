@@ -18,81 +18,97 @@ export default async function BookkeepingTaxSummaryPage({
   const params = await searchParams;
   const selectedPeriod = params.period;
 
-  const repository = await getRepository();
-  const [settingsSnapshot, runs, unassignedBankTxns] = await Promise.all([
-    repository.getSettingsSnapshot(),
-    repository.getRunsWithTransactions(),
-    repository.getUnassignedBankTransactions().catch(() => []),
-  ]);
-  const categoryRuleMap = buildCategoryRuleMap(settingsSnapshot.categoryRules);
-  const periodOptions = Array.from(
-    new Set(runs.map((run) => run.period).filter((period): period is string => Boolean(period))),
-  ).sort((a, b) => b.localeCompare(a));
+  try {
+    const repository = await getRepository();
+    const [settingsSnapshot, runs, unassignedBankTxns] = await Promise.all([
+      repository.getSettingsSnapshot(),
+      repository.getRunsWithTransactions(),
+      repository.getUnassignedBankTransactions().catch(() => []),
+    ]);
+    const categoryRuleMap = buildCategoryRuleMap(settingsSnapshot.categoryRules);
+    const periodOptions = Array.from(
+      new Set(runs.map((run) => run.period).filter((period): period is string => Boolean(period))),
+    ).sort((a, b) => b.localeCompare(a));
 
-  const allTransactions: ClassifiedTransaction[] = [];
+    const allTransactions: ClassifiedTransaction[] = [];
 
-  for (const run of runs) {
-    if (selectedPeriod && run.period !== selectedPeriod) {
-      continue;
+    for (const run of runs) {
+      if (selectedPeriod && run.period !== selectedPeriod) {
+        continue;
+      }
+      if (run.transactions.length === 0) continue;
+
+      for (const transaction of run.transactions) {
+        const resolvedCategoryName =
+          transaction.category ?? resolveCategory(transaction, settingsSnapshot.categoryRules);
+        const resolvedCategory = resolvedCategoryName
+          ? categoryRuleMap.get(resolvedCategoryName.trim().toLowerCase())
+          : undefined;
+
+        allTransactions.push(
+          classifyTransaction(transaction, resolvedCategory, settingsSnapshot.workspace.vatRegistered),
+        );
+      }
     }
-    if (run.transactions.length === 0) continue;
 
-    for (const transaction of run.transactions) {
-      const resolvedCategoryName =
-        transaction.category ?? resolveCategory(transaction, settingsSnapshot.categoryRules);
+    // Include bank statement transactions not yet attached to any run
+    for (const tx of unassignedBankTxns) {
+      const resolvedCategoryName = tx.category ?? resolveCategory(tx, settingsSnapshot.categoryRules);
       const resolvedCategory = resolvedCategoryName
         ? categoryRuleMap.get(resolvedCategoryName.trim().toLowerCase())
         : undefined;
-
       allTransactions.push(
-        classifyTransaction(transaction, resolvedCategory, settingsSnapshot.workspace.vatRegistered),
+        classifyTransaction(tx, resolvedCategory, settingsSnapshot.workspace.vatRegistered),
       );
     }
-  }
 
-  // Include bank statement transactions not yet attached to any run
-  for (const tx of unassignedBankTxns) {
-    const resolvedCategoryName = tx.category ?? resolveCategory(tx, settingsSnapshot.categoryRules);
-    const resolvedCategory = resolvedCategoryName
-      ? categoryRuleMap.get(resolvedCategoryName.trim().toLowerCase())
-      : undefined;
-    allTransactions.push(
-      classifyTransaction(tx, resolvedCategory, settingsSnapshot.workspace.vatRegistered),
+    const pnl = buildPnL(allTransactions, settingsSnapshot.workspace.defaultCurrency);
+    const vatReport = buildVatReport(
+      allTransactions,
+      settingsSnapshot.workspace.defaultCurrency,
+      settingsSnapshot.workspace.vatRegistered,
+    );
+    const taxSummary = buildTaxSummaryReport({
+      pnl,
+      vatReport,
+      businessType: settingsSnapshot.workspace.businessType,
+      currency: settingsSnapshot.workspace.defaultCurrency,
+      classifiedTransactions: allTransactions,
+    });
+    const isSoleTrader = settingsSnapshot.workspace.businessType === "sole_trader";
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Bookkeeping"
+          title="Tax summary"
+          description={
+            isSoleTrader
+              ? "Practical profit, VAT, and owner-level tax estimates built from the same categorised bookkeeping data that powers the rest of the sole-trader workflow."
+              : "Practical profit, VAT, and estimated tax figures built from the same categorised bookkeeping data that powers the reports."
+          }
+        />
+
+        <TaxSummary
+          taxSummary={taxSummary}
+          periodOptions={periodOptions}
+          selectedPeriod={selectedPeriod}
+        />
+      </>
+    );
+  } catch (err: any) {
+    console.error("[tax-summary/page] Critical render error:", err);
+    return (
+      <div className="p-8 text-center">
+        <h2 className="text-xl font-bold text-red-600">Failed to load tax summary</h2>
+        <p className="mt-2 text-sm text-gray-600">{(err as Error).message || "An unexpected error occurred during rendering."}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-white text-sm"
+        >
+          Retry
+        </button>
+      </div>
     );
   }
-
-  const pnl = buildPnL(allTransactions, settingsSnapshot.workspace.defaultCurrency);
-  const vatReport = buildVatReport(
-    allTransactions,
-    settingsSnapshot.workspace.defaultCurrency,
-    settingsSnapshot.workspace.vatRegistered,
-  );
-  const taxSummary = buildTaxSummaryReport({
-    pnl,
-    vatReport,
-    businessType: settingsSnapshot.workspace.businessType,
-    currency: settingsSnapshot.workspace.defaultCurrency,
-    classifiedTransactions: allTransactions,
-  });
-  const isSoleTrader = settingsSnapshot.workspace.businessType === "sole_trader";
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Bookkeeping"
-        title="Tax summary"
-        description={
-          isSoleTrader
-            ? "Practical profit, VAT, and owner-level tax estimates built from the same categorised bookkeeping data that powers the rest of the sole-trader workflow."
-            : "Practical profit, VAT, and estimated tax figures built from the same categorised bookkeeping data that powers the reports."
-        }
-      />
-
-      <TaxSummary
-        taxSummary={taxSummary}
-        periodOptions={periodOptions}
-        selectedPeriod={selectedPeriod}
-      />
-    </>
-  );
 }

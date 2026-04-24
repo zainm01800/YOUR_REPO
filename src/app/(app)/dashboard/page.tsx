@@ -229,23 +229,27 @@ export default async function DashboardPage() {
   let txIncomeTotal = 0;
   let txExpenseTotal = 0;
 
-  for (const run of runs) {
-    for (const tx of run.transactions) {
-      if (!tx.transactionDate) continue;
-      const d = new Date(tx.transactionDate);
-      if (d < taxYearStart || d > taxYearEnd) continue;
-      const catName = tx.category ?? resolveCategory(tx, settings.categoryRules);
-      const cat = catName ? categoryRuleMap.get(catName) : undefined;
-      const cls = classifyTransaction(tx, cat, settings.workspace.vatRegistered);
-      const mk = tx.transactionDate.slice(0, 7);
-      if (cls.accountType === "income") {
-        txIncomeTotal += Math.abs(cls.grossAmount);
-        monthlyIncomeMap[mk] = (monthlyIncomeMap[mk] ?? 0) + Math.abs(cls.grossAmount);
-      } else if (cls.accountType === "expense") {
-        txExpenseTotal += Math.abs(cls.grossAmount);
-        monthlyExpenseMap[mk] = (monthlyExpenseMap[mk] ?? 0) + Math.abs(cls.grossAmount);
+  try {
+    for (const run of runs) {
+      for (const tx of run.transactions) {
+        if (!tx.transactionDate) continue;
+        const d = new Date(tx.transactionDate);
+        if (d < taxYearStart || d > taxYearEnd) continue;
+        const catName = tx.category ?? resolveCategory(tx, settings.categoryRules);
+        const cat = catName ? categoryRuleMap.get(catName.trim().toLowerCase()) : undefined;
+        const cls = classifyTransaction(tx, cat, settings.workspace.vatRegistered);
+        const mk = tx.transactionDate.slice(0, 7);
+        if (cls.accountType === "income") {
+          txIncomeTotal += Math.abs(cls.grossAmount);
+          monthlyIncomeMap[mk] = (monthlyIncomeMap[mk] ?? 0) + Math.abs(cls.grossAmount);
+        } else if (cls.accountType === "expense") {
+          txExpenseTotal += Math.abs(cls.grossAmount);
+          monthlyExpenseMap[mk] = (monthlyExpenseMap[mk] ?? 0) + Math.abs(cls.grossAmount);
+        }
       }
     }
+  } catch (err) {
+    console.error("[dashboard] transaction processing failed:", err);
   }
 
   // ── Invoice income (paid invoices in tax year) ─────────────────────────
@@ -319,18 +323,22 @@ export default async function DashboardPage() {
   const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const spendByCat: Record<string, { monthly: number; count: number }> = {};
 
-  for (const run of runs) {
-    for (const tx of run.transactions) {
-      if (!tx.transactionDate?.startsWith(thisMonth)) continue;
-      const catName = tx.category ?? resolveCategory(tx, settings.categoryRules);
-      const cat = catName ? categoryRuleMap.get(catName) : undefined;
-      const cls = classifyTransaction(tx, cat, settings.workspace.vatRegistered);
-      if (cls.accountType === "expense" && catName) {
-        spendByCat[catName] ??= { monthly: 0, count: 0 };
-        spendByCat[catName].monthly += Math.abs(cls.grossAmount);
-        spendByCat[catName].count += 1;
+  try {
+    for (const run of runs) {
+      for (const tx of run.transactions) {
+        if (!tx.transactionDate?.startsWith(thisMonth)) continue;
+        const catName = tx.category ?? resolveCategory(tx, settings.categoryRules);
+        const cat = catName ? categoryRuleMap.get(catName.trim().toLowerCase()) : undefined;
+        const cls = classifyTransaction(tx, cat, settings.workspace.vatRegistered);
+        if (cls.accountType === "expense" && catName) {
+          spendByCat[catName] ??= { monthly: 0, count: 0 };
+          spendByCat[catName].monthly += Math.abs(cls.grossAmount);
+          spendByCat[catName].count += 1;
+        }
       }
     }
+  } catch (err) {
+    console.error("[dashboard] budget processing failed:", err);
   }
   for (const exp of manualExpenses) {
     if (!exp.date?.startsWith(thisMonth) || exp.isMileage) continue;

@@ -16,57 +16,73 @@ export default async function BookkeepingTransactionsPage({
   const pageSize = 50;
   const skip = (currentPage - 1) * pageSize;
 
-  const repository = await getRepository();
-  const [settingsSnapshot, currentUser, stats] = await Promise.all([
-    repository.getSettingsSnapshot(),
-    repository.getCurrentUser(),
-    repository.getTransactionStats().catch((err: unknown) => {
-      console.error("[transactions/page] getTransactionStats failed:", err);
-      return {
-        totalCount: 0,
-        categorisedCount: 0,
-        uncategorisedCount: 0,
-        categoryCount: 0,
-        pnlCount: 0,
-        balanceSheetCount: 0,
-        equityCount: 0,
-        totalIn: 0,
-        totalOut: 0,
-      };
-    }),
-  ]);
+  try {
+    const repository = await getRepository();
+    const [settingsSnapshot, currentUser, stats] = await Promise.all([
+      repository.getSettingsSnapshot(),
+      repository.getCurrentUser(),
+      repository.getTransactionStats().catch((err: unknown) => {
+        console.error("[transactions/page] getTransactionStats failed:", err);
+        return {
+          totalCount: 0,
+          categorisedCount: 0,
+          uncategorisedCount: 0,
+          categoryCount: 0,
+          pnlCount: 0,
+          balanceSheetCount: 0,
+          equityCount: 0,
+          totalIn: 0,
+          totalOut: 0,
+        };
+      }),
+    ]);
 
-  const aiOwnerEmail = process.env.AI_OWNER_EMAIL?.trim().toLowerCase();
-  const canUseAi = Boolean(aiOwnerEmail && currentUser.email.toLowerCase() === aiOwnerEmail);
+    const aiOwnerEmail = process.env.AI_OWNER_EMAIL?.trim().toLowerCase();
+    const canUseAi = Boolean(aiOwnerEmail && currentUser.email.toLowerCase() === aiOwnerEmail);
 
-  const pickerCategoryRules = [...settingsSnapshot.categoryRules].sort(
-    categorySectionSort,
-  );
+    const pickerCategoryRules = [...settingsSnapshot.categoryRules].sort(
+      categorySectionSort,
+    );
 
-  return (
-    <>
-      <PageHeader
-        eyebrow="Review"
-        title="Transactions"
-        description="Every line from every statement, categorised."
-      />
-
-      <Suspense fallback={<TableSkeleton />}>
-        <TransactionListWrapper
-          skip={skip}
-          pageSize={pageSize}
-          currentPage={currentPage}
-          totalCount={stats.totalCount}
-          totalIn={stats.totalIn}
-          totalOut={stats.totalOut}
-          categoryRules={settingsSnapshot.categoryRules}
-          pickerCategoryRules={pickerCategoryRules}
-          vatRegistered={settingsSnapshot.workspace.vatRegistered}
-          canUseAi={canUseAi}
+    return (
+      <>
+        <PageHeader
+          eyebrow="Review"
+          title="Transactions"
+          description="Every line from every statement, categorised."
         />
-      </Suspense>
-    </>
-  );
+
+        <Suspense fallback={<TableSkeleton />}>
+          <TransactionListWrapper
+            skip={skip}
+            pageSize={pageSize}
+            currentPage={currentPage}
+            totalCount={stats.totalCount}
+            totalIn={stats.totalIn}
+            totalOut={stats.totalOut}
+            categoryRules={settingsSnapshot.categoryRules}
+            pickerCategoryRules={pickerCategoryRules}
+            vatRegistered={settingsSnapshot.workspace.vatRegistered}
+            canUseAi={canUseAi}
+          />
+        </Suspense>
+      </>
+    );
+  } catch (err: any) {
+    console.error("[transactions/page] Critical render error:", err);
+    return (
+      <div className="p-8 text-center">
+        <h2 className="text-xl font-bold text-red-600">Failed to load transactions</h2>
+        <p className="mt-2 text-sm text-gray-600">{(err as Error).message || "An unexpected error occurred during rendering."}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-white text-sm"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 }
 
 async function TransactionListWrapper({
