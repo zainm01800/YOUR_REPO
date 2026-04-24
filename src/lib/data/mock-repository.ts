@@ -521,7 +521,9 @@ export const mockRepository: Repository = {
     const allTxs = store.bankStatements.flatMap(s => s.transactions);
     const runTxs = store.runs.flatMap(r => r.transactions);
     const totalCount = allTxs.length + runTxs.length;
-    
+    const totalIn = runTxs.filter(tx => (tx.amount ?? 0) > 0).reduce((s, tx) => s + (tx.amount ?? 0), 0);
+    const totalOut = Math.abs(runTxs.filter(tx => (tx.amount ?? 0) < 0).reduce((s, tx) => s + (tx.amount ?? 0), 0));
+
     return {
       totalCount,
       categorisedCount: runTxs.length,
@@ -530,6 +532,8 @@ export const mockRepository: Repository = {
       pnlCount: 0,
       balanceSheetCount: 0,
       equityCount: 0,
+      totalIn,
+      totalOut,
     };
   },
 

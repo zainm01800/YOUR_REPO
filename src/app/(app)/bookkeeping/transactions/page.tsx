@@ -1,10 +1,6 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { getRepository } from "@/lib/data";
-import { buildCategoryRuleMap, classifyTransaction } from "@/lib/accounting/classifier";
-import { resolveCategory } from "@/lib/categories/suggester";
 import { TransactionsTable } from "@/components/bookkeeping/transactions-table";
-import { detectAnomalies } from "@/lib/analytics/anomaly-detector";
-import type { AnomalyInfo } from "@/lib/analytics/anomaly-detector";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -14,10 +10,9 @@ export default async function BookkeepingTransactionsPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const { page } = await searchParams;
-  // Clamp page to a valid positive integer to prevent negative skip values
   const rawPage = parseInt(page ?? "1", 10);
   const currentPage = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
-  const pageSize = 100;
+  const pageSize = 50;
   const skip = (currentPage - 1) * pageSize;
 
   const repository = await getRepository();
@@ -27,12 +22,8 @@ export default async function BookkeepingTransactionsPage({
     repository.getTransactionStats(),
   ]);
 
-  // AI categorisation is restricted to the account set in AI_OWNER_EMAIL
   const aiOwnerEmail = process.env.AI_OWNER_EMAIL?.trim().toLowerCase();
   const canUseAi = Boolean(aiOwnerEmail && currentUser.email.toLowerCase() === aiOwnerEmail);
-
-  // Derive all categories from rules
-  const allCategories = settingsSnapshot.categoryRules.map((r) => r.category).sort();
 
   const pickerCategoryRules = [...settingsSnapshot.categoryRules].sort(
     (a, b) =>
@@ -45,34 +36,10 @@ export default async function BookkeepingTransactionsPage({
   return (
     <>
       <PageHeader
-        eyebrow="Bookkeeping"
+        eyebrow="Review"
         title="Transactions"
-        description="All imported transactions across every run. Assign categories to build a clear picture of spending."
+        description="Every line from every statement, categorised."
       />
-
-      {/* Summary strip - Loaded instantly from DB aggregates */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-7">
-        <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Total transactions</p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">{stats.totalCount}</p>
-        </div>
-        <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Categorised</p>
-          <p className="mt-1 text-2xl font-bold text-emerald-600">{stats.categorisedCount}</p>
-        </div>
-        <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Uncategorised</p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">{stats.uncategorisedCount}</p>
-        </div>
-        <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Categories</p>
-          <p className="mt-1 text-2xl font-bold text-[var(--color-foreground)]">{stats.categoryCount}</p>
-        </div>
-        <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Load Balanced</p>
-          <p className="mt-1 text-sm text-[var(--color-muted-foreground)] italic">Paging enabled for performance</p>
-        </div>
-      </div>
 
       <Suspense fallback={<TableSkeleton />}>
         <TransactionListWrapper
@@ -80,6 +47,8 @@ export default async function BookkeepingTransactionsPage({
           pageSize={pageSize}
           currentPage={currentPage}
           totalCount={stats.totalCount}
+          totalIn={stats.totalIn}
+          totalOut={stats.totalOut}
           categoryRules={settingsSnapshot.categoryRules}
           pickerCategoryRules={pickerCategoryRules}
           vatRegistered={settingsSnapshot.workspace.vatRegistered}
@@ -95,6 +64,8 @@ async function TransactionListWrapper({
   pageSize,
   currentPage,
   totalCount,
+  totalIn,
+  totalOut,
   categoryRules,
   pickerCategoryRules,
   vatRegistered,
@@ -104,6 +75,8 @@ async function TransactionListWrapper({
   pageSize: number;
   currentPage: number;
   totalCount: number;
+  totalIn: number;
+  totalOut: number;
   categoryRules: any[];
   pickerCategoryRules: any[];
   vatRegistered: boolean;
@@ -114,19 +87,13 @@ async function TransactionListWrapper({
 
   if (totalCount === 0) {
     return (
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-10 text-center">
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          No transactions yet. Create a run and import a bank or card statement to get started.
+      <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-panel)] p-12 text-center">
+        <p className="text-sm font-medium text-[var(--color-foreground)]">No transactions yet</p>
+        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+          Create a run and import a bank or card statement to get started.
         </p>
       </div>
     );
-  }
-
-  // Compute per-merchant anomaly data server-side
-  const anomalyMap = detectAnomalies(allTransactions);
-  const anomalies: Record<string, AnomalyInfo> = {};
-  for (const [id, info] of anomalyMap) {
-    anomalies[id] = info;
   }
 
   return (
@@ -136,7 +103,8 @@ async function TransactionListWrapper({
       pickerCategoryRules={pickerCategoryRules}
       vatRegistered={vatRegistered}
       canUseAi={canUseAi}
-      anomalies={anomalies}
+      totalIn={totalIn}
+      totalOut={totalOut}
       pagination={{
         currentPage,
         pageSize,
@@ -149,16 +117,21 @@ async function TransactionListWrapper({
 function TableSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-10 w-[250px]" />
-        <Skeleton className="h-10 w-[100px]" />
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-10 w-40" />
+        <Skeleton className="h-10 w-36" />
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <Skeleton className="h-24 rounded-2xl" />
+        <Skeleton className="h-24 rounded-2xl" />
+        <Skeleton className="h-24 rounded-2xl" />
       </div>
       <div className="rounded-2xl border border-[var(--color-border)] bg-white overflow-hidden">
         <div className="h-12 border-b bg-[var(--color-panel)]" />
         {[...Array(8)].map((_, i) => (
-          <div key={i} className="h-16 border-b p-4 flex items-center gap-4">
-            <Skeleton className="h-4 w-4" />
-            <Skeleton className="h-4 w-32" />
+          <div key={i} className="h-14 border-b p-4 flex items-center gap-4">
+            <Skeleton className="h-4 w-20" />
             <Skeleton className="h-4 w-48" />
             <Skeleton className="h-4 w-24 ml-auto" />
           </div>

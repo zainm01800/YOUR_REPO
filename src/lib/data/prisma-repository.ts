@@ -2618,6 +2618,16 @@ export async function createPrismaRepository(
         select: { category: true, statementType: true },
       });
 
+      // Total in / total out aggregates
+      const totalInPromise = prisma.transaction.aggregate({
+        where: { run: { workspaceId: workspace.id }, amount: { gt: 0 } },
+        _sum: { amount: true },
+      });
+      const totalOutPromise = prisma.transaction.aggregate({
+        where: { run: { workspaceId: workspace.id }, amount: { lt: 0 } },
+        _sum: { amount: true },
+      });
+
       const [
         runTxCount,
         bankTxCount,
@@ -2625,6 +2635,8 @@ export async function createPrismaRepository(
         catBankTxCount,
         distinctCats,
         categoryRules,
+        totalInAgg,
+        totalOutAgg,
       ] = await Promise.all([
         runTxPromise,
         bankTxPromise,
@@ -2632,25 +2644,23 @@ export async function createPrismaRepository(
         categorisedBankTxPromise,
         distinctCategoriesPromise,
         categoryRulesPromise,
+        totalInPromise,
+        totalOutPromise,
       ]);
 
       const totalCount = runTxCount + bankTxCount;
       const categorisedCount = catRunTxCount + catBankTxCount;
-      const categoryMap = new Map(categoryRules.map(r => [r.category, r.statementType]));
 
-      // For counts by statement type, we'd ideally use a join or aggregate
-      // Since it's a summary, we'll approximate based on transactions if few,
-      // but if there are many, we might need a more complex aggregate.
-      // For now, let's just use the totals.
-      
       return {
         totalCount,
         categorisedCount,
         uncategorisedCount: totalCount - categorisedCount,
         categoryCount: distinctCats.length,
-        pnlCount: 0, // Will be refined if needed, but keeping it simple for speed
+        pnlCount: 0,
         balanceSheetCount: 0,
         equityCount: 0,
+        totalIn: Number(totalInAgg._sum.amount ?? 0),
+        totalOut: Math.abs(Number(totalOutAgg._sum.amount ?? 0)),
       };
     },
 

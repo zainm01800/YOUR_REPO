@@ -577,6 +577,8 @@ export interface TransactionStats {
   pnlCount: number;
   balanceSheetCount: number;
   equityCount: number;
+  totalIn: number;
+  totalOut: number;
 }
 
 export type WorkspaceRole = "owner" | "admin" | "accountant" | "viewer";

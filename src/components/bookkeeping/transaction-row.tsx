@@ -15,12 +15,14 @@ export function fmtAmount(amount: number, currency: string) {
   return `${sym}${Math.abs(amount).toFixed(2)}`;
 }
 
-export function fmtDate(dateStr?: string) {
+export function fmtDate(dateStr?: string, format: "short" | "long" = "long") {
   if (!dateStr) return "—";
   try {
-    return new Date(dateStr).toLocaleDateString("en-GB", {
-      day: "2-digit", month: "short", year: "numeric",
-    });
+    const d = new Date(dateStr);
+    if (format === "short") {
+      return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+    }
+    return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   } catch {
     return dateStr;
   }
