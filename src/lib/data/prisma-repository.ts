@@ -1830,20 +1830,20 @@ export const basePrismaRepository: Repository = {
     }
   },
 
-  async setTransactionAllowable(transactionId: string, allowable: boolean): Promise<void> {
+  async setTransactionAllowable(transactionId: string, allowable: boolean | null): Promise<void> {
     const prisma = requirePrisma();
     
     // Try updating assigned transaction first
     try {
       await prisma.transaction.update({
         where: { id: transactionId },
-        data: { noReceiptRequired: !allowable }, // Mapping "Allowable" to the inverse of "No Receipt Required" field which is used for tax-readiness in this schema
+        data: { noReceiptRequired: allowable === null ? null : !allowable }, // Mapping "Allowable" to the inverse of "No Receipt Required" field which is used for tax-readiness in this schema
         select: { id: true },
       });
     } catch {
       await prisma.bankTransaction.update({
         where: { id: transactionId },
-        data: { noReceiptRequired: !allowable },
+        data: { noReceiptRequired: allowable === null ? null : !allowable },
         select: { id: true },
       }).catch(() => {
         console.warn(`[setTransactionAllowable] Failed to update transaction ${transactionId}`);

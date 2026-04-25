@@ -133,30 +133,52 @@ export function ExpensesList({
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      {claimStatus !== "needs_review" && onToggleClaimable && (
-                        <button
-                          type="button"
-                          disabled={toggling === exp.id}
-                          onClick={() => {
-                            setToggling(exp.id);
-                            onToggleClaimable(
-                              exp.id,
-                              exp.source || "manual",
-                              claimStatus === "claimable",
-                              exp.allowableOverride !== undefined
-                            );
-                            // We purposefully don't clear toggling state here because onToggleClaimable will trigger a router.refresh() 
-                            // and clear state if it's managed at a higher level, or the component will unmount. If error occurs, we should theoretically clear it, but let's just use simple unmount refresh.
-                          }}
-                          className={`rounded-lg p-1.5 text-xs font-medium border transition disabled:opacity-40 ${
-                            claimStatus === "claimable"
-                              ? "border-[var(--line)] text-[var(--muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] hover:border-[var(--danger)]"
-                              : "border-[var(--line)] text-[var(--muted)] hover:bg-[var(--good-soft)] hover:text-[var(--good)] hover:border-[var(--good)]"
-                          }`}
-                          title={`Currently ${claimStatus === "claimable" ? "claimable" : "not claimable"}. Click to toggle.`}
-                        >
-                          {toggling === exp.id ? "..." : claimStatus === "claimable" ? "Make Non-Claimable" : "Make Claimable"}
-                        </button>
+                      {onToggleClaimable && (
+                        <>
+                          {claimStatus !== "claimable" && (
+                            <button
+                              type="button"
+                              disabled={toggling === exp.id}
+                              onClick={() => {
+                                setToggling(exp.id);
+                                onToggleClaimable(exp.id, exp.source || "manual", true, exp.allowableOverride !== undefined);
+                              }}
+                              className="rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] border border-[var(--line)] text-[var(--muted)] transition disabled:opacity-40 hover:bg-[var(--good-soft)] hover:text-[var(--good)] hover:border-[var(--good)]"
+                              title="Force this expense to be Claimable"
+                            >
+                              Make Claimable
+                            </button>
+                          )}
+                          {claimStatus !== "not_claimable" && (
+                            <button
+                              type="button"
+                              disabled={toggling === exp.id}
+                              onClick={() => {
+                                setToggling(exp.id);
+                                onToggleClaimable(exp.id, exp.source || "manual", false, exp.allowableOverride !== undefined);
+                              }}
+                              className="rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] border border-[var(--line)] text-[var(--muted)] transition disabled:opacity-40 hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] hover:border-[var(--danger)]"
+                              title="Force this expense to be Non-Claimable"
+                            >
+                              Make Non-Claimable
+                            </button>
+                          )}
+                          {exp.allowableOverride !== undefined && (
+                            <button
+                              type="button"
+                              disabled={toggling === exp.id}
+                              onClick={() => {
+                                setToggling(exp.id);
+                                // Passing null clears the override
+                                onToggleClaimable(exp.id, exp.source || "manual", null as any, true);
+                              }}
+                              className="rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] border border-[var(--line)] text-[var(--muted)] transition disabled:opacity-40 hover:bg-[var(--color-panel)] hover:text-[var(--ink)]"
+                              title="Clear override and use default category rules"
+                            >
+                              Default
+                            </button>
+                          )}
+                        </>
                       )}
                       {exp.source === "transaction" ? (
                         <span className="ml-2 rounded-full bg-[#f0eee8] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">

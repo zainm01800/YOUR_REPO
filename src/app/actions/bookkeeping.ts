@@ -88,7 +88,7 @@ export async function bulkUpdateTransactionAllowableAction(transactionIds: strin
 export async function toggleExpenseClaimabilityAction(
   rawId: string, 
   source: "manual" | "transaction", 
-  claimable: boolean
+  claimable: boolean | null
 ) {
   try {
     await requireAuthenticatedUser();

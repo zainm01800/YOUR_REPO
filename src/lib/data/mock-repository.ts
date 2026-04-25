@@ -389,7 +389,7 @@ export const mockRepository: Repository = {
     throw new Error(`Transaction ${transactionId} was not found.`);
   },
 
-  async setTransactionAllowable(transactionId: string, allowable: boolean): Promise<void> {
+  async setTransactionAllowable(transactionId: string, allowable: boolean | null): Promise<void> {
     for (const run of store.runs) {
       const tx = run.transactions.find((t) => t.id === transactionId);
       if (tx) {

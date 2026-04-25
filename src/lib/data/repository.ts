@@ -118,7 +118,7 @@ export interface Repository {
   getCategoryRules(): Promise<CategoryRule[]>;
   replaceAllCategoryRules(input: ReplaceCategoryRulesInput): Promise<CategoryRule[]>;
   setTransactionCategory(transactionId: string, category: string | null, reason?: string, confidenceScore?: number): Promise<void>;
-  setTransactionAllowable(transactionId: string, allowable: boolean): Promise<void>;
+  setTransactionAllowable(transactionId: string, allowable: boolean | null): Promise<void>;
   deleteTransactions(ids: string[]): Promise<void>;
   createRun(input: CreateRunInput): Promise<ReconciliationRun>;
   deleteRun(runId: string): Promise<void>;
