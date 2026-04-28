@@ -1,18 +1,12 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { TemplateEditor } from "@/components/templates/template-editor";
-import { getRepository } from "@/lib/data";
-import { buildViewerAccessProfile } from "@/lib/auth/viewer-access";
-import { resolveViewerUser } from "@/lib/auth/viewer-user";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
 import { redirect } from "next/navigation";
 
+export const metadata = { title: "Mapping Templates" };
+
 export default async function TemplatesPage() {
-  const repository = await getRepository();
-  const [workspace, currentUser] = await Promise.all([
-    repository.getWorkspace(),
-    repository.getCurrentUser(),
-  ]);
-  const viewerUser = await resolveViewerUser(currentUser);
-  const viewerAccess = buildViewerAccessProfile(viewerUser, workspace);
+  const { viewerAccess } = await getServerViewerAccess();
   if (!viewerAccess.canSeeTemplates) {
     redirect("/dashboard");
   }

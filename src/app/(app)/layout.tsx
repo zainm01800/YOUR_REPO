@@ -1,16 +1,16 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getRepository } from "@/lib/data";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { RecoveryUI } from "@/components/auth/recovery-ui";
-import { buildViewerAccessProfile } from "@/lib/auth/viewer-access";
+import type { ViewerAccessProfile } from "@/lib/auth/viewer-access";
 import {
   ACCOUNT_TYPE_SETUP_PATH,
   getClerkPrimaryEmail,
   getLockedAccountTypeFromClerkUser,
 } from "@/lib/auth/account-type";
 import { isWebsiteOwnerEmail } from "@/lib/auth/viewer-access";
-import { resolveViewerUser } from "@/lib/auth/viewer-user";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
+import type { User, Workspace, WorkspaceRole } from "@/lib/domain/types";
 
 export default async function AuthenticatedLayout({
   children,
@@ -36,26 +36,23 @@ export default async function AuthenticatedLayout({
     redirect(ACCOUNT_TYPE_SETUP_PATH);
   }
 
-  let workspace;
-  let workspaces;
-  let storedUser;
-  let viewerUser;
-  let viewerAccess;
+  let workspace: Workspace | null = null;
+  let workspaces: Array<{ id: string; name: string; slug: string; role: WorkspaceRole }> = [];
+  let storedUser: User | null = null;
+  let viewerUser: User | null = null;
+  let viewerAccess: ViewerAccessProfile | null = null;
 
   try {
-    const repository = await getRepository();
-    [workspace, workspaces, storedUser] = await Promise.all([
-      repository.getWorkspace(),
-      repository.getUserWorkspaces(),
-      repository.getCurrentUser(),
-    ]);
+    const access = await getServerViewerAccess();
+    workspace = access.workspace;
+    workspaces = access.userWorkspaces;
+    storedUser = access.currentUser;
+    viewerUser = access.viewerUser;
+    viewerAccess = access.viewerAccess;
 
     if (!workspace || !workspaces || !storedUser) {
       redirect("/sign-up");
     }
-
-    viewerUser = await resolveViewerUser(storedUser);
-    viewerAccess = buildViewerAccessProfile(viewerUser, workspace);
   } catch (error: any) {
     // Re-throw redirects so Next.js can handle them properly
     if (error?.digest?.startsWith("NEXT_REDIRECT")) {
@@ -75,6 +72,7 @@ export default async function AuthenticatedLayout({
       workspaces={workspaces}
       currentWorkspaceId={workspace.id}
       businessType={workspace.businessType}
+      vatRegistered={workspace.vatRegistered}
       viewerAccess={viewerAccess}
     >
       {children}

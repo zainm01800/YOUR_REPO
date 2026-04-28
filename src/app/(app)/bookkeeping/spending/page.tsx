@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { getRepository } from "@/lib/data";
+import { getCachedBookkeepingDataset } from "@/lib/data/cached-reads";
 import type { TransactionRecord } from "@/lib/domain/types";
 import { resolveCategory } from "@/lib/categories/suggester";
 import { buildCategoryRuleMap, classifyTransaction } from "@/lib/accounting/classifier";
 import { formatCurrency } from "@/lib/utils";
+import { ArrowRight, BarChart3, Building2, FolderInput } from "lucide-react";
+
+export const metadata = { title: "Supplier Analysis" };
 
 interface SupplierRow {
   supplier: string;
@@ -67,11 +71,9 @@ function periodLabel(dates: string[]) {
 
 export default async function SpendingPage() {
   const repository = await getRepository();
-  const [settingsSnapshot, runs, unassignedBankTxns] = await Promise.all([
-    repository.getSettingsSnapshot(),
-    repository.getRunsWithTransactions(),
-    repository.getUnassignedBankTransactions().catch(() => []),
-  ]);
+  const workspace = await repository.getWorkspace();
+  const { settingsSnapshot, runs, unassignedBankTransactions: unassignedBankTxns } =
+    await getCachedBookkeepingDataset(workspace.id);
   const categoryRuleMap = buildCategoryRuleMap(settingsSnapshot.categoryRules);
   const currency = settingsSnapshot.workspace.defaultCurrency ?? "GBP";
 
@@ -199,17 +201,112 @@ export default async function SpendingPage() {
       />
 
       {expenseTransactions.length === 0 ? (
-        <div className="cm-panel-subtle p-10 text-center">
-          <p className="text-sm text-[var(--muted)]">
-            No supplier spend yet.{" "}
-            <Link href="/runs/new" className="text-[var(--accent-ink)] hover:underline">
-              Create a run
-            </Link>{" "}
-            or import a bank statement to get started.
-          </p>
+        <div className="grid gap-4 xl:grid-cols-[1.15fr_0.95fr]">
+          <div className="rounded-[26px] border border-[var(--line)] bg-white px-6 py-6 shadow-[var(--shadow-sm)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
+              Review workspace
+            </p>
+            <h2 className="mt-2 text-[26px] font-semibold tracking-[-0.03em] text-[var(--ink)]">
+              Supplier insight appears once expense lines are classified
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+              This page turns categorised expense transactions into supplier trends, top-spend
+              rankings, and category concentration views.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link
+                href="/bank-statements"
+                className="rounded-full bg-[var(--accent)] px-3.5 py-1.5 text-xs font-semibold text-white shadow-[var(--shadow-sm)]"
+              >
+                Import bank statement
+              </Link>
+              <Link
+                href="/bookkeeping/transactions"
+                className="rounded-full bg-[#f4f2ed] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink-2)]"
+              >
+                Categorise transactions
+              </Link>
+            </div>
+          </div>
+          <div className="rounded-[26px] border border-[var(--line)] bg-[linear-gradient(135deg,#faf8f2_0%,#f3ecde_100%)] px-6 py-6 shadow-[var(--shadow-sm)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
+                  What this page will show
+                </p>
+                <h3 className="mt-2 text-lg font-semibold text-[var(--ink)]">
+                  Useful supplier patterns, not just another table
+                </h3>
+              </div>
+              <ArrowRight className="mt-1 h-4 w-4 text-[var(--accent-ink)]" />
+            </div>
+            <div className="mt-5 space-y-3">
+              {[
+                {
+                  icon: Building2,
+                  title: "Top suppliers by spend",
+                  detail: "See who you paid most and how concentrated your spending is.",
+                },
+                {
+                  icon: BarChart3,
+                  title: "Category mix",
+                  detail: "Spot whether costs are mostly travel, software, marketing, or something else.",
+                },
+                {
+                  icon: FolderInput,
+                  title: "Source-aware totals",
+                  detail: "All figures come from the same bookkeeping layer used elsewhere in the app.",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-[var(--shadow-sm)]"
+                >
+                  <div className="flex items-center gap-2">
+                    <item.icon className="h-4 w-4 text-[var(--accent-ink)]" />
+                    <span className="text-sm font-semibold text-[var(--ink)]">{item.title}</span>
+                  </div>
+                  <p className="mt-1.5 text-xs leading-5 text-[var(--muted)]">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-3">
+            {[
+              {
+                label: "Suppliers tracked",
+                value: supplierRows.length.toString(),
+                note: "Unique suppliers with P&L expense activity.",
+              },
+              {
+                label: "Expense transactions",
+                value: expenseTransactions.length.toString(),
+                note: `${activeMonths.size || 1} month${activeMonths.size === 1 ? "" : "s"} contributing to this view.`,
+              },
+              {
+                label: "Total spend",
+                value: formatCurrency(totalSpend, currency),
+                note: "Pulled from categorised expense lines only.",
+              },
+            ].map((card) => (
+              <div
+                key={card.label}
+                className="rounded-2xl border border-[var(--line)] bg-white px-5 py-4 shadow-[var(--shadow-sm)]"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
+                  {card.label}
+                </p>
+                <p className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-[var(--ink)]">
+                  {card.value}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{card.note}</p>
+              </div>
+            ))}
+          </div>
+
           <div className="grid gap-4 xl:grid-cols-[1.25fr_0.95fr]">
             <section className="cm-panel p-5">
               <p className="panel-eyebrow">Top suppliers by spend</p>

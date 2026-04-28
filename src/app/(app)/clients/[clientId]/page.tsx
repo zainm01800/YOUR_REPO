@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, FileText, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
-import { getRepository } from "@/lib/data";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Client" };
@@ -22,16 +22,15 @@ export default async function ClientDetailPage({
   params: Promise<{ clientId: string }>;
 }) {
   const { clientId } = await params;
-  const repository = await getRepository();
-  const [client, invoices, settings] = await Promise.all([
+  const { repository, workspace, viewerAccess } = await getServerViewerAccess();
+  const [client, invoices] = await Promise.all([
     repository.getClient(clientId),
     repository.getInvoices(),
-    repository.getSettingsSnapshot(),
   ]);
 
   if (!client) notFound();
 
-  const currency = settings.workspace.defaultCurrency ?? "GBP";
+  const currency = workspace.defaultCurrency ?? "GBP";
   const clientInvoices = invoices.filter((inv) => inv.clientId === clientId);
 
   return (
@@ -45,20 +44,22 @@ export default async function ClientDetailPage({
           { label: client.name },
         ]}
         actions={
-          <div className="flex gap-2">
-            <Link href={`/invoices/new?clientId=${clientId}`}>
-              <Button>
-                <FileText className="mr-2 h-4 w-4" />
-                New invoice
-              </Button>
-            </Link>
-            <Link href={`/clients/${clientId}/edit`}>
-              <Button variant="secondary">
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
-            </Link>
-          </div>
+          viewerAccess.canManageOperationalData ? (
+            <div className="flex gap-2">
+              <Link href={`/invoices/new?clientId=${clientId}`}>
+                <Button>
+                  <FileText className="mr-2 h-4 w-4" />
+                  New invoice
+                </Button>
+              </Link>
+              <Link href={`/clients/${clientId}/edit`}>
+                <Button variant="secondary">
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              </Link>
+            </div>
+          ) : undefined
         }
       />
 
@@ -97,12 +98,14 @@ export default async function ClientDetailPage({
       <div className="cm-panel-subtle p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-[var(--color-foreground)]">Invoices</h2>
-          <Link href={`/invoices/new?clientId=${clientId}`}>
-            <Button className="h-8 px-3 text-xs" variant="secondary">
-              <FileText className="mr-1.5 h-3.5 w-3.5" />
-              New invoice
-            </Button>
-          </Link>
+          {viewerAccess.canManageOperationalData && (
+            <Link href={`/invoices/new?clientId=${clientId}`}>
+              <Button className="h-8 px-3 text-xs" variant="secondary">
+                <FileText className="mr-1.5 h-3.5 w-3.5" />
+                New invoice
+              </Button>
+            </Link>
+          )}
         </div>
 
         {clientInvoices.length === 0 ? (

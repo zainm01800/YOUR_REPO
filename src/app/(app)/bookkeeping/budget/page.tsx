@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { getRepository } from "@/lib/data";
+import { getCachedBookkeepingDataset } from "@/lib/data/cached-reads";
 import { BudgetPageClient } from "@/components/bookkeeping/budget-page-client";
 import { buildCategoryRuleMap, classifyTransaction } from "@/lib/accounting/classifier";
 import { resolveCategory } from "@/lib/categories/suggester";
@@ -8,10 +9,10 @@ export const metadata = { title: "Budget vs. Actual" };
 
 export default async function BudgetPage() {
   const repository = await getRepository();
-  const [budgets, settings, runs, manualExpenses] = await Promise.all([
+  const workspace = await repository.getWorkspace();
+  const [{ settingsSnapshot: settings, runs }, budgets, manualExpenses] = await Promise.all([
+    getCachedBookkeepingDataset(workspace.id),
     repository.getCategoryBudgets(),
-    repository.getSettingsSnapshot(),
-    repository.getRunsWithTransactions(),
     repository.getManualExpenses(),
   ]);
 

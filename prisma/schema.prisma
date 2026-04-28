@@ -187,6 +187,7 @@ model BankTransaction {
   taxTreatment       String?
   taxRate            Decimal?      @db.Decimal(5, 2)
   noReceiptRequired  Boolean       @default(false)
+  isClaimableOverride Boolean?
   excludedFromExport Boolean       @default(false)
   categoryConfidence String?
   categoryReason     String?
@@ -231,6 +232,7 @@ model Transaction {
   taxTreatment            String?
   taxRate                 Decimal?          @db.Decimal(5, 2)
   noReceiptRequired       Boolean           @default(false)
+  isClaimableOverride     Boolean?
   excludedFromExport      Boolean           @default(false)
   categoryConfidence      String?
   categoryReason          String?

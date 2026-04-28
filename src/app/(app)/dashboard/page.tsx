@@ -170,11 +170,11 @@ function KpiCard({
   sparkColor: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)] hover:shadow-[var(--shadow-panel)]">
       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-extrabold tabular-nums text-[var(--color-foreground)]">
+      <p className="mt-3 text-[1.85rem] font-extrabold tracking-[-0.04em] tabular-nums text-[var(--color-foreground)]">
         {value}
       </p>
       <div className="mt-2 flex items-end justify-between gap-2">
@@ -191,8 +191,11 @@ export default async function DashboardPage() {
   const firstName = clerkUser?.firstName ?? "there";
 
   const repository = await getRepository();
-  const settings = await repository.getSettingsSnapshot();
-  const businessType = settings.workspace.businessType;
+  const [workspace, categoryRules] = await Promise.all([
+    repository.getWorkspace(),
+    repository.getCategoryRules(),
+  ]);
+  const businessType = workspace.businessType;
 
   // ── Non-sole-trader: hand off to reconciliation dashboard ─────────────
   if (businessType !== "sole_trader") {
@@ -203,41 +206,40 @@ export default async function DashboardPage() {
   let invoices: Awaited<ReturnType<typeof repository.getInvoices>> = [];
   let manualExpenses: Awaited<ReturnType<typeof repository.getManualExpenses>> = [];
   let budgets: Awaited<ReturnType<typeof repository.getCategoryBudgets>> = [];
-  let runs: Awaited<ReturnType<typeof repository.getRunsWithTransactions>> = [];
+  let dashboardTransactions: Awaited<ReturnType<typeof repository.getPaginatedTransactions>> = [];
 
   try {
-    [invoices, manualExpenses, budgets, runs] = await Promise.all([
+    [invoices, manualExpenses, budgets, dashboardTransactions] = await Promise.all([
       repository.getInvoices(),
       repository.getManualExpenses(),
       repository.getCategoryBudgets(),
-      repository.getRunsWithTransactions(),
+      repository.getPaginatedTransactions(0, 1000),
     ]);
   } catch {
     // Tables may not exist yet — show dashboard with zeros
   }
 
-  const currency = settings.workspace.defaultCurrency ?? "GBP";
+  const currency = workspace.defaultCurrency ?? "GBP";
   const now = new Date();
   const taxYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
   const taxYearStart = new Date(`${taxYear}-04-06`);
   const taxYearEnd = new Date(`${taxYear + 1}-04-05`);
 
   // ── Transaction income / expense from bank runs ────────────────────────
-  const categoryRuleMap = buildCategoryRuleMap(settings.categoryRules);
+  const categoryRuleMap = buildCategoryRuleMap(categoryRules);
   const monthlyIncomeMap: Record<string, number> = {};
   const monthlyExpenseMap: Record<string, number> = {};
   let txIncomeTotal = 0;
   let txExpenseTotal = 0;
 
   try {
-    for (const run of runs) {
-      for (const tx of run.transactions) {
+    for (const tx of dashboardTransactions) {
         if (!tx.transactionDate) continue;
         const d = new Date(tx.transactionDate);
         if (d < taxYearStart || d > taxYearEnd) continue;
-        const catName = tx.category ?? resolveCategory(tx, settings.categoryRules);
+        const catName = tx.category ?? resolveCategory(tx, categoryRules);
         const cat = catName ? categoryRuleMap.get(catName.trim().toLowerCase()) : undefined;
-        const cls = classifyTransaction(tx, cat, settings.workspace.vatRegistered);
+        const cls = classifyTransaction(tx, cat, workspace.vatRegistered);
         const mk = tx.transactionDate.slice(0, 7);
         if (cls.accountType === "income") {
           txIncomeTotal += Math.abs(cls.grossAmount);
@@ -246,7 +248,6 @@ export default async function DashboardPage() {
           txExpenseTotal += Math.abs(cls.grossAmount);
           monthlyExpenseMap[mk] = (monthlyExpenseMap[mk] ?? 0) + Math.abs(cls.grossAmount);
         }
-      }
     }
   } catch (err) {
     console.error("[dashboard] transaction processing failed:", err);
@@ -324,18 +325,16 @@ export default async function DashboardPage() {
   const spendByCat: Record<string, { monthly: number; count: number }> = {};
 
   try {
-    for (const run of runs) {
-      for (const tx of run.transactions) {
+    for (const tx of dashboardTransactions) {
         if (!tx.transactionDate?.startsWith(thisMonth)) continue;
-        const catName = tx.category ?? resolveCategory(tx, settings.categoryRules);
+        const catName = tx.category ?? resolveCategory(tx, categoryRules);
         const cat = catName ? categoryRuleMap.get(catName.trim().toLowerCase()) : undefined;
-        const cls = classifyTransaction(tx, cat, settings.workspace.vatRegistered);
+        const cls = classifyTransaction(tx, cat, workspace.vatRegistered);
         if (cls.accountType === "expense" && catName) {
           spendByCat[catName] ??= { monthly: 0, count: 0 };
           spendByCat[catName].monthly += Math.abs(cls.grossAmount);
           spendByCat[catName].count += 1;
         }
-      }
     }
   } catch (err) {
     console.error("[dashboard] budget processing failed:", err);
@@ -379,23 +378,59 @@ export default async function DashboardPage() {
     ["sent", "overdue", "draft"].includes(i.effectiveStatus)
   );
   const openTotal = openInvs.reduce((s, i) => s + i.total, 0);
+  const uncategorisedCount = dashboardTransactions.filter((tx) => !tx.category).length;
+  const nextActions = [
+    {
+      label: "Import bank activity",
+      detail: "Add statement rows so income and expense totals stay current.",
+      href: "/bank-statements",
+      cta: "Import",
+      active: dashboardTransactions.length === 0,
+    },
+    {
+      label: "Review uncategorised items",
+      detail: `${uncategorisedCount} transaction${uncategorisedCount !== 1 ? "s" : ""} still need a category.`,
+      href: "/bookkeeping/transactions",
+      cta: "Review",
+      active: uncategorisedCount > 0,
+    },
+    {
+      label: "Check tax estimate",
+      detail: "See the assumptions behind the amount to set aside.",
+      href: "/bookkeeping/tax-summary",
+      cta: "Open",
+      active: taxCalc.totalTax > 0,
+    },
+  ];
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
 
       {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="rounded-[28px] border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-panel)] lg:p-7">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
             Overview · {taxYear}/{String(taxYear + 1).slice(2)} Tax Year
           </p>
-          <h1 className="mt-1.5 text-[1.75rem] font-extrabold tracking-tight text-[var(--color-foreground)]">
+          <h1 className="mt-2 max-w-2xl text-[2.15rem] font-extrabold leading-[1.03] tracking-[-0.045em] text-[var(--color-foreground)] sm:text-[2.6rem]">
             {getGreeting()}, {firstName}
           </h1>
-          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-            Here&apos;s where your business stands today, {todayLong()}.
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-muted-foreground)]">
+            Here&apos;s the simple owner view for {todayLong()}: money in, money out, tax to set aside, and the next records that need attention.
           </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <span className="rounded-full border border-[var(--line)] bg-[var(--color-panel)] px-3 py-1 text-xs font-semibold text-[var(--color-foreground)]">
+              {workspace.businessType === "sole_trader" ? "Sole trader" : "Business"}
+            </span>
+            <span className="rounded-full border border-[var(--line)] bg-[var(--color-panel)] px-3 py-1 text-xs font-semibold text-[var(--color-foreground)]">
+              {workspace.vatRegistered ? "VAT enabled" : "VAT off"}
+            </span>
+            <span className="rounded-full border border-[var(--line)] bg-[var(--color-panel)] px-3 py-1 text-xs font-semibold text-[var(--color-foreground)]">
+              {currency}
+            </span>
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Link
@@ -418,6 +453,26 @@ export default async function DashboardPage() {
             New invoice
           </Link>
         </div>
+      </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        {nextActions.map((action) => (
+          <Link
+            key={action.label}
+            href={action.href}
+            className="group rounded-2xl border border-[var(--line)] bg-white p-4 shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)] hover:shadow-[var(--shadow-panel)]"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2 text-sm font-bold text-[var(--color-foreground)]">
+                <span className={action.active ? "h-2 w-2 rounded-full bg-[var(--color-accent)]" : "h-2 w-2 rounded-full bg-[var(--line)]"} />
+                {action.label}
+              </span>
+              <span className="text-xs font-bold text-[var(--color-accent)] group-hover:underline">{action.cta}</span>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-[var(--color-muted-foreground)]">{action.detail}</p>
+          </Link>
+        ))}
       </div>
 
       {/* ── Alert banner (most overdue invoice) ─────────────────────────── */}

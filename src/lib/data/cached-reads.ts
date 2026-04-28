@@ -1,88 +1,75 @@
-import { unstable_cache } from "next/cache";
+import { cache } from "react";
 import { getRepository } from "@/lib/data";
-import { DATA_TAGS } from "@/lib/data/cache-tags";
+import type { SettingsSnapshot } from "@/lib/domain/types";
 
-const SHORT_REVALIDATE_SECONDS = 120;
+// NOTE:
+// These helpers intentionally avoid unstable_cache().
+// The repository layer depends on the authenticated request context, and in
+// Next 16 reading cookies/session data inside unstable_cache causes runtime
+// failures on signed-in pages.
+//
+// We still use React's request-local cache() to de-duplicate repeated reads
+// during a single render (for example when both the layout and page need the
+// same viewer/workspace data). That gives us a speed-up without cross-user
+// caching risk.
 
-export const getCachedSettingsSnapshot = unstable_cache(
-  async () => (await getRepository()).getSettingsSnapshot(),
-  ["settings-snapshot-v1"],
-  {
-    revalidate: SHORT_REVALIDATE_SECONDS,
-    tags: [DATA_TAGS.settings],
-  },
-);
+export const getCachedSettingsSnapshot = cache(async function getCachedSettingsSnapshot(_workspaceId: string) {
+  const repository = await getRepository();
+  return repository.getSettingsSnapshot();
+});
 
-export const getCachedRunSummaries = unstable_cache(
-  async () => (await getRepository()).getRunSummaries(),
-  ["run-summaries-v1"],
-  {
-    revalidate: SHORT_REVALIDATE_SECONDS,
-    tags: [DATA_TAGS.runs, DATA_TAGS.runSummaries],
-  },
-);
+export const getCachedRunSummaries = cache(async function getCachedRunSummaries(_workspaceId: string) {
+  const repository = await getRepository();
+  return repository.getRunSummaries();
+});
 
-export const getCachedBankStatementSummaries = unstable_cache(
-  async () => (await getRepository()).getBankStatementSummaries(),
-  ["bank-statement-summaries-v1"],
-  {
-    revalidate: SHORT_REVALIDATE_SECONDS,
-    tags: [DATA_TAGS.bankStatements],
-  },
-);
+export const getCachedBankStatementSummaries = cache(async function getCachedBankStatementSummaries(_workspaceId: string) {
+  const repository = await getRepository();
+  return repository.getBankStatementSummaries();
+});
 
-export const getCachedBookkeepingDataset = unstable_cache(
-  async () => {
-    const repository = await getRepository();
-    const [settingsSnapshot, runs, unassignedBankTransactions] = await Promise.all([
-      repository.getSettingsSnapshot(),
-      repository.getRunsWithTransactions().catch((error) => {
-        console.error("[cached-bookkeeping] failed to load runs with transactions:", error);
-        return [];
-      }),
-      repository.getUnassignedBankTransactions().catch((error) => {
-        console.error("[cached-bookkeeping] failed to load unassigned bank transactions:", error);
-        return [];
-      }),
-    ]);
+export const getCachedBookkeepingDataset = cache(async function getCachedBookkeepingDataset(_workspaceId: string) {
+  const repository = await getRepository();
+  const [workspace, categoryRules, vatRules, runs, unassignedBankTransactions] = await Promise.all([
+    repository.getWorkspace(),
+    repository.getCategoryRules(),
+    repository.getVatRules(),
+    repository.getBookkeepingRuns().catch((error) => {
+      console.error("[cached-bookkeeping] failed to load runs with transactions:", error);
+      return [];
+    }),
+    repository.getUnassignedBankTransactions().catch((error) => {
+      console.error("[cached-bookkeeping] failed to load unassigned bank transactions:", error);
+      return [];
+    }),
+  ]);
 
-    return {
-      settingsSnapshot,
-      runs,
-      unassignedBankTransactions,
-    };
-  },
-  ["bookkeeping-dataset-v1"],
-  {
-    revalidate: SHORT_REVALIDATE_SECONDS,
-    tags: [
-      DATA_TAGS.settings,
-      DATA_TAGS.runs,
-      DATA_TAGS.bankStatements,
-      DATA_TAGS.bookkeeping,
-      DATA_TAGS.suppliers,
-      DATA_TAGS.reports,
-      DATA_TAGS.taxSummary,
-    ],
-  },
-);
+  const settingsSnapshot: SettingsSnapshot = {
+    workspace,
+    templates: [],
+    vatRules,
+    glRules: [],
+    categoryRules,
+    memberships: [],
+    invitations: [],
+  };
 
-export const getCachedDashboardPageData = unstable_cache(
-  async () => {
-    const repository = await getRepository();
-    const [snapshot, runsWithTransactions] = await Promise.all([
-      repository.getDashboardSnapshot(),
-      repository.getRunsWithTransactions(),
-    ]);
+  return {
+    settingsSnapshot,
+    runs,
+    unassignedBankTransactions,
+  };
+});
 
-    return {
-      snapshot,
-      runsWithTransactions,
-    };
-  },
-  ["dashboard-page-data-v1"],
-  {
-    revalidate: SHORT_REVALIDATE_SECONDS,
-    tags: [DATA_TAGS.dashboard, DATA_TAGS.runs, DATA_TAGS.settings, DATA_TAGS.bankStatements],
-  },
-);
+export const getCachedDashboardPageData = cache(async function getCachedDashboardPageData(_workspaceId: string) {
+  const repository = await getRepository();
+  const [snapshot, runsWithTransactions] = await Promise.all([
+    repository.getDashboardSnapshot(),
+    repository.getBookkeepingRuns(),
+  ]);
+
+  return {
+    snapshot,
+    runsWithTransactions,
+  };
+});

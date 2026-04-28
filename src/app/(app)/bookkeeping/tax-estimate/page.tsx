@@ -1,8 +1,11 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { getRepository } from "@/lib/data";
+import { getCachedBookkeepingDataset } from "@/lib/data/cached-reads";
 import { buildCategoryRuleMap, classifyTransaction } from "@/lib/accounting/classifier";
 import { resolveCategory } from "@/lib/categories/suggester";
 import { TaxEstimatePanel } from "@/components/bookkeeping/tax-estimate-panel";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
+import { redirect } from "next/navigation";
 
 export const metadata = { title: "Self Assessment Estimate" };
 
@@ -45,10 +48,12 @@ function calcTax(profit: number) {
 }
 
 export default async function TaxEstimatePage() {
-  const repository = await getRepository();
-  const [settings, runs, manualExpenses] = await Promise.all([
-    repository.getSettingsSnapshot(),
-    repository.getRunsWithTransactions(),
+  const { repository, workspace, viewerAccess } = await getServerViewerAccess();
+  if (!viewerAccess.canReviewTax) {
+    redirect("/dashboard");
+  }
+  const [{ settingsSnapshot: settings, runs }, manualExpenses] = await Promise.all([
+    getCachedBookkeepingDataset(workspace.id),
     repository.getManualExpenses(),
   ]);
 

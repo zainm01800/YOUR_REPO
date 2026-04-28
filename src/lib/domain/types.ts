@@ -93,6 +93,12 @@ export type TaxTreatment =
 
 export type UserAccountType = "business_user" | "accountant";
 export type BusinessType = "sole_trader" | "general_small_business";
+export type WorkspaceAccessLevel =
+  | "owner"
+  | "accountant_admin"
+  | "bookkeeper"
+  | "tax_reviewer"
+  | "view_only";
 export type CategorySection =
   | "Income"
   | "Cost of Sales"
@@ -222,6 +228,7 @@ export interface TransactionRecord {
   /** Manual override for VAT rate (overrides category default) */
   taxRate?: number;
   noReceiptRequired?: boolean;
+  isClaimableOverride?: boolean | null;
   excludedFromExport?: boolean;
   runId?: string;
   runName?: string;
@@ -581,21 +588,25 @@ export interface TransactionStats {
   totalOut: number;
 }
 
-export type WorkspaceRole = "owner" | "admin" | "accountant" | "viewer";
+export type WorkspaceRole =
+  | WorkspaceAccessLevel
+  | "admin"
+  | "accountant"
+  | "viewer";
 
 export interface WorkspaceMember {
   id: string;
   userId: string;
   userName: string;
   userEmail: string;
-  role: string;
+  role: WorkspaceRole;
   createdAt: string;
 }
 
 export interface Invitation {
   id: string;
   email: string;
-  role: string;
+  role: WorkspaceRole;
   status: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
   invitedByName: string;
   createdAt: string;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRepository } from "@/lib/data";
+import { revalidateFinanceData } from "@/lib/data/cache-tags";
 import {
   detectDefaultMapping,
   mapTransactions,
@@ -256,5 +257,6 @@ async function handlePost(request: Request) {
       ? `/runs/${run.id}/mapping`
       : `/runs/${run.id}/processing`;
 
+  revalidateFinanceData();
   return NextResponse.json({ redirectTo });
 }

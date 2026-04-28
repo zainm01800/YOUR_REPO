@@ -1,9 +1,15 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { PeriodExportPack } from "@/components/export/period-export-pack";
-import { getRepository } from "@/lib/data";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
+import { redirect } from "next/navigation";
+
+export const metadata = { title: "Period Export Pack" };
 
 export default async function PeriodExportPage() {
-  const repository = await getRepository();
+  const { repository, viewerAccess } = await getServerViewerAccess();
+  if (!viewerAccess.canUseExportPack) {
+    redirect("/dashboard");
+  }
   const [settingsSnapshot, runs] = await Promise.all([
     repository.getSettingsSnapshot(),
     repository.getRunsWithTransactions(),

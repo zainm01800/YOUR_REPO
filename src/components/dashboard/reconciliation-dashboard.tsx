@@ -12,7 +12,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RunStatusPill } from "@/components/ui/status-pill";
 import { getRepository } from "@/lib/data";
-import { buildReviewRows } from "@/lib/reconciliation/review-rows";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 function KpiCard({
@@ -68,14 +67,10 @@ function KpiCard({
 
 export async function ReconciliationDashboard() {
   const repository = await getRepository();
-  const [snapshot, runsWithTransactions] = await Promise.all([
-    repository.getDashboardSnapshot(),
-    repository.getRunsWithTransactions(),
-  ]);
+  const snapshot = await repository.getDashboardSnapshot();
 
   const latest = snapshot.runs[0];
   const hasRuns = snapshot.runs.length > 0;
-  const runSummaryById = new Map(snapshot.runs.map((run) => [run.id, run.summary]));
   const currency = snapshot.workspace.defaultCurrency ?? "GBP";
   const needsReview = snapshot.runs.filter((run) => run.status === "review_required").length;
   const totalExceptions = snapshot.runs.reduce((sum, run) => sum + run.summary.exceptions, 0);
@@ -87,19 +82,13 @@ export async function ReconciliationDashboard() {
       : 0;
   const lockedRuns = snapshot.runs.filter((run) => run.locked).length;
 
-  const runRows = runsWithTransactions.slice(0, 24).map((run) => ({
-    run,
-    rows: buildReviewRows(run, snapshot.vatRules, snapshot.glRules, snapshot.categoryRules),
-  }));
-
-  const spendTrend = runRows
+  const spendTrend = snapshot.runs
     .slice(0, 12)
     .reverse()
-    .map(({ run, rows }) => {
-      const summary = runSummaryById.get(run.id);
-      const gross = rows.filter((row) => !row.excludedFromExport).reduce((sum, row) => sum + (row.grossInRunCurrency ?? row.gross ?? 0), 0);
-      const vat = rows.filter((row) => !row.excludedFromExport).reduce((sum, row) => sum + (row.vatInRunCurrency ?? row.vat ?? 0), 0);
-      return { id: run.id, label: run.period || formatDate(run.createdAt), gross, vat, matchRate: summary?.matchRatePct ?? 0 };
+    .map((run) => {
+      const gross = run.summary.totalGross ?? 0;
+      const vat = run.summary.totalVatClaimable ?? run.summary.totalVat ?? 0;
+      return { id: run.id, label: run.period || formatDate(run.createdAt), gross, vat, matchRate: run.summary.matchRatePct ?? 0 };
     });
 
   const maxTrendGross = Math.max(...spendTrend.map((e) => e.gross), 1);
@@ -127,31 +116,41 @@ export async function ReconciliationDashboard() {
     return { value: `${Math.abs(diff).toFixed(1)}%`, positive: diff >= 0 };
   })();
 
-  const supplierStats = new Map<string, { supplier: string; gross: number; vat: number; exceptionRows: number; rowCount: number }>();
-  for (const { rows } of runRows) {
-    for (const row of rows) {
-      const supplier = row.supplier || "Unknown supplier";
-      const current = supplierStats.get(supplier) || { supplier, gross: 0, vat: 0, exceptionRows: 0, rowCount: 0 };
-      current.gross += row.grossInRunCurrency ?? row.gross ?? 0;
-      current.vat += row.vatInRunCurrency ?? row.vat ?? 0;
-      current.exceptionRows += row.exceptions.length > 0 ? 1 : 0;
-      current.rowCount += 1;
-      supplierStats.set(supplier, current);
-    }
-  }
-  const topSuppliers = Array.from(supplierStats.values()).sort((l, r) => r.gross - l.gross).slice(0, 5);
+  const recentRunHighlights = snapshot.runs
+    .filter((run) => (run.summary.totalGross ?? 0) > 0 || run.summary.exceptions > 0)
+    .slice(0, 5);
 
   return (
     <>
-      <div className="flex items-start justify-between gap-4">
+      <div className="rounded-[28px] border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-panel)] lg:p-7">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">Dashboard</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--color-foreground)]">Reconciliation control room</h1>
-          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">Track every run, review exceptions, and move approved data into posting files.</p>
+          <h1 className="mt-2 max-w-2xl text-[2.15rem] font-extrabold leading-[1.03] tracking-[-0.045em] text-[var(--color-foreground)] sm:text-[2.6rem]">Reconciliation control room</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-muted-foreground)]">Track every run, resolve exceptions, and move approved bookkeeping data into accountant-ready exports.</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <span className="rounded-full border border-[var(--line)] bg-[var(--color-panel)] px-3 py-1 text-xs font-semibold text-[var(--color-foreground)]">
+              {snapshot.runs.length} run{snapshot.runs.length !== 1 ? "s" : ""}
+            </span>
+            <span className="rounded-full border border-[var(--line)] bg-[var(--color-panel)] px-3 py-1 text-xs font-semibold text-[var(--color-foreground)]">
+              {totalExceptions} exception{totalExceptions !== 1 ? "s" : ""}
+            </span>
+            <span className="rounded-full border border-[var(--line)] bg-[var(--color-panel)] px-3 py-1 text-xs font-semibold text-[var(--color-foreground)]">
+              {lockedRuns} locked
+            </span>
+          </div>
         </div>
-        <Link href="/runs/new">
-          <Button>New reconciliation run</Button>
-        </Link>
+        <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[360px]">
+          <Link href="/bank-statements" className="rounded-2xl border border-[var(--line-2)] bg-[var(--color-panel)] p-4 transition hover:border-[var(--color-border-strong)]">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">Import</p>
+            <p className="mt-1 text-sm font-bold">Bank statements</p>
+          </Link>
+          <Link href="/runs/new" className="rounded-2xl border border-[var(--accent-soft)] bg-[var(--accent-softer)] p-4 transition hover:border-[var(--color-accent)]">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-accent)]">Create</p>
+            <p className="mt-1 text-sm font-bold">New reconciliation run</p>
+          </Link>
+        </div>
+      </div>
       </div>
 
       {!hasRuns ? (
@@ -235,16 +234,27 @@ export async function ReconciliationDashboard() {
             <Card className="cm-panel space-y-4 p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">Top suppliers</p>
-                  <h2 className="mt-2 text-lg font-semibold">Recent peak spend</h2>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">Review queue</p>
+                  <h2 className="mt-2 text-lg font-semibold">Recent run highlights</h2>
                 </div>
                 <Link href="/bookkeeping/spending" className="text-sm font-semibold text-[var(--accent-ink)] decoration-[0.5px] hover:underline">Open analysis -&gt;</Link>
               </div>
               <div className="space-y-3">
-                {topSuppliers.map((s) => (
-                  <div key={s.supplier} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--line-2)] bg-white px-4 py-3 transition-colors hover:border-[var(--line)]">
+                {recentRunHighlights.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[var(--line-2)] bg-white px-4 py-6 text-center text-sm text-[var(--color-muted-foreground)]">
+                    Import a statement or create a run to populate this queue.
+                  </div>
+                ) : recentRunHighlights.map((run) => {
+                  const s = {
+                    rowCount: run.summary.transactions,
+                    exceptionRows: run.summary.exceptions,
+                    gross: run.summary.totalGross ?? 0,
+                    vat: run.summary.totalVatClaimable ?? run.summary.totalVat ?? 0,
+                  };
+                  return (
+                  <div key={run.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--line-2)] bg-white px-4 py-3 transition-colors hover:border-[var(--line)]">
                     <div className="min-w-0">
-                      <div className="truncate font-bold text-[var(--color-foreground)]">{s.supplier}</div>
+                      <div className="truncate font-bold text-[var(--color-foreground)]">{run.name}</div>
                       <div className="mt-1 text-xs text-[var(--color-muted-foreground)]">{s.rowCount} row{s.rowCount !== 1 ? "s" : ""} · {s.exceptionRows} with exceptions</div>
                     </div>
                     <div className="text-right">
@@ -252,7 +262,8 @@ export async function ReconciliationDashboard() {
                       <div className="text-xs text-[var(--color-muted-foreground)]">VAT {formatCurrency(s.vat, currency)}</div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </Card>
           </div>

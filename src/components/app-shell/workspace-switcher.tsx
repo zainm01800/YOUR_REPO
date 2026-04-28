@@ -6,6 +6,7 @@ import { ChevronDown, Plus, Building2, Check, UserIcon, ShieldCheck, UserPlus } 
 import { cn } from "@/lib/utils";
 import { setActiveWorkspace } from "@/lib/actions/workspace-actions";
 import { JoinWorkspaceDialog } from "@/components/invitations/join-workspace-dialog";
+import { getWorkspaceRoleLabel, normalizeWorkspaceRole } from "@/lib/auth/workspace-role";
 
 interface WorkspaceInfo {
   id: string;
@@ -53,12 +54,12 @@ export function WorkspaceSwitcher({
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-[var(--ink)] text-white">
             <Building2 className="h-3.5 w-3.5" />
           </div>
-          <h1 className="line-clamp-1 text-[15px] font-semibold text-[var(--ink)]">
+          <span className="line-clamp-1 text-[15px] font-semibold text-[var(--ink)]">
             {currentWorkspace?.name}
-          </h1>
+          </span>
         </div>
         <div className="mt-1 flex items-center gap-1.5 px-0.5">
-          {currentWorkspace?.role === "owner" ? (
+          {normalizeWorkspaceRole(currentWorkspace?.role) === "owner" ? (
             <div className="flex items-center gap-1 rounded-full bg-[var(--accent-softer)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent-ink)]">
                <ShieldCheck className="h-2.5 w-2.5" />
                OWNER
@@ -66,7 +67,7 @@ export function WorkspaceSwitcher({
           ) : (
             <div className="flex items-center gap-1 rounded-full bg-[#f4f2ed] px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--muted)]">
                <UserIcon className="h-2.5 w-2.5" />
-               {currentWorkspace?.role}
+               {getWorkspaceRoleLabel(currentWorkspace?.role)}
             </div>
           )}
         </div>
@@ -107,7 +108,7 @@ export function WorkspaceSwitcher({
                           {ws.name}
                         </span>
                         <span className="text-[10px] font-medium uppercase leading-none tracking-wider text-[var(--muted)]">
-                          {ws.role}
+                          {getWorkspaceRoleLabel(ws.role)}
                         </span>
                       </div>
                     </div>

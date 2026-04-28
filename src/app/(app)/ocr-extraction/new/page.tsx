@@ -1,11 +1,18 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { NewExtractionForm } from "@/components/run-flow/new-extraction-form";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "New Extraction",
 };
 
-export default function NewOcrExtractionPage() {
+export default async function NewOcrExtractionPage() {
+  const { viewerAccess } = await getServerViewerAccess();
+  if (!viewerAccess.canManageOperationalData) {
+    redirect("/ocr-extraction");
+  }
+
   return (
     <>
       <PageHeader

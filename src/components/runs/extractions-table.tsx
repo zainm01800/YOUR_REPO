@@ -9,7 +9,13 @@ import type { DashboardSnapshot } from "@/lib/domain/types";
 
 type RunListItem = DashboardSnapshot["runs"][number];
 
-export function ExtractionsTable({ runs }: { runs: RunListItem[] }) {
+export function ExtractionsTable({
+  runs,
+  canManageOperationalData = true,
+}: {
+  runs: RunListItem[];
+  canManageOperationalData?: boolean;
+}) {
   const [localRuns, setLocalRuns] = useState(runs);
   const [pendingRunId, setPendingRunId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,15 +94,17 @@ export function ExtractionsTable({ runs }: { runs: RunListItem[] }) {
                     >
                       Review
                     </Link>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="h-9 px-3 text-rose-700 hover:text-rose-800"
-                      disabled={pendingRunId === run.id}
-                      onClick={() => handleDelete(run)}
-                    >
-                      {pendingRunId === run.id ? "Deleting..." : "Delete"}
-                    </Button>
+                    {canManageOperationalData ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-9 px-3 text-rose-700 hover:text-rose-800"
+                        disabled={pendingRunId === run.id}
+                        onClick={() => handleDelete(run)}
+                      >
+                        {pendingRunId === run.id ? "Deleting..." : "Delete"}
+                      </Button>
+                    ) : null}
                   </div>
                 </td>
               </tr>

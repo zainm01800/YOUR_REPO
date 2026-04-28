@@ -1,10 +1,13 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { BankStatementImportForm } from "@/components/bank-statements/bank-statement-import-form";
-import { getRepository } from "@/lib/data";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
+import { redirect } from "next/navigation";
 
 export default async function ImportBankStatementPage() {
-  const repository = await getRepository();
-  const workspace = await repository.getWorkspace();
+  const { workspace, viewerAccess } = await getServerViewerAccess();
+  if (!viewerAccess.canManageOperationalData) {
+    redirect("/bank-statements");
+  }
 
   return (
     <>

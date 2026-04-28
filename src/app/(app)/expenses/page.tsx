@@ -1,10 +1,12 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { getRepository } from "@/lib/data";
+import { getCachedBookkeepingDataset } from "@/lib/data/cached-reads";
 import { ExpensesPageClient } from "@/components/expenses/expenses-page-client";
 import type { ExpenseEntry } from "@/components/expenses/expenses-list";
 import { categorySectionSort } from "@/lib/categories/sections";
 import { classifyTransactions } from "@/lib/accounting/classifier";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
 
 export const metadata = { title: "Expenses" };
 
@@ -15,13 +17,12 @@ export default async function ExpensesPage({
 }) {
   const { tab } = await searchParams;
   const initialTab = tab === "mileage" ? "mileage" : "expenses";
-  const repository = await getRepository();
-  const [manualExpenses, settings, runs, unassignedBankTransactions] = await Promise.all([
-    repository.getManualExpenses(),
-    repository.getSettingsSnapshot(),
-    repository.getRunsWithTransactions(),
-    repository.getUnassignedBankTransactions(),
-  ]);
+  const { repository, workspace, viewerAccess } = await getServerViewerAccess();
+  const [manualExpenses, { settingsSnapshot: settings, runs, unassignedBankTransactions }] =
+    await Promise.all([
+      repository.getManualExpenses(),
+      getCachedBookkeepingDataset(workspace.id),
+    ]);
 
   const currency = settings.workspace.defaultCurrency ?? "GBP";
   const categoryRules = settings.categoryRules
@@ -82,6 +83,7 @@ export default async function ExpensesPage({
         totalMileage={totalMileage}
         totalMiles={totalMiles}
         initialTab={initialTab}
+        canManageOperationalData={viewerAccess.canManageOperationalData}
       />
     </>
   );
@@ -120,7 +122,7 @@ function buildTransactionExpenses(
         createdAt: transaction.date ?? source?.postedDate ?? "",
         source: "transaction",
         sourceLabel: source?.runName ?? source?.bankStatementName ?? "Imported bank transaction",
-        allowableOverride: typeof source?.noReceiptRequired === "boolean" ? !source.noReceiptRequired : undefined,
+        allowableOverride: typeof source?.isClaimableOverride === "boolean" ? source.isClaimableOverride : undefined,
       };
     });
 }

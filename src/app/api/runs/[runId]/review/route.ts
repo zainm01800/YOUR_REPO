@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiAuth } from "@/lib/api/auth-guard";
+import { revalidateFinanceData } from "@/lib/data/cache-tags";
 
 const VALID_ACTION_TYPES = [
   "approve",
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
       repository.getRunRows(body.runId),
     ]);
 
+    revalidateFinanceData();
     return NextResponse.json({ ok: true, mutation, run: updatedRun, rows });
   } catch (err) {
     console.error("[Review mutation] error:", err);

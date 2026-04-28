@@ -1,10 +1,9 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { FinancialReports } from "@/components/bookkeeping/financial-reports";
 import type { ClassifiedTransaction } from "@/lib/accounting/classifier";
-import { getRepository } from "@/lib/data";
+import { getCachedBookkeepingDataset } from "@/lib/data/cached-reads";
 import { classifyTransaction, buildCategoryRuleMap } from "@/lib/accounting/classifier";
-import { buildViewerAccessProfile } from "@/lib/auth/viewer-access";
-import { resolveViewerUser } from "@/lib/auth/viewer-user";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
 import {
   buildBalanceSheet,
   buildPnL,
@@ -14,16 +13,15 @@ import {
 import { resolveCategory } from "@/lib/categories/suggester";
 import { redirect } from "next/navigation";
 
+export const metadata = { title: "Financial Reports" };
+
 export default async function BookkeepingReportsPage() {
-  const repository = await getRepository();
-  const [settingsSnapshot, runs, unassignedBankTxns, currentUser] = await Promise.all([
-    repository.getSettingsSnapshot(),
-    repository.getRunsWithTransactions(),
-    repository.getUnassignedBankTransactions().catch(() => []),
-    repository.getCurrentUser(),
+  const { workspace, viewerAccess } = await getServerViewerAccess();
+  const [
+    { settingsSnapshot, runs, unassignedBankTransactions: unassignedBankTxns },
+  ] = await Promise.all([
+    getCachedBookkeepingDataset(workspace.id),
   ]);
-  const viewerUser = await resolveViewerUser(currentUser);
-  const viewerAccess = buildViewerAccessProfile(viewerUser, settingsSnapshot.workspace);
   if (!viewerAccess.canSeeFinancialReports) {
     redirect("/bookkeeping/tax-summary");
   }

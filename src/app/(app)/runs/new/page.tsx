@@ -1,9 +1,13 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { NewRunForm } from "@/components/run-flow/new-run-form";
-import { getRepository } from "@/lib/data";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
+import { redirect } from "next/navigation";
 
 export default async function NewRunPage() {
-  const repository = await getRepository();
+  const { repository, viewerAccess } = await getServerViewerAccess();
+  if (!viewerAccess.canManageOperationalData) {
+    redirect("/runs");
+  }
   const [workspace, templates, bankStatements] = await Promise.all([
     repository.getWorkspace(),
     repository.getTemplates(),

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRepository } from "@/lib/data";
+import { revalidateFinanceData } from "@/lib/data/cache-tags";
 import type { TransactionRecord } from "@/lib/domain/types";
 import {
   detectBankPreset,
@@ -94,6 +95,8 @@ export async function POST(request: Request) {
     defaultCurrency,
     transactions,
   });
+
+  revalidateFinanceData();
 
   return NextResponse.json({
     ok: true,

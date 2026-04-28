@@ -12,6 +12,27 @@ import {
 } from "@/lib/auth/account-intent";
 import { upsertUserCompat } from "@/lib/data/user-compat";
 
+// ── In-process workspace resolution cache ───────────────────────────────────
+// Avoids 3 DB round-trips (upsert user + 2 membership lookups) on every
+// request for the same user. TTL is short enough to pick up workspace switches.
+type WorkspaceResolutionResult = Awaited<ReturnType<typeof _resolveUserWorkspaceUncached>>;
+
+interface CacheEntry {
+  result: WorkspaceResolutionResult;
+  expiresAt: number;
+}
+
+const WORKSPACE_CACHE_TTL_MS = 30_000; // 30 seconds
+const workspaceResolutionCache = new Map<string, CacheEntry>();
+
+// Periodically purge stale entries to prevent unbounded growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of workspaceResolutionCache) {
+    if (entry.expiresAt < now) workspaceResolutionCache.delete(key);
+  }
+}, 60_000);
+
 export interface UserContext {
   clerkId: string;
   email: string;
@@ -32,7 +53,7 @@ async function getResilientClerkUser(retries = 3) {
   return null;
 }
 
-export const resolveUserWorkspace = async (prisma: PrismaClient) => {
+async function _resolveUserWorkspaceUncached(prisma: PrismaClient) {
   const clerkUser = await getResilientClerkUser();
   if (!clerkUser) {
     throw new Error("Authentication session failed to synchronize. Please refresh the page.");
@@ -155,6 +176,41 @@ export const resolveUserWorkspace = async (prisma: PrismaClient) => {
     workspace: membership.workspace,
     isNewWorkspace,
   };
+}
+
+export const resolveUserWorkspace = async (prisma: PrismaClient): Promise<WorkspaceResolutionResult> => {
+  // Read the active workspace cookie to include in the cache key so workspace
+  // switches are reflected immediately.
+  const cookieStore = await cookies();
+  const activeWorkspaceId = cookieStore.get("active_workspace_id")?.value;
+
+  // We need a Clerk user ID to form a stable cache key. Call currentUser() here
+  // (it's a fast JWT decode, no network) to get the ID without duplicating logic.
+  const clerkUser = await getResilientClerkUser();
+  if (!clerkUser) {
+    throw new Error("Authentication session failed to synchronize. Please refresh the page.");
+  }
+
+  const cacheKey = `${clerkUser.id}::${activeWorkspaceId ?? "default"}`;
+  const now = Date.now();
+  const cached = workspaceResolutionCache.get(cacheKey);
+
+  if (cached && cached.expiresAt > now && !cached.result.isNewWorkspace) {
+    return cached.result;
+  }
+
+  const result = await _resolveUserWorkspaceUncached(prisma);
+
+  // Don't cache the "new workspace" path — the next request should see the
+  // settled state (isNewWorkspace=false) and be cacheable from then on.
+  if (!result.isNewWorkspace) {
+    workspaceResolutionCache.set(cacheKey, {
+      result,
+      expiresAt: now + WORKSPACE_CACHE_TTL_MS,
+    });
+  }
+
+  return result;
 };
 
 async function seedDefaultRules(prisma: PrismaClient, workspaceId: string) {

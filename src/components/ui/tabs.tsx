@@ -36,7 +36,7 @@ export function TabsList({
   className?: string;
 }) {
   return (
-    <div className={cn("inline-flex items-center justify-center rounded-lg bg-slate-100 p-1 text-slate-500", className)}>
+    <div className={cn("inline-flex flex-wrap items-center gap-1 rounded-2xl border border-[var(--line)] bg-white p-1 shadow-[var(--shadow-sm)]", className)}>
       {children}
     </div>
   );
@@ -61,10 +61,10 @@ export function TabsTrigger({
       type="button"
       onClick={() => context.onValueChange(value)}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50",
         isActive
-          ? "bg-white text-slate-950 shadow-sm"
-          : "hover:bg-slate-50 hover:text-slate-900",
+          ? "bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]"
+          : "text-[var(--ink-2)] hover:bg-[#f4f2ed]",
         className
       )}
     >

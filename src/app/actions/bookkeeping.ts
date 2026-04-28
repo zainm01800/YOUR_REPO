@@ -3,6 +3,7 @@
 import { randomUUID } from "crypto";
 import { getRepository } from "@/lib/data";
 import { revalidatePath } from "next/cache";
+import { revalidateFinanceData } from "@/lib/data/cache-tags";
 
 /**
  * Verifies the current user is authenticated.
@@ -35,9 +36,10 @@ export async function updateTransactionCategoryAction(
     return { error: err.message || "Could not save category" };
   }
 
+  revalidateFinanceData();
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/bookkeeping/tax-summary");
-  
+
   return { success: true };
 }
 
@@ -61,9 +63,10 @@ export async function bulkUpdateTransactionCategoryAction(
     return { error: err.message || "Could not apply bulk category" };
   }
 
+  revalidateFinanceData();
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/bookkeeping/tax-summary");
-  
+
   return { success: true };
 }
 
@@ -77,6 +80,7 @@ export async function bulkUpdateTransactionAllowableAction(transactionIds: strin
     transactionIds.map(id => repository.setTransactionAllowable(id, allowableForTax))
   );
 
+  revalidateFinanceData();
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/bookkeeping/tax-summary");
 }
@@ -112,9 +116,10 @@ export async function toggleExpenseClaimabilityAction(
     return { error: err.message || "Could not toggle claimability" };
   }
 
+  revalidateFinanceData();
   revalidatePath("/expenses");
   revalidatePath("/bookkeeping/tax-summary");
-  
+
   return { success: true };
 }
 
@@ -141,6 +146,7 @@ export async function updateCategoryAllowabilityAction(category: string, allowab
 
   await repository.replaceAllCategoryRules({ rules: updatedRules });
   
+  revalidateFinanceData();
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/bookkeeping/tax-summary");
   revalidatePath("/settings");
@@ -154,6 +160,7 @@ export async function deleteTransactionsAction(ids: string[]) {
   const repository = await getRepository();
   await repository.deleteTransactions(ids);
 
+  revalidateFinanceData();
   revalidatePath("/bookkeeping/transactions");
   revalidatePath("/bookkeeping/tax-summary");
 }

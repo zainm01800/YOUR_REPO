@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Upload, UserPlus } from "lucide-react";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
-import { getRepository } from "@/lib/data";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
 import { formatCurrency } from "@/lib/utils";
 
 export const metadata = { title: "Clients" };
@@ -24,12 +24,9 @@ function avatarPalette(name: string) {
 }
 
 export default async function ClientsPage() {
-  const repository = await getRepository();
-  const [clients, settings] = await Promise.all([
-    repository.getClients(),
-    repository.getSettingsSnapshot(),
-  ]);
-  const currency = settings.workspace.defaultCurrency ?? "GBP";
+  const { repository, workspace, viewerAccess } = await getServerViewerAccess();
+  const clients = await repository.getClients();
+  const currency = workspace.defaultCurrency ?? "GBP";
 
   const totalOutstanding = clients.reduce((s, c) => s + (c.outstandingAmount ?? 0), 0);
   const totalInvoiced = clients.reduce((s, c) => s + (c.totalInvoiced ?? 0), 0);
@@ -42,18 +39,20 @@ export default async function ClientsPage() {
         title="Clients"
         description="Manage your clients and track what they owe you."
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="secondary">
-              <Upload className="mr-2 h-4 w-4" />
-              Import CSV
-            </Button>
-            <Link href="/clients/new">
-              <Button>
-                <UserPlus className="mr-2 h-4 w-4" />
-                New client
+          viewerAccess.canManageOperationalData ? (
+            <div className="flex items-center gap-2">
+              <Button variant="secondary">
+                <Upload className="mr-2 h-4 w-4" />
+                Import CSV
               </Button>
-            </Link>
-          </div>
+              <Link href="/clients/new">
+                <Button>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  New client
+                </Button>
+              </Link>
+            </div>
+          ) : undefined
         }
       />
 
@@ -86,9 +85,11 @@ export default async function ClientsPage() {
           <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
             Add your first client to start creating invoices.
           </p>
-          <Link href="/clients/new" className="mt-4 inline-block">
-            <Button className="h-8 px-3 text-xs">Add client</Button>
-          </Link>
+          {viewerAccess.canManageOperationalData && (
+            <Link href="/clients/new" className="mt-4 inline-block">
+              <Button className="h-8 px-3 text-xs">Add client</Button>
+            </Link>
+          )}
         </div>
       ) : (
         <div className="cm-table-wrap">

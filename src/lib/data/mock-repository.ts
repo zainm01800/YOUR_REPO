@@ -154,6 +154,19 @@ export const mockRepository: Repository = {
     return deepClone(store.runs);
   },
 
+  async getBookkeepingRuns() {
+    return deepClone(
+      store.runs.map((run) => ({
+        ...run,
+        uploadedFiles: [],
+        documents: [],
+        matches: [],
+        auditTrail: [],
+        exports: [],
+      })),
+    );
+  },
+
   async getRunRows(runId): Promise<ReviewRow[]> {
     const run = getRunOrThrow(runId);
     return buildReviewRows(run, store.vatRules, store.glRules, store.categoryRules);

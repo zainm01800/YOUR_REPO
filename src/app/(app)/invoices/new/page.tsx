@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { InvoiceForm } from "@/components/invoices/invoice-form";
-import { getRepository } from "@/lib/data";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
+import { redirect } from "next/navigation";
 
 export const metadata = { title: "New Invoice" };
 
@@ -10,12 +11,12 @@ export default async function NewInvoicePage({
   searchParams: Promise<{ clientId?: string }>;
 }) {
   const { clientId } = await searchParams;
-  const repository = await getRepository();
-  const [clients, settings] = await Promise.all([
-    repository.getClients(),
-    repository.getSettingsSnapshot(),
-  ]);
-  const currency = settings.workspace.defaultCurrency ?? "GBP";
+  const { repository, workspace, viewerAccess } = await getServerViewerAccess();
+  if (!viewerAccess.canManageOperationalData) {
+    redirect("/invoices");
+  }
+  const clients = await repository.getClients();
+  const currency = workspace.defaultCurrency ?? "GBP";
 
   return (
     <>

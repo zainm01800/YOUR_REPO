@@ -9,8 +9,9 @@ function buildDatabaseUrl(raw: string): string {
     const url = new URL(raw);
     // Required for PgBouncer (Supabase pooler) — disables prepared statements
     url.searchParams.set("pgbouncer", "true");
-    // Recommended for serverless — limits connections per function instance
-    url.searchParams.set("connection_limit", "1");
+    // Allow a small pool so Promise.all queries can run in parallel.
+    // Keep this low (≤5) to stay within pgBouncer's per-client limits.
+    url.searchParams.set("connection_limit", "3");
     return url.toString();
   } catch {
     return raw;

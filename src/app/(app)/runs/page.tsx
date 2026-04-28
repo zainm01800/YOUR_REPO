@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
 import { RunsTable } from "@/components/runs/runs-table";
-import { getRepository } from "@/lib/data";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RunsPage() {
-  const repository = await getRepository();
+  const { repository, viewerAccess } = await getServerViewerAccess();
   const allRuns = await repository.getRunSummaries();
   const runs = allRuns.filter(r => r.bankSourceMode !== "ocr_only");
 
@@ -21,13 +21,15 @@ export default async function RunsPage() {
         title="All runs"
         description="Every reconciliation run stays available for review, re-export, and use in the Posting File Builder."
         actions={
-          <Link href="/runs/new">
-            <Button>New run</Button>
-          </Link>
+          viewerAccess.canManageOperationalData ? (
+            <Link href="/runs/new">
+              <Button>New run</Button>
+            </Link>
+          ) : undefined
         }
       />
 
-      <RunsTable runs={runs} />
+      <RunsTable runs={runs} canManageOperationalData={viewerAccess.canManageOperationalData} />
     </>
   );
 }

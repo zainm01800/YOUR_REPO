@@ -1,13 +1,37 @@
 "use client";
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, useCallback } from "react";
+
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { createPortal } from "react-dom";
-import { Search, Download, ChevronLeft, ChevronRight, X, Copy } from "lucide-react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import {
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Download,
+  Layers3,
+  Search,
+  Tag,
+  WalletCards,
+  X,
+} from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
 import { resolveCategoryWithConfidence } from "@/lib/categories/suggester";
 import { categorySection } from "@/lib/categories/sections";
 import { fmtDate } from "./transaction-row";
-import { updateTransactionCategoryAction, bulkUpdateTransactionCategoryAction } from "@/app/actions/bookkeeping";
+import {
+  bulkUpdateTransactionCategoryAction,
+  updateTransactionCategoryAction,
+} from "@/app/actions/bookkeeping";
 
 interface Props {
   transactions: TransactionRecord[];
@@ -15,6 +39,15 @@ interface Props {
   pickerCategoryRules: CategoryRule[];
   vatRegistered: boolean;
   canUseAi?: boolean;
+  canManageOperationalData?: boolean;
+  stats: {
+    totalCount: number;
+    categorisedCount: number;
+    uncategorisedCount: number;
+    pnlCount: number;
+    balanceSheetCount: number;
+    equityCount: number;
+  };
   totalIn: number;
   totalOut: number;
   pagination?: {
@@ -32,8 +65,19 @@ interface BulkPrompt {
   category: string;
 }
 
-// ─── Merchant token helpers ────────────────────────────────────────────────────
-const STOP_WORDS = new Set(["the", "ltd", "limited", "inc", "plc", "co", "and", "of", "for", "a", "an"]);
+const STOP_WORDS = new Set([
+  "the",
+  "ltd",
+  "limited",
+  "inc",
+  "plc",
+  "co",
+  "and",
+  "of",
+  "for",
+  "a",
+  "an",
+]);
 
 function normalizeMerchant(m: string) {
   return m.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
@@ -55,7 +99,6 @@ function sharedTokenCount(a: Set<string>, b: Set<string>): number {
   return count;
 }
 
-// ─── Searchable category picker ───────────────────────────────────────────────
 interface CategoryPickerProps {
   sections: Map<string, CategoryRule[]>;
   value: string;
@@ -70,39 +113,34 @@ function CategoryPicker({ sections, value, onSelect, onCancel, isSaving }: Categ
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
-  // Calculate fixed position from the wrapper's bounding rect
   useLayoutEffect(() => {
     if (!wrapperRef.current) return;
-    const r = wrapperRef.current.getBoundingClientRect();
-    setPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 256) });
+    const rect = wrapperRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 256) });
   }, []);
 
-  // Focus the input once position is known
   useEffect(() => {
-    if (pos) {
-      const input = wrapperRef.current?.querySelector("input");
-      input?.focus();
-    }
+    if (!pos) return;
+    const input = wrapperRef.current?.querySelector("input");
+    input?.focus();
   }, [pos]);
 
-  // Close when clicking outside wrapper or dropdown portal
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
-      const t = e.target as Node;
-      if (wrapperRef.current?.contains(t)) return;
-      if (dropdownRef.current?.contains(t)) return;
+      const target = e.target as Node;
+      if (wrapperRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
       onCancel();
     }
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [onCancel]);
 
-  // Reposition on scroll/resize
   useEffect(() => {
     function reposition() {
       if (!wrapperRef.current) return;
-      const r = wrapperRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 256) });
+      const rect = wrapperRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 256) });
     }
     window.addEventListener("scroll", reposition, true);
     window.addEventListener("resize", reposition);
@@ -124,9 +162,9 @@ function CategoryPicker({ sections, value, onSelect, onCancel, isSaving }: Categ
   }, [sections, search]);
 
   const totalMatches = useMemo(() => {
-    let n = 0;
-    for (const rules of filtered.values()) n += rules.length;
-    return n;
+    let count = 0;
+    for (const rules of filtered.values()) count += rules.length;
+    return count;
   }, [filtered]);
 
   const dropdown =
@@ -138,10 +176,10 @@ function CategoryPicker({ sections, value, onSelect, onCancel, isSaving }: Categ
         className="max-h-72 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-white shadow-2xl"
       >
         {isSaving ? (
-          <div className="px-4 py-3 text-xs text-[var(--color-muted-foreground)]">Saving…</div>
+          <div className="px-4 py-3 text-xs text-[var(--color-muted-foreground)]">Saving...</div>
         ) : totalMatches === 0 ? (
           <div className="px-4 py-3 text-xs text-[var(--color-muted-foreground)]">
-            No categories match &ldquo;{search}&rdquo;
+            No categories match "{search}"
           </div>
         ) : (
           <>
@@ -165,7 +203,7 @@ function CategoryPicker({ sections, value, onSelect, onCancel, isSaving }: Categ
                     key={rule.slug}
                     type="button"
                     onMouseDown={(e) => {
-                      e.preventDefault(); // keep focus on input, prevent outside-click race
+                      e.preventDefault();
                       onSelect(rule.category);
                     }}
                     className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs transition hover:bg-[var(--color-accent-soft)] ${
@@ -197,7 +235,7 @@ function CategoryPicker({ sections, value, onSelect, onCancel, isSaving }: Categ
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search categories…"
+            placeholder="Search categories..."
             className="h-7 w-48 rounded-lg border border-[var(--color-accent)] bg-white pl-7 pr-2 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
           />
         </div>
@@ -206,7 +244,7 @@ function CategoryPicker({ sections, value, onSelect, onCancel, isSaving }: Categ
           onClick={onCancel}
           className="h-7 rounded-lg border border-[var(--color-border)] px-2 text-xs text-[var(--color-muted-foreground)] hover:bg-[var(--color-panel)]"
         >
-          ✕
+          x
         </button>
       </div>
       {dropdown}
@@ -214,14 +252,15 @@ function CategoryPicker({ sections, value, onSelect, onCancel, isSaving }: Categ
   );
 }
 
-// ─── Main component ────────────────────────────────────────────────────────────
 export function TransactionsTable({
   transactions,
   categoryRules,
   pickerCategoryRules,
+  stats,
   totalIn,
   totalOut,
   pagination,
+  canManageOperationalData = true,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -238,8 +277,6 @@ export function TransactionsTable({
   const [saving, setSaving] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-
-  // Bulk duplicate prompt
   const [bulkPrompt, setBulkPrompt] = useState<BulkPrompt | null>(null);
   const [bulkApplying, setBulkApplying] = useState(false);
 
@@ -267,11 +304,13 @@ export function TransactionsTable({
       if (filterType === "expense" && tx.amount >= 0) return false;
       if (filterCategory !== "all") {
         const cat = tx.resolvedCategory || "Uncategorised";
-        if (filterCategory === "uncategorised" ? cat !== "Uncategorised" : cat !== filterCategory) return false;
+        if (filterCategory === "uncategorised" ? cat !== "Uncategorised" : cat !== filterCategory) {
+          return false;
+        }
       }
       if (!q) return true;
       return (
-        tx.merchant.toLowerCase().includes(q) ||
+        (tx.merchant || "").toLowerCase().includes(q) ||
         tx.description.toLowerCase().includes(q) ||
         (tx.resolvedCategory || "").toLowerCase().includes(q)
       );
@@ -279,7 +318,11 @@ export function TransactionsTable({
   }, [rowsWithCategory, search, filterCategory, filterType]);
 
   const monthGroups = useMemo(() => {
-    const groups = new Map<string, { label: string; income: number; expense: number; rows: typeof filtered }>();
+    const groups = new Map<
+      string,
+      { label: string; income: number; expense: number; rows: typeof filtered }
+    >();
+
     for (const tx of filtered) {
       const date = tx.transactionDate ? new Date(tx.transactionDate) : null;
       const validDate = date && !Number.isNaN(date.getTime());
@@ -295,6 +338,7 @@ export function TransactionsTable({
       group.rows.push(tx);
       groups.set(key, group);
     }
+
     return Array.from(groups.entries())
       .sort(([a], [b]) => {
         if (a === "no-date") return 1;
@@ -309,8 +353,9 @@ export function TransactionsTable({
     const result: string[] = [];
     for (const tx of rowsWithCategory) {
       const cat = (tx.resolvedCategory || "Uncategorised").trim();
-      if (!seen.has(cat.toLowerCase())) {
-        seen.add(cat.toLowerCase());
+      const normalized = cat.toLowerCase();
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
         result.push(cat);
       }
     }
@@ -320,9 +365,9 @@ export function TransactionsTable({
   const uniquePickerRules = useMemo(() => {
     const seen = new Set<string>();
     return pickerCategoryRules.filter((rule) => {
-      const name = rule.category.trim().toLowerCase();
-      if (seen.has(name)) return false;
-      seen.add(name);
+      const key = rule.category.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
   }, [pickerCategoryRules]);
@@ -331,12 +376,18 @@ export function TransactionsTable({
     const map = new Map<string, CategoryRule[]>();
     for (const rule of uniquePickerRules) {
       const section = categorySection(rule);
-      const existing = map.get(section) ?? [];
-      existing.push(rule);
-      map.set(section, existing);
+      const current = map.get(section) ?? [];
+      current.push(rule);
+      map.set(section, current);
     }
     return map;
   }, [uniquePickerRules]);
+
+  const categorySectionLookup = useMemo(() => {
+    return new Map(
+      [...pickerCategoryRules, ...categoryRules].map((rule) => [rule.category, categorySection(rule)]),
+    );
+  }, [pickerCategoryRules, categoryRules]);
 
   const handleSaveCategory = useCallback(
     async (txId: string, newCategory: string) => {
@@ -344,12 +395,13 @@ export function TransactionsTable({
         setEditingId(null);
         return;
       }
+
       setSaving(txId);
       setSaveError(null);
       try {
         const result = await updateTransactionCategoryAction(txId, newCategory);
         if (result && result.error) throw new Error(result.error);
-        
+
         setLocalTransactions((prev) =>
           prev.map((tx) => (tx.id === txId ? { ...tx, category: newCategory } : tx)),
         );
@@ -357,14 +409,12 @@ export function TransactionsTable({
         setSavedId(txId);
         setTimeout(() => setSavedId((id) => (id === txId ? null : id)), 2000);
 
-        // ── Duplicate detection ──────────────────────────────────────────────
         const savedTx = localTransactions.find((t) => t.id === txId);
         if (savedTx?.merchant) {
           const savedTokens = merchantTokens(savedTx.merchant);
           if (savedTokens.size > 0) {
             const similar = localTransactions.filter((other) => {
               if (other.id === txId) return false;
-              // Only prompt for uncategorised or differently categorised transactions
               const otherCat = categoryOverrides[other.id] ?? other.category ?? "";
               if (otherCat && otherCat.toLowerCase() === newCategory.toLowerCase()) return false;
               const otherTokens = merchantTokens(other.merchant || other.description || "");
@@ -372,6 +422,7 @@ export function TransactionsTable({
               const minTokens = Math.min(2, savedTokens.size, otherTokens.size);
               return shared > 0 && shared >= minTokens;
             });
+
             if (similar.length > 0) {
               setBulkPrompt({
                 merchant: savedTx.merchant,
@@ -397,9 +448,10 @@ export function TransactionsTable({
     try {
       const result = await bulkUpdateTransactionCategoryAction(
         bulkPrompt.txIds,
-        bulkPrompt.category
+        bulkPrompt.category,
       );
       if (result && result.error) throw new Error(result.error);
+
       setLocalTransactions((prev) =>
         prev.map((tx) =>
           bulkPrompt.txIds.includes(tx.id) ? { ...tx, category: bulkPrompt.category } : tx,
@@ -429,7 +481,7 @@ export function TransactionsTable({
       tx.amount.toFixed(2),
       tx.currency,
     ]);
-    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
     const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -440,71 +492,217 @@ export function TransactionsTable({
   }
 
   const fmt = (n: number) =>
-    new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 }).format(n);
+    new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: "GBP",
+      maximumFractionDigits: 0,
+    }).format(n);
 
   const net = totalIn - totalOut;
+  const visibleMonths = monthGroups.length;
+  const incomeCount = filtered.filter((tx) => tx.amount >= 0).length;
+  const expenseCount = filtered.length - incomeCount;
+  const categorisedPct =
+    stats.totalCount > 0 ? Math.round((stats.categorisedCount / stats.totalCount) * 100) : 0;
+  const filterSummary =
+    filterCategory === "all"
+      ? "All categories"
+      : filterCategory === "uncategorised"
+        ? "Uncategorised only"
+        : filterCategory;
+
+  const reviewCards = [
+    {
+      label: "Needs category",
+      value: stats.uncategorisedCount.toString(),
+      detail: "Transactions still waiting for a category before reports are fully reliable.",
+      tone:
+        stats.uncategorisedCount > 0
+          ? "bg-[var(--amber-soft)] text-[var(--amber)]"
+          : "bg-[var(--accent-softer)] text-[var(--accent-ink)]",
+    },
+    {
+      label: "P&L lines",
+      value: stats.pnlCount.toString(),
+      detail: "Income and expense rows already flowing into profit reporting.",
+      tone: "bg-[var(--accent-softer)] text-[var(--accent-ink)]",
+    },
+    {
+      label: "Balance sheet",
+      value: `${stats.balanceSheetCount + stats.equityCount}`,
+      detail: "Capital items, liabilities, transfers, and equity-style movements.",
+      tone: "bg-[var(--accent-softer)] text-[var(--accent-ink)]",
+    },
+  ] as const;
 
   return (
     <div className="space-y-5">
-      {/* ── Filter bar ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-48">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search transactions…"
-            className="h-10 w-full rounded-xl border border-[var(--color-border)] bg-white pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
-          />
+      <section className="grid gap-4 xl:grid-cols-[1.25fr_0.95fr]">
+        <div className="rounded-[26px] border border-[var(--line)] bg-white px-6 py-6 shadow-[var(--shadow-sm)]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
+            Review workspace
+          </p>
+          <h2 className="mt-2 text-[26px] font-semibold tracking-[-0.03em] text-[var(--ink)]">
+            Monthly transaction review
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+            Categorise every imported line once, then let expenses, tax, and reporting reuse the
+            same accounting treatment automatically.
+          </p>
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-[var(--accent-softer)] px-3 py-1 text-xs font-semibold text-[var(--accent-ink)]">
+              {categorisedPct}% categorised
+            </span>
+            <span className="rounded-full bg-[#f4f2ed] px-3 py-1 text-xs font-semibold text-[var(--ink-2)]">
+              {visibleMonths} month{visibleMonths !== 1 ? "s" : ""} in view
+            </span>
+            <span className="rounded-full bg-[#f4f2ed] px-3 py-1 text-xs font-semibold text-[var(--ink-2)]">
+              {filterSummary}
+            </span>
+          </div>
         </div>
 
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="h-10 rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm text-[var(--color-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 focus:border-[var(--color-accent)]"
-        >
-          <option value="all">All categories</option>
-          <option value="uncategorised">Uncategorised</option>
-          {uniqueCategories
-            .filter((c) => c !== "Uncategorised")
-            .map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-        </select>
-
-        <div className="flex items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] p-1">
-          {(["All", "Income", "Expense"] as const).map((label) => {
-            const val = label.toLowerCase() as TypeFilter;
-            const active = filterType === val;
-            return (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setFilterType(val)}
-                className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
-                  active
-                    ? "bg-white text-[var(--color-foreground)] shadow-sm"
-                    : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
-                }`}
+        <div className="rounded-[26px] border border-[var(--line)] bg-[linear-gradient(135deg,#faf8f2_0%,#f3ecde_100%)] px-6 py-6 shadow-[var(--shadow-sm)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
+                Current review state
+              </p>
+              <h3 className="mt-2 text-lg font-semibold text-[var(--ink)]">
+                What to work through next
+              </h3>
+            </div>
+            <ArrowRight className="mt-1 h-4 w-4 text-[var(--accent-ink)]" />
+          </div>
+          <div className="mt-5 space-y-3">
+            {reviewCards.map((card) => (
+              <div
+                key={card.label}
+                className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-[var(--shadow-sm)]"
               >
-                {label}
-              </button>
-            );
-          })}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-[var(--ink)]">{card.label}</span>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${card.tone}`}>
+                    {card.value}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-xs leading-5 text-[var(--muted)]">{card.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="rounded-[24px] border border-[var(--line)] bg-white p-4 shadow-[var(--shadow-sm)]">
+        <div className="mb-4 grid gap-4 lg:grid-cols-4">
+          {[
+            {
+              label: "Visible lines",
+              value: filtered.length.toString(),
+              sub: `${incomeCount} income / ${expenseCount} expenses`,
+              icon: Layers3,
+            },
+            {
+              label: "Uncategorised",
+              value: stats.uncategorisedCount.toString(),
+              sub: "These still need a bookkeeping category.",
+              icon: Tag,
+            },
+            {
+              label: "Money in",
+              value: fmt(totalIn),
+              sub: "Across imported statement activity",
+              icon: WalletCards,
+            },
+            {
+              label: "Money out",
+              value: fmt(totalOut),
+              sub: "Potential expenses and balance sheet movements",
+              icon: WalletCards,
+            },
+          ].map((card) => (
+            <div key={card.label} className="rounded-2xl bg-[var(--panel-2)] px-4 py-4">
+              <div className="flex items-center gap-2">
+                <card.icon className="h-4 w-4 text-[var(--accent-ink)]" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
+                  {card.label}
+                </span>
+              </div>
+              <div className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-[var(--ink)]">
+                {card.value}
+              </div>
+              <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{card.sub}</p>
+            </div>
+          ))}
         </div>
 
-        <button
-          type="button"
-          onClick={exportCsv}
-          className="ml-auto flex h-10 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-white px-4 text-sm font-medium text-[var(--color-foreground)] transition hover:bg-[var(--color-panel)]"
-        >
-          <Download className="h-4 w-4" />
-          Export CSV
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-48 flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search transactions..."
+              className="h-10 w-full rounded-xl border border-[var(--color-border)] bg-white pl-9 pr-4 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+            />
+          </div>
+
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="h-10 rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm text-[var(--color-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+          >
+            <option value="all">All categories</option>
+            <option value="uncategorised">Uncategorised</option>
+            {uniqueCategories
+              .filter((c) => c !== "Uncategorised")
+              .map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+          </select>
+
+          <div className="flex items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] p-1">
+            {(["All", "Income", "Expense"] as const).map((label) => {
+              const val = label.toLowerCase() as TypeFilter;
+              const active = filterType === val;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setFilterType(val)}
+                  className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
+                    active
+                      ? "bg-white text-[var(--color-foreground)] shadow-sm"
+                      : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={exportCsv}
+            className="ml-auto flex h-10 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-white px-4 text-sm font-medium text-[var(--color-foreground)] transition hover:bg-[var(--color-panel)]"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
+        </div>
       </div>
 
-      {/* ── Error banner ───────────────────────────────────────────────────── */}
+      {!canManageOperationalData && (
+        <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-3 text-sm text-[var(--muted)]">
+          You currently have read-only access in this workspace. Transactions can be reviewed
+          here, but only operational roles can change categories.
+        </div>
+      )}
+
       {saveError && (
         <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <span>{saveError}</span>
@@ -514,25 +712,20 @@ export function TransactionsTable({
         </div>
       )}
 
-      {/* ── Bulk duplicate prompt ──────────────────────────────────────────── */}
       {bulkPrompt && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
           <div className="flex items-start gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
               <Copy className="h-4 w-4 text-amber-600" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-amber-900">
-                Similar transactions detected
-              </p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-amber-900">Similar transactions detected</p>
               <p className="mt-0.5 text-sm text-amber-800">
-                We found{" "}
-                <span className="font-semibold">{bulkPrompt.txIds.length}</span>{" "}
-                other transaction{bulkPrompt.txIds.length !== 1 ? "s" : ""} from{" "}
+                We found <span className="font-semibold">{bulkPrompt.txIds.length}</span> other
+                transaction{bulkPrompt.txIds.length !== 1 ? "s" : ""} from{" "}
                 <span className="font-semibold">{bulkPrompt.merchant}</span> that
-                {bulkPrompt.txIds.length !== 1 ? " don't" : " doesn't"} have the same
-                category. Apply{" "}
-                <span className="font-semibold">"{bulkPrompt.category}"</span> to{" "}
+                {bulkPrompt.txIds.length !== 1 ? " do not" : " does not"} have the same category.
+                Apply <span className="font-semibold">"{bulkPrompt.category}"</span> to{" "}
                 {bulkPrompt.txIds.length !== 1 ? "all of them" : "it"} too?
               </p>
             </div>
@@ -551,26 +744,30 @@ export function TransactionsTable({
                 disabled={bulkApplying}
                 className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-amber-700 disabled:opacity-50"
               >
-                {bulkApplying
-                  ? "Applying…"
-                  : `Yes, apply to ${bulkPrompt.txIds.length}`}
+                {bulkApplying ? "Applying..." : `Yes, apply to ${bulkPrompt.txIds.length}`}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Stat cards ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {[
           { label: "TOTAL IN", value: fmt(totalIn), color: "text-emerald-600" },
           { label: "TOTAL OUT", value: fmt(totalOut), color: "text-[var(--color-danger)]" },
-          { label: "NET", value: fmt(net), color: net >= 0 ? "text-emerald-600" : "text-[var(--color-danger)]" },
+          {
+            label: "NET",
+            value: fmt(net),
+            color: net >= 0 ? "text-emerald-600" : "text-[var(--color-danger)]",
+          },
         ].map((s) => (
-          <div key={s.label} className="rounded-2xl border border-[var(--color-border)] bg-white px-6 py-5">
+          <div
+            key={s.label}
+            className="rounded-2xl border border-[var(--color-border)] bg-white px-6 py-5 shadow-[var(--shadow-sm)]"
+          >
             <div className="mb-2 flex items-center gap-1.5">
               <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                ✦ {s.label}
+                {s.label}
               </span>
             </div>
             <p className={`text-3xl font-bold tabular-nums ${s.color}`}>{s.value}</p>
@@ -578,8 +775,7 @@ export function TransactionsTable({
         ))}
       </div>
 
-      {/* ── Table ──────────────────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white">
+      <div className="overflow-hidden rounded-[24px] border border-[var(--color-border)] bg-white shadow-[var(--shadow-sm)]">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
             <thead>
@@ -595,14 +791,16 @@ export function TransactionsTable({
             <tbody className="divide-y divide-[var(--color-border)]">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-sm text-[var(--color-muted-foreground)]">
+                  <td
+                    colSpan={6}
+                    className="px-5 py-10 text-center text-sm text-[var(--color-muted-foreground)]"
+                  >
                     No transactions match your filters.
                   </td>
                 </tr>
               ) : (
                 monthGroups.map((group) => (
                   <Fragment key={group.label}>
-                    {/* Month header row */}
                     <tr className="bg-[#f6f4ee]">
                       <td colSpan={6} className="px-5 py-3">
                         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -626,22 +824,22 @@ export function TransactionsTable({
                       </td>
                     </tr>
 
-                    {/* Transaction rows */}
                     {group.rows.map((tx) => {
                       const isIncome = tx.amount >= 0;
                       const isEditing = editingId === tx.id;
                       const isSaving = saving === tx.id;
                       const justSaved = savedId === tx.id;
+                      const sectionLabel = tx.resolvedCategory
+                        ? categorySectionLookup.get(tx.resolvedCategory) ?? "Other & Special"
+                        : "Needs Review";
 
                       return (
-                        <tr key={tx.id} className="hover:bg-[var(--color-panel)]/50 transition-colors">
-                          {/* Date */}
+                        <tr key={tx.id} className="transition-colors hover:bg-[var(--color-panel)]/50">
                           <td className="whitespace-nowrap px-5 py-3.5 text-sm text-[var(--color-muted-foreground)]">
                             {fmtDate(tx.transactionDate, "short")}
                           </td>
 
-                          {/* Description */}
-                          <td className="px-5 py-3.5 max-w-xs">
+                          <td className="max-w-xs px-5 py-3.5">
                             <span
                               className="block truncate font-medium text-[var(--color-foreground)]"
                               title={tx.merchant || tx.description}
@@ -658,9 +856,8 @@ export function TransactionsTable({
                             )}
                           </td>
 
-                          {/* Category — searchable picker */}
                           <td className="px-5 py-3.5">
-                            {isEditing ? (
+                            {isEditing && canManageOperationalData ? (
                               <CategoryPicker
                                 sections={pickerSections}
                                 value={editValue}
@@ -675,27 +872,35 @@ export function TransactionsTable({
                               <button
                                 type="button"
                                 onClick={() => {
+                                  if (!canManageOperationalData) return;
                                   setEditingId(tx.id);
                                   setEditValue(tx.resolvedCategory || "");
                                 }}
-                                className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] ${
+                                disabled={!canManageOperationalData}
+                                className={`max-w-[240px] rounded-lg border px-2.5 py-1 text-left text-xs font-medium transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] ${
                                   justSaved
                                     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                                     : tx.resolvedCategory
                                       ? "border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-foreground)]"
                                       : "border-dashed border-[var(--color-border)] text-[var(--color-muted-foreground)] italic"
-                                }`}
+                                } ${!canManageOperationalData ? "cursor-default hover:border-[var(--color-border)] hover:text-inherit" : ""}`}
                               >
-                                {tx.resolvedCategory || "Uncategorised"}
+                                <span className="block truncate">
+                                  {tx.resolvedCategory || "Uncategorised"}
+                                </span>
+                                <span className="mt-0.5 block truncate text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--muted)]">
+                                  {sectionLabel}
+                                </span>
                               </button>
                             )}
                           </td>
 
-                          {/* Type */}
                           <td className="px-5 py-3.5">
                             <span
                               className={`inline-flex items-center gap-1.5 text-sm font-medium ${
-                                isIncome ? "text-emerald-600" : "text-[var(--color-muted-foreground)]"
+                                isIncome
+                                  ? "text-emerald-600"
+                                  : "text-[var(--color-muted-foreground)]"
                               }`}
                             >
                               <span
@@ -707,18 +912,16 @@ export function TransactionsTable({
                             </span>
                           </td>
 
-                          {/* VAT */}
                           <td className="px-5 py-3.5 text-sm text-[var(--color-muted-foreground)]">
-                            {tx.vatCode || "—"}
+                            {tx.vatCode || "-"}
                           </td>
 
-                          {/* Amount */}
                           <td
                             className={`whitespace-nowrap px-5 py-3.5 text-right font-semibold tabular-nums ${
                               isIncome ? "text-emerald-600" : "text-[var(--color-danger)]"
                             }`}
                           >
-                            {isIncome ? "+" : "−"}
+                            {isIncome ? "+" : "-"}
                             {new Intl.NumberFormat("en-GB", {
                               style: "currency",
                               currency: tx.currency,
@@ -734,17 +937,13 @@ export function TransactionsTable({
           </table>
         </div>
 
-        {/* ── Pagination ───────────────────────────────────────────────────── */}
         {pagination && (
           <div className="flex items-center justify-between border-t border-[var(--color-border)] bg-white px-5 py-3">
             <span className="text-sm text-[var(--color-muted-foreground)]">
               Showing{" "}
               <span className="font-medium text-[var(--color-foreground)]">
-                {Math.min(
-                  pagination.totalCount,
-                  (pagination.currentPage - 1) * pagination.pageSize + 1,
-                )}
-                –
+                {Math.min(pagination.totalCount, (pagination.currentPage - 1) * pagination.pageSize + 1)}
+                -
                 {Math.min(pagination.totalCount, pagination.currentPage * pagination.pageSize)}
               </span>{" "}
               of{" "}
@@ -773,9 +972,7 @@ export function TransactionsTable({
                   params.set("page", (pagination.currentPage + 1).toString());
                   startTransition(() => router.replace(`${pathname}?${params.toString()}`));
                 }}
-                disabled={
-                  pagination.currentPage * pagination.pageSize >= pagination.totalCount || isPending
-                }
+                disabled={pagination.currentPage * pagination.pageSize >= pagination.totalCount || isPending}
                 className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm font-medium text-[var(--color-foreground)] transition hover:bg-[var(--color-panel)] disabled:opacity-40"
               >
                 Next

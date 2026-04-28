@@ -134,9 +134,14 @@ export function AccountTypeSelectionCard({
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <div>
                   <p className="font-semibold">Permanent choice</p>
-                  <p className="mt-1 leading-6">
+              <p className="mt-1 leading-6">
                     You are confirming <span className="font-semibold">{selectedOption.title}</span>.
                     This account type is permanent and is not changeable later in settings.
+                  </p>
+                  <p className="mt-2 leading-6">
+                    Your workspace owner can still decide what access level you hold inside a
+                    workspace, but they cannot switch this login between business and accountant
+                    mode after you lock it.
                   </p>
                 </div>
               </div>
@@ -182,8 +187,9 @@ export function AccountTypeSelectionCard({
                 templates, posting outputs, and the deeper reporting screens.
               </p>
               <p>
-                Locking the choice once avoids confusing role switching later and keeps permissions
-                predictable for the whole workspace.
+                Locking the account type once avoids confusing role switching later. Workspace
+                owners can still invite you as view only, bookkeeper, tax reviewer, or accountant
+                admin depending on the work they want you to handle.
               </p>
             </div>
           </div>

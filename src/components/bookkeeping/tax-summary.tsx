@@ -469,21 +469,11 @@ export function TaxSummary({
       </Card>
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="space-y-5">
-        <TabsList className="h-auto flex-wrap gap-1 rounded-2xl border border-[var(--line)] bg-[var(--color-panel)] p-1.5">
-          <TabsTrigger value="overview" className="rounded-[10px] px-4 py-2 font-medium data-[state=active]:bg-white">
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="breakdown" className="rounded-[10px] px-4 py-2 font-medium data-[state=active]:bg-white">
-            Category Breakdown
-          </TabsTrigger>
-          {hasEstimatedTax ? (
-            <TabsTrigger value="tax" className="rounded-[10px] px-4 py-2 font-medium data-[state=active]:bg-white">
-              Tax Detail
-            </TabsTrigger>
-          ) : null}
-          <TabsTrigger value="notes" className="rounded-[10px] px-4 py-2 font-medium data-[state=active]:bg-white">
-            Notes & Assumptions
-          </TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="breakdown">Category Breakdown</TabsTrigger>
+          {hasEstimatedTax ? <TabsTrigger value="tax">Tax Detail</TabsTrigger> : null}
+          <TabsTrigger value="notes">Notes & Assumptions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">

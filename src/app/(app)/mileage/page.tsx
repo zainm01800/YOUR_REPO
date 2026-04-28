@@ -1,12 +1,12 @@
 import { PageHeader } from "@/components/app-shell/page-header";
-import { getRepository } from "@/lib/data";
 import { ExpensesPageClient } from "@/components/expenses/expenses-page-client";
 import { categorySectionSort } from "@/lib/categories/sections";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
 
 export const metadata = { title: "Mileage" };
 
 export default async function MileagePage() {
-  const repository = await getRepository();
+  const { repository, viewerAccess } = await getServerViewerAccess();
   const [expenses, settings] = await Promise.all([
     repository.getManualExpenses(),
     repository.getSettingsSnapshot(),
@@ -40,6 +40,7 @@ export default async function MileagePage() {
         totalMileage={totalMileage}
         totalMiles={totalMiles}
         initialTab="mileage"
+        canManageOperationalData={viewerAccess.canManageOperationalData}
       />
     </>
   );

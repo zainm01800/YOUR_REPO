@@ -2,7 +2,7 @@ import Link from "next/link";
 import { FilePlus } from "lucide-react";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
-import { getRepository } from "@/lib/data";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Invoices" };
@@ -26,12 +26,9 @@ export default async function InvoicesPage({
   const params = await searchParams;
   const activeTab = (params.filter as FilterTab) ?? "All";
 
-  const repository = await getRepository();
-  const [invoices, settings] = await Promise.all([
-    repository.getInvoices(),
-    repository.getSettingsSnapshot(),
-  ]);
-  const currency = settings.workspace.defaultCurrency ?? "GBP";
+  const { repository, workspace, viewerAccess } = await getServerViewerAccess();
+  const invoices = await repository.getInvoices();
+  const currency = workspace.defaultCurrency ?? "GBP";
 
   // Compute effective status (sent + overdue date -> overdue)
   const now = new Date();
@@ -65,12 +62,14 @@ export default async function InvoicesPage({
         title="Invoices"
         description="Track what you've invoiced and what's been paid."
         actions={
-          <Link href="/invoices/new">
-            <Button>
-              <FilePlus className="mr-2 h-4 w-4" />
-              New invoice
-            </Button>
-          </Link>
+          viewerAccess.canManageOperationalData ? (
+            <Link href="/invoices/new">
+              <Button>
+                <FilePlus className="mr-2 h-4 w-4" />
+                New invoice
+              </Button>
+            </Link>
+          ) : undefined
         }
       />
 
@@ -114,7 +113,7 @@ export default async function InvoicesPage({
       </div>
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-1 w-fit">
+      <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-[var(--line)] bg-white p-1 shadow-[var(--shadow-sm)] w-fit">
         {FILTER_TABS.map((tab) => {
           const count =
             tab === "All"
@@ -125,22 +124,24 @@ export default async function InvoicesPage({
             <Link
               key={tab}
               href={`/invoices?filter=${tab}`}
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium transition ${
+              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                 isActive
-                  ? "bg-white text-[var(--color-foreground)] shadow-sm"
-                  : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+                  ? "bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]"
+                  : "text-[var(--ink-2)] hover:bg-[#f4f2ed]"
               }`}
             >
               {tab}
-              <span
-                className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${
-                  isActive
-                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
-                    : "bg-[var(--color-border)] text-[var(--color-muted-foreground)]"
-                }`}
-              >
-                {count}
-              </span>
+              {count > 0 && (
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none tabular-nums ${
+                    isActive
+                      ? "bg-white/25 text-white"
+                      : "bg-[var(--accent)]/10 text-[var(--accent)]"
+                  }`}
+                >
+                  {count}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -157,9 +158,11 @@ export default async function InvoicesPage({
               <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
                 Create your first invoice to start tracking payments.
               </p>
-              <Link href="/invoices/new" className="mt-4 inline-block">
-                <Button className="h-8 px-3 text-xs">Create invoice</Button>
-              </Link>
+              {viewerAccess.canManageOperationalData && (
+                <Link href="/invoices/new" className="mt-4 inline-block">
+                  <Button className="h-8 px-3 text-xs">Create invoice</Button>
+                </Link>
+              )}
             </>
           )}
         </div>

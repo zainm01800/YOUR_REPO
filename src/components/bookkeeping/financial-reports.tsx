@@ -752,28 +752,31 @@ export function FinancialReports({
         </Card>
       ) : null}
 
-      <div className="rounded-2xl border border-[var(--line)] bg-[var(--color-panel)] p-1.5">
-        <div className="flex flex-wrap gap-2">
-          {tabs.map((item) => (
+      <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-[var(--line)] bg-white p-1 shadow-[var(--shadow-sm)]">
+        {tabs.map((item) => {
+          const active = tab === item.id;
+          return (
             <button
               key={item.id}
               type="button"
               onClick={() => setTab(item.id)}
-              className={`inline-flex items-center gap-2 rounded-[10px] px-4 py-2 text-sm font-medium transition ${
-                tab === item.id
-                  ? "bg-white text-[var(--color-foreground)] shadow-sm"
-                  : "text-[var(--color-muted-foreground)] hover:bg-white/60 hover:text-[var(--color-foreground)]"
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                active
+                  ? "bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]"
+                  : "text-[var(--ink-2)] hover:bg-[#f4f2ed]"
               }`}
             >
               {item.label}
               {item.badge !== undefined ? (
-                <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700">
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                  active ? "bg-white/25 text-white" : "bg-amber-100 text-amber-600"
+                }`}>
                   {item.badge}
                 </span>
               ) : null}
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {tab === "pnl" ? <PnLCreditDebitStatement report={pnl} /> : null}

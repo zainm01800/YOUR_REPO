@@ -5,9 +5,13 @@ import {
   classifyTransaction,
   type ClassifiedTransaction,
 } from "@/lib/accounting/classifier";
-import { buildPnL, buildVatReport } from "@/lib/accounting/reports";
+import { buildVatReport } from "@/lib/accounting/reports";
 import { resolveCategory } from "@/lib/categories/suggester";
-import { getRepository } from "@/lib/data";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
+import { getCachedBookkeepingDataset } from "@/lib/data/cached-reads";
+import { redirect } from "next/navigation";
+
+export const metadata = { title: "VAT Reconciliation" };
 
 export default async function VatReconciliationPage({
   searchParams,
@@ -17,12 +21,12 @@ export default async function VatReconciliationPage({
   const params = await searchParams;
   const selectedPeriod = params.period;
 
-  const repository = await getRepository();
-  const [settingsSnapshot, runs, unassignedBankTxns] = await Promise.all([
-    repository.getSettingsSnapshot(),
-    repository.getRunsWithTransactions(),
-    repository.getUnassignedBankTransactions().catch(() => []),
-  ]);
+  const { workspace, viewerAccess } = await getServerViewerAccess();
+  if (!viewerAccess.canReviewTax || !workspace.vatRegistered) {
+    redirect("/bookkeeping/tax-summary");
+  }
+  const { settingsSnapshot, runs, unassignedBankTransactions: unassignedBankTxns } =
+    await getCachedBookkeepingDataset(workspace.id);
 
   const categoryRuleMap = buildCategoryRuleMap(settingsSnapshot.categoryRules);
   const periodOptions = Array.from(

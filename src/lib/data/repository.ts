@@ -24,6 +24,7 @@ import type {
   Workspace,
   Invitation,
   TransactionStats,
+  WorkspaceRole,
 } from "@/lib/domain/types";
 
 export interface UpsertVatRulesInput {
@@ -101,6 +102,7 @@ export interface Repository {
   getRunSummaries(): Promise<RunListItem[]>;
   getRun(runId: string): Promise<ReconciliationRun | null>;
   getRunsWithTransactions(): Promise<ReconciliationRun[]>;
+  getBookkeepingRuns(): Promise<ReconciliationRun[]>;
   getRunRows(runId: string): Promise<ReviewRow[]>;
   getUnassignedBankTransactions(): Promise<TransactionRecord[]>;
   getTemplates(): Promise<MappingTemplate[]>;
@@ -124,7 +126,7 @@ export interface Repository {
   deleteRun(runId: string): Promise<void>;
   updateRun(run: ReconciliationRun): Promise<ReconciliationRun>;
   saveReviewMutation(input: ReviewMutationInput): Promise<ReviewMutationResult>;
-  getUserWorkspaces(): Promise<Array<{ id: string; name: string; slug: string; role: string }>>;
+  getUserWorkspaces(): Promise<Array<{ id: string; name: string; slug: string; role: WorkspaceRole }>>;
   getInvitationByToken(token: string): Promise<Invitation | null>;
   acceptInvitation(token: string, userId: string, email: string, name: string): Promise<{ success: boolean; error?: string; workspaceId?: string }>;
   getTransactionStats(): Promise<TransactionStats>;

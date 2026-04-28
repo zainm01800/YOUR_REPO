@@ -8,7 +8,12 @@ import {
 import { buildPnL, buildVatReport } from "@/lib/accounting/reports";
 import { buildTaxSummaryReport } from "@/lib/accounting/tax-summary";
 import { resolveCategory } from "@/lib/categories/suggester";
-import { getRepository } from "@/lib/data";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
+import { getCachedBookkeepingDataset } from "@/lib/data/cached-reads";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+
+export const metadata = { title: "Tax Summary" };
 
 export default async function BookkeepingTaxSummaryPage({
   searchParams,
@@ -19,12 +24,12 @@ export default async function BookkeepingTaxSummaryPage({
   const selectedPeriod = params.period;
 
   try {
-    const repository = await getRepository();
-    const [settingsSnapshot, runs, unassignedBankTxns] = await Promise.all([
-      repository.getSettingsSnapshot(),
-      repository.getRunsWithTransactions(),
-      repository.getUnassignedBankTransactions().catch(() => []),
-    ]);
+    const { workspace, viewerAccess } = await getServerViewerAccess();
+    if (!viewerAccess.canReviewTax) {
+      redirect("/dashboard");
+    }
+    const { settingsSnapshot, runs, unassignedBankTransactions: unassignedBankTxns } =
+      await getCachedBookkeepingDataset(workspace.id);
     const categoryRuleMap = buildCategoryRuleMap(settingsSnapshot.categoryRules);
     const periodOptions = Array.from(
       new Set(runs.map((run) => run.period).filter((period): period is string => Boolean(period))),
@@ -99,15 +104,25 @@ export default async function BookkeepingTaxSummaryPage({
   } catch (err: any) {
     console.error("[tax-summary/page] Critical render error:", err);
     return (
-      <div className="p-8 text-center">
-        <h2 className="text-xl font-bold text-red-600">Failed to load tax summary</h2>
-        <p className="mt-2 text-sm text-gray-600">{(err as Error).message || "An unexpected error occurred during rendering."}</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-white text-sm"
-        >
-          Retry
-        </button>
+      <div className="rounded-2xl border border-[var(--line)] bg-white p-8 text-center shadow-[var(--shadow-sm)]">
+        <h2 className="text-xl font-semibold text-[var(--ink)]">Failed to load tax summary</h2>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          {(err as Error).message || "An unexpected error occurred during rendering."}
+        </p>
+        <div className="mt-5 flex items-center justify-center gap-3">
+          <Link
+            href="/bookkeeping/tax-summary"
+            className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-sm)]"
+          >
+            Retry page
+          </Link>
+          <Link
+            href="/dashboard"
+            className="rounded-xl border border-[var(--line)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)]"
+          >
+            Back to dashboard
+          </Link>
+        </div>
       </div>
     );
   }

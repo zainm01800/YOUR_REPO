@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { CheckCircle2, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
-import { getRepository } from "@/lib/data";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { MarkPaidButton } from "@/components/invoices/mark-paid-button";
 
@@ -23,7 +23,7 @@ export default async function InvoiceDetailPage({
   params: Promise<{ invoiceId: string }>;
 }) {
   const { invoiceId } = await params;
-  const repository = await getRepository();
+  const { repository, viewerAccess } = await getServerViewerAccess();
   const invoice = await repository.getInvoice(invoiceId);
   if (!invoice) notFound();
 
@@ -42,10 +42,12 @@ export default async function InvoiceDetailPage({
         ]}
         actions={
           <div className="flex gap-2">
-            {invoice.status !== "paid" && invoice.status !== "void" && (
+            {viewerAccess.canManageOperationalData &&
+              invoice.status !== "paid" &&
+              invoice.status !== "void" && (
               <MarkPaidButton invoiceId={invoiceId} total={invoice.total} />
             )}
-            {invoice.status === "draft" && (
+            {viewerAccess.canManageOperationalData && invoice.status === "draft" && (
               <Link href={`/invoices/${invoiceId}/edit`}>
                 <Button variant="secondary">
                   <Pencil className="mr-2 h-4 w-4" />

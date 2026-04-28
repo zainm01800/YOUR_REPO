@@ -6,6 +6,7 @@ import { getPrismaClient } from "@/lib/data/prisma";
 import { getRepository } from "@/lib/data";
 import { randomBytes } from "crypto";
 import { findUserCompat } from "@/lib/data/user-compat";
+import { normalizeWorkspaceRole } from "@/lib/auth/workspace-role";
 
 // ─── Workspace switching ─────────────────────────────────────────────────────
 
@@ -26,15 +27,15 @@ function getBaseUrl() {
   return "http://localhost:3000";
 }
 
-async function requireAdminRepo() {
+async function requireOwnerRepo() {
   const prisma = getPrismaClient();
   if (!prisma) throw new Error("Database not available");
   const repo = await getRepository();
   const workspace = await repo.getWorkspace();
   const workspaces = await repo.getUserWorkspaces();
   const membership = workspaces.find((w) => w.id === workspace.id);
-  if (!membership || (membership.role !== "owner" && membership.role !== "admin")) {
-    throw new Error("Permission denied: you must be an owner or admin to manage team access.");
+  if (!membership || normalizeWorkspaceRole(membership.role) !== "owner") {
+    throw new Error("Permission denied: only the workspace owner can manage members and invitations.");
   }
   return { prisma, workspace, repo };
 }
@@ -46,7 +47,7 @@ export async function inviteUser(
   role: string,
 ): Promise<{ success: true; inviteCode: string } | { success: false; error: string }> {
   try {
-    const { prisma, workspace } = await requireAdminRepo();
+    const { prisma, workspace } = await requireOwnerRepo();
     const repo = await getRepository();
     const currentUser = await repo.getCurrentUser();
 
@@ -55,7 +56,7 @@ export async function inviteUser(
       return { success: false, error: "Please enter a valid email address." };
     }
 
-    const validRoles = ["admin", "accountant", "viewer"];
+    const validRoles = ["accountant_admin", "bookkeeper", "tax_reviewer", "view_only"];
     if (!validRoles.includes(role)) {
       return { success: false, error: "Invalid role selected." };
     }
@@ -110,7 +111,7 @@ export async function removeMember(
   membershipId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { prisma, workspace } = await requireAdminRepo();
+    const { prisma, workspace } = await requireOwnerRepo();
 
     const membership = await prisma.membership.findUnique({ where: { id: membershipId } });
     if (!membership || membership.workspaceId !== workspace.id) {
@@ -134,9 +135,9 @@ export async function updateMemberRole(
   newRole: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { prisma, workspace } = await requireAdminRepo();
+    const { prisma, workspace } = await requireOwnerRepo();
 
-    const validRoles = ["admin", "accountant", "viewer"];
+    const validRoles = ["accountant_admin", "bookkeeper", "tax_reviewer", "view_only"];
     if (!validRoles.includes(newRole)) {
       return { success: false, error: "Invalid role." };
     }
@@ -163,7 +164,7 @@ export async function deleteWorkspace(
   confirmName: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { prisma, workspace } = await requireAdminRepo();
+    const { prisma, workspace } = await requireOwnerRepo();
 
     if (workspace.id !== workspaceId) {
       return { success: false, error: "Workspace mismatch." };
@@ -201,7 +202,7 @@ export async function revokeInvitation(
   invitationId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { prisma, workspace } = await requireAdminRepo();
+    const { prisma, workspace } = await requireOwnerRepo();
 
     const invitation = await prisma.invitation.findUnique({ where: { id: invitationId } });
     if (!invitation || invitation.workspaceId !== workspace.id) {

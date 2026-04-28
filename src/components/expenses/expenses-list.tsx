@@ -17,7 +17,13 @@ interface ExpensesListProps {
   title?: string;
   description?: string;
   claimStatus?: "claimable" | "not_claimable" | "needs_review";
-  onToggleClaimable?: (id: string, source: "manual" | "transaction", currentStatus: boolean, currentlyOverridden: boolean) => void;
+  canManageOperationalData?: boolean;
+  onToggleClaimable?: (
+    id: string,
+    source: "manual" | "transaction",
+    currentStatus: boolean,
+    currentlyOverridden: boolean,
+  ) => void;
 }
 
 export function ExpensesList({
@@ -26,6 +32,7 @@ export function ExpensesList({
   title = "Entries",
   description,
   claimStatus,
+  canManageOperationalData = true,
   onToggleClaimable,
 }: ExpensesListProps) {
   const router = useRouter();
@@ -46,6 +53,8 @@ export function ExpensesList({
   }
 
   const isMileageTab = expenses.length > 0 && expenses.every((e) => e.isMileage);
+  const importedCount = expenses.filter((e) => e.source === "transaction").length;
+  const manualCount = expenses.length - importedCount;
 
   const statusClass =
     claimStatus === "claimable"
@@ -62,6 +71,11 @@ export function ExpensesList({
         <div>
           <h2 className="text-base font-semibold text-[var(--ink)]">{title}</h2>
           {description ? <p className="mt-1 text-xs text-[var(--muted)]">{description}</p> : null}
+          {!isMileageTab && expenses.length > 0 ? (
+            <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--muted-2)]">
+              {importedCount} imported · {manualCount} manual
+            </p>
+          ) : null}
         </div>
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass}`}>
           {expenses.length} item{expenses.length !== 1 ? "s" : ""}
@@ -74,6 +88,13 @@ export function ExpensesList({
         </div>
       ) : (
         <div className="overflow-x-auto">
+          {!canManageOperationalData ? (
+            <div className="border-b border-[var(--line)] bg-[#faf8f2] px-4 py-3 text-xs text-[var(--muted)]">
+              This view is read-only for your current workspace access level. Expense totals are
+              still visible, but only users with operational access can change claimability or
+              delete manual entries.
+            </div>
+          ) : null}
           <table className="min-w-full divide-y divide-[var(--line)] text-sm">
             <thead className="cm-table-head text-left">
               <tr>
@@ -97,14 +118,14 @@ export function ExpensesList({
                   <td className="max-w-[220px] px-4 py-3">
                     <div className="truncate font-medium text-[var(--ink)]">{exp.description}</div>
                     <div className="truncate text-xs text-[var(--muted)]">
-                      {exp.source === "transaction" ? exp.sourceLabel ?? "Imported bank transaction" : exp.notes}
+                      {exp.source === "transaction"
+                        ? exp.sourceLabel ?? "Imported bank transaction"
+                        : exp.notes}
                     </div>
                   </td>
-                  {!isMileageTab && (
-                    <td className="px-4 py-3 text-[var(--muted)]">
-                      {exp.merchant ?? "-"}
-                    </td>
-                  )}
+                  {!isMileageTab ? (
+                    <td className="px-4 py-3 text-[var(--muted)]">{exp.merchant ?? "-"}</td>
+                  ) : null}
                   <td className="px-4 py-3 text-[var(--muted)]">{exp.category ?? "-"}</td>
                   {isMileageTab ? (
                     <td className="px-4 py-3">
@@ -133,58 +154,72 @@ export function ExpensesList({
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      {onToggleClaimable && (
+                      {canManageOperationalData && onToggleClaimable ? (
                         <>
-                          {claimStatus !== "claimable" && (
+                          {claimStatus !== "claimable" ? (
                             <button
                               type="button"
                               disabled={toggling === exp.id}
                               onClick={() => {
                                 setToggling(exp.id);
-                                onToggleClaimable(exp.id, exp.source || "manual", true, exp.allowableOverride !== undefined);
+                                onToggleClaimable(
+                                  exp.id,
+                                  exp.source || "manual",
+                                  true,
+                                  exp.allowableOverride !== undefined,
+                                );
                               }}
-                              className="rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] border border-[var(--line)] text-[var(--muted)] transition disabled:opacity-40 hover:bg-[var(--good-soft)] hover:text-[var(--good)] hover:border-[var(--good)]"
+                              className="rounded-lg border border-[var(--line)] px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--muted)] transition hover:border-[var(--good)] hover:bg-[var(--good-soft)] hover:text-[var(--good)] disabled:opacity-40"
                               title="Force this expense to be Claimable"
                             >
                               Make Claimable
                             </button>
-                          )}
-                          {claimStatus !== "not_claimable" && (
+                          ) : null}
+                          {claimStatus !== "not_claimable" ? (
                             <button
                               type="button"
                               disabled={toggling === exp.id}
                               onClick={() => {
                                 setToggling(exp.id);
-                                onToggleClaimable(exp.id, exp.source || "manual", false, exp.allowableOverride !== undefined);
+                                onToggleClaimable(
+                                  exp.id,
+                                  exp.source || "manual",
+                                  false,
+                                  exp.allowableOverride !== undefined,
+                                );
                               }}
-                              className="rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] border border-[var(--line)] text-[var(--muted)] transition disabled:opacity-40 hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] hover:border-[var(--danger)]"
+                              className="rounded-lg border border-[var(--line)] px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--muted)] transition hover:border-[var(--danger)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] disabled:opacity-40"
                               title="Force this expense to be Non-Claimable"
                             >
                               Make Non-Claimable
                             </button>
-                          )}
-                          {exp.allowableOverride !== undefined && (
+                          ) : null}
+                          {exp.allowableOverride !== undefined ? (
                             <button
                               type="button"
                               disabled={toggling === exp.id}
                               onClick={() => {
                                 setToggling(exp.id);
-                                // Passing null clears the override
-                                onToggleClaimable(exp.id, exp.source || "manual", null as any, true);
+                                onToggleClaimable(
+                                  exp.id,
+                                  exp.source || "manual",
+                                  null as never,
+                                  true,
+                                );
                               }}
-                              className="rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] border border-[var(--line)] text-[var(--muted)] transition disabled:opacity-40 hover:bg-[var(--color-panel)] hover:text-[var(--ink)]"
+                              className="rounded-lg border border-[var(--line)] px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--muted)] transition hover:bg-[var(--color-panel)] hover:text-[var(--ink)] disabled:opacity-40"
                               title="Clear override and use default category rules"
                             >
                               Default
                             </button>
-                          )}
+                          ) : null}
                         </>
-                      )}
+                      ) : null}
                       {exp.source === "transaction" ? (
                         <span className="ml-2 rounded-full bg-[#f0eee8] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
                           Bank
                         </span>
-                      ) : (
+                      ) : canManageOperationalData ? (
                         <button
                           type="button"
                           onClick={() => handleDelete(exp.id)}
@@ -194,6 +229,10 @@ export function ExpensesList({
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
+                      ) : (
+                        <span className="ml-2 rounded-full bg-[#f0eee8] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+                          Manual
+                        </span>
                       )}
                     </div>
                   </td>

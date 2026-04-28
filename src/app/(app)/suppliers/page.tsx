@@ -1,14 +1,15 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { getRepository } from "@/lib/data";
+import { getCachedBookkeepingDataset } from "@/lib/data/cached-reads";
 import { buildReviewRows } from "@/lib/reconciliation/review-rows";
 import { SuppliersTable } from "@/components/suppliers/suppliers-table";
 
+export const metadata = { title: "Suppliers" };
+
 export default async function SupplierAnalysisPage() {
   const repository = await getRepository();
-  const [settingsSnapshot, runs] = await Promise.all([
-    repository.getSettingsSnapshot(),
-    repository.getRunsWithTransactions(),
-  ]);
+  const workspace = await repository.getWorkspace();
+  const { settingsSnapshot, runs } = await getCachedBookkeepingDataset(workspace.id);
   const currency = settingsSnapshot.workspace.defaultCurrency ?? "GBP";
   const runRows = runs.map((run) => ({
     run,

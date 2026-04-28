@@ -5,7 +5,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getPrismaClient } from "@/lib/data/prisma";
 import {
-  ACCOUNT_TYPE_SETUP_PATH,
   getClerkPrimaryEmail,
   getLockedAccountTypeFromClerkUser,
   normalizeAccountTypeChoice,
@@ -101,5 +100,3 @@ export async function lockAccountTypeChoice(_prevState: State, formData: FormDat
 
   redirect("/dashboard");
 }
-
-export { ACCOUNT_TYPE_SETUP_PATH };

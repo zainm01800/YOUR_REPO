@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/app-shell/page-header";
 import { BankStatementsTable } from "@/components/bank-statements/bank-statements-table";
-import { getRepository } from "@/lib/data";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BankStatementsPage() {
-  const repository = await getRepository();
+  const { repository, viewerAccess } = await getServerViewerAccess();
   const statements = await repository.getBankStatementSummaries();
 
   return (
@@ -18,7 +18,10 @@ export default async function BankStatementsPage() {
         title="Import and reuse bank transaction sources"
         description="Upload bank or card statements once, review the imported transactions centrally, and then reuse that source data across reconciliation runs."
       />
-      <BankStatementsTable statements={statements} />
+      <BankStatementsTable
+        statements={statements}
+        canManageOperationalData={viewerAccess.canManageOperationalData}
+      />
     </>
   );
 }

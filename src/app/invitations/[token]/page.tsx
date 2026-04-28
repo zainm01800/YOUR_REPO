@@ -1,5 +1,9 @@
 import { AcceptInvitationButton } from "@/components/invitations/accept-invitation-button";
 import { basePrismaRepository } from "@/lib/data/prisma-repository";
+import {
+  getWorkspaceRoleDescription,
+  getWorkspaceRoleLabel,
+} from "@/lib/auth/workspace-role";
 import { Card } from "@/components/ui/card";
 import { Building2, UserPlus } from "lucide-react";
 
@@ -24,6 +28,9 @@ export default async function InvitationPage(props: {
     );
   }
 
+  const roleLabel = getWorkspaceRoleLabel(invitation.role);
+  const roleDescription = getWorkspaceRoleDescription(invitation.role);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50/50 via-white to-sky-50/50 p-6">
       <Card className="max-w-md w-full shadow-xl shadow-indigo-100/20 border-indigo-100 p-8">
@@ -46,7 +53,10 @@ export default async function InvitationPage(props: {
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-900">Target Workspace</p>
-              <p className="text-xs text-gray-500">You will join as <span className="font-medium text-indigo-600 capitalize">{invitation.role}</span></p>
+              <p className="text-xs text-gray-500">
+                You will join as <span className="font-medium text-indigo-600">{roleLabel}</span>
+              </p>
+              <p className="mt-1 text-[11px] leading-5 text-gray-500">{roleDescription}</p>
             </div>
           </div>
 

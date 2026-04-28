@@ -1,8 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Car, Plus, Receipt } from "lucide-react";
+import {
+  ArrowRight,
+  Car,
+  CircleHelp,
+  FileText,
+  FolderInput,
+  Plus,
+  Receipt,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExpenseForm } from "./expense-form";
 import { ExpensesList, type ExpenseEntry } from "./expenses-list";
@@ -16,10 +25,12 @@ interface Props {
   totalExpenses: number;
   totalMileage: number;
   totalMiles: number;
-  initialTab?: Tab;
+  initialTab?: PageTab;
+  canManageOperationalData?: boolean;
 }
 
-type Tab = "expenses" | "mileage";
+type PageTab = "expenses" | "mileage";
+type SectionTab = "overview" | "claimable" | "not_claimable" | "needs_review";
 
 export function ExpensesPageClient({
   expenses,
@@ -30,126 +41,189 @@ export function ExpensesPageClient({
   totalMileage,
   totalMiles,
   initialTab = "expenses",
+  canManageOperationalData = true,
 }: Props) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
-  const activeTab: Tab = initialTab;
+  const [section, setSection] = useState<SectionTab>("overview");
+
+  const activeTab: PageTab = initialTab;
 
   const fmt = (n: number) =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(n);
 
   const cashExpenses = expenses.filter((e) => !e.isMileage);
   const mileageEntries = expenses.filter((e) => e.isMileage);
-
   const displayedExpenses = activeTab === "expenses" ? cashExpenses : mileageEntries;
-  const categoryMap = new Map(categoryRules.map((rule) => [rule.category.toLowerCase(), rule]));
-  const getClaimStatus = (expense: ExpenseEntry): "claimable" | "not_claimable" | "needs_review" => {
-    if (typeof expense.allowableOverride === "boolean") {
-      return expense.allowableOverride ? "claimable" : "not_claimable";
-    }
-    if (expense.isMileage) return "claimable";
-    if (expense.source === "transaction" && !expense.category) return "needs_review";
-    if (!expense.category) return "needs_review";
-    const rule = categoryMap.get(expense.category.toLowerCase());
-    if (!rule) return "needs_review";
-    return rule.allowableForTax && rule.allowablePercentage > 0 ? "claimable" : "not_claimable";
-  };
-  const claimableExpenses = displayedExpenses.filter((expense) => getClaimStatus(expense) === "claimable");
-  const nonClaimableExpenses = displayedExpenses.filter((expense) => getClaimStatus(expense) === "not_claimable");
-  const needsReviewExpenses = displayedExpenses.filter((expense) => getClaimStatus(expense) === "needs_review");
-  const claimableTotal = claimableExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const nonClaimableTotal = nonClaimableExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const categoryMap = new Map(categoryRules.map((r) => [r.category.toLowerCase(), r]));
 
-  return (
-    <div className="space-y-6">
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {[
+  const getClaimStatus = (
+    entry: ExpenseEntry,
+  ): "claimable" | "not_claimable" | "needs_review" => {
+    if (typeof entry.allowableOverride === "boolean") {
+      return entry.allowableOverride ? "claimable" : "not_claimable";
+    }
+    if (entry.isMileage) return "claimable";
+    if (!entry.category) return "needs_review";
+
+    const rule = categoryMap.get(entry.category.toLowerCase());
+    if (!rule) return "needs_review";
+
+    return rule.allowableForTax && rule.allowablePercentage > 0
+      ? "claimable"
+      : "not_claimable";
+  };
+
+  const claimableExpenses = displayedExpenses.filter(
+    (entry) => getClaimStatus(entry) === "claimable",
+  );
+  const nonClaimableExpenses = displayedExpenses.filter(
+    (entry) => getClaimStatus(entry) === "not_claimable",
+  );
+  const needsReviewExpenses = displayedExpenses.filter(
+    (entry) => getClaimStatus(entry) === "needs_review",
+  );
+
+  const claimableTotal = claimableExpenses.reduce((sum, entry) => sum + entry.amount, 0);
+  const nonClaimableTotal = nonClaimableExpenses.reduce((sum, entry) => sum + entry.amount, 0);
+  const importedExpenseCount = cashExpenses.filter(
+    (entry) => entry.source === "transaction",
+  ).length;
+  const manualExpenseCount = cashExpenses.filter(
+    (entry) => entry.source !== "transaction",
+  ).length;
+  const mileageClaimableTotal = mileageEntries.reduce(
+    (sum, entry) => sum + entry.amount,
+    0,
+  );
+
+  const helperCards =
+    activeTab === "expenses"
+      ? [
+          {
+            icon: FolderInput,
+            title: "Imported from transactions",
+            detail: `${importedExpenseCount} categorised bank items are already feeding this page.`,
+          },
+          {
+            icon: FileText,
+            title: "Manual additions",
+            detail: `${manualExpenseCount} manual item${
+              manualExpenseCount === 1 ? "" : "s"
+            } cover cash spend and missing statement lines.`,
+          },
+          {
+            icon: CircleHelp,
+            title: "Claimability",
+            detail:
+              "Claimable vs non-claimable follows your category library, with manual overrides where needed.",
+          },
+        ]
+      : [
+          {
+            icon: Car,
+            title: "Trips logged",
+            detail: `${mileageEntries.length} mileage entr${
+              mileageEntries.length === 1 ? "y is" : "ies are"
+            } recorded in this workspace.`,
+          },
           {
             icon: Receipt,
-            label: "Cash expenses",
-            value: fmt(totalExpenses),
-            sub: `${cashExpenses.length} entries`,
-            accent: false,
+            title: "Estimated value",
+            detail: `${fmt(mileageClaimableTotal)} currently flows into your deductible travel total.`,
           },
           {
-            icon: Car,
-            label: "Mileage deductions",
-            value: fmt(totalMileage),
-            sub: `${mileageEntries.length} trips`,
-            accent: false,
+            icon: CircleHelp,
+            title: "Separate from cash expenses",
+            detail:
+              "Mileage claims stay outside supplier spend so tax summaries are easier to understand.",
           },
-          {
-            icon: Car,
-            label: "Total miles",
-            value: `${totalMiles.toFixed(0)} mi`,
-            sub: "business travel",
-            accent: false,
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="flex flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-5 py-4"
+        ];
+
+  const sectionTabs: Array<{
+    id: SectionTab;
+    label: string;
+    count?: number;
+    warn?: boolean;
+  }> = [
+    { id: "overview", label: "Overview" },
+    { id: "claimable", label: "Claimable", count: claimableExpenses.length },
+    { id: "not_claimable", label: "Not Claimable", count: nonClaimableExpenses.length },
+    {
+      id: "needs_review",
+      label: "Needs Review",
+      count: needsReviewExpenses.length,
+      warn: needsReviewExpenses.length > 0,
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-[var(--line)] bg-white p-1 shadow-[var(--shadow-sm)]">
+          <Link
+            href="/expenses"
+            className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+              activeTab === "expenses"
+                ? "bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]"
+                : "text-[var(--ink-2)] hover:bg-[#f4f2ed]"
+            }`}
           >
-            <div className="flex items-center gap-2 mb-2">
-              <s.icon className="h-4 w-4 text-[var(--color-muted-foreground)]" />
-              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
-                {s.label}
-              </span>
-            </div>
-            <span className="text-2xl font-bold tabular-nums text-[var(--color-foreground)]">
-              {s.value}
-            </span>
-            <span className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">{s.sub}</span>
-          </div>
-        ))}
-      </div>
+            Expenses
+          </Link>
+          <Link
+            href="/mileage"
+            className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+              activeTab === "mileage"
+                ? "bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]"
+                : "text-[var(--ink-2)] hover:bg-[#f4f2ed]"
+            }`}
+          >
+            Mileage
+          </Link>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="cm-kpi">
-          <p className="cm-kpi-label">Claimable</p>
-          <p className="cm-kpi-value text-[var(--good)]">{fmt(claimableTotal)}</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            {claimableExpenses.length} item{claimableExpenses.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <div className="cm-kpi">
-          <p className="cm-kpi-label">Not claimable</p>
-          <p className="cm-kpi-value text-[var(--color-danger)]">{fmt(nonClaimableTotal)}</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            {nonClaimableExpenses.length} item{nonClaimableExpenses.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <div className="cm-kpi">
-          <p className="cm-kpi-label">Needs review</p>
-          <p className="cm-kpi-value text-[var(--amber)]">{needsReviewExpenses.length}</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Missing or unknown category
-          </p>
-        </div>
-      </div>
+          <span className="mx-0.5 h-4 w-px bg-[var(--line)]" />
 
-      {/* Add button */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-sm font-semibold text-[var(--ink)]">
-            {activeTab === "expenses" ? "Expense entries" : "Mileage entries"}
-          </p>
-          <p className="mt-0.5 text-xs text-[var(--muted)]">
-            {activeTab === "expenses"
-              ? "Cash/card costs that are not already imported from bank statements."
-              : "Business mileage claims calculated separately from supplier spend."}
-          </p>
+          {sectionTabs.map((tab) => {
+            const active = section === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setSection(tab.id)}
+                className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                  active
+                    ? "bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]"
+                    : "text-[var(--ink-2)] hover:bg-[#f4f2ed]"
+                }`}
+              >
+                {tab.label}
+                {tab.count !== undefined && tab.count > 0 ? (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                      active
+                        ? "bg-white/25 text-white"
+                        : tab.warn
+                          ? "bg-amber-100 text-amber-600"
+                          : "bg-[var(--accent)]/10 text-[var(--accent)]"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
-        {!showForm && (
+
+        {canManageOperationalData && !showForm ? (
           <Button onClick={() => setShowForm(true)}>
             <Plus className="mr-2 h-4 w-4" />
             {activeTab === "expenses" ? "Add expense" : "Log mileage"}
           </Button>
-        )}
+        ) : null}
       </div>
 
-      {showForm && (
+      {canManageOperationalData && showForm ? (
         <ExpenseForm
           categoryRules={categoryRules}
           vatCodes={vatCodes}
@@ -161,49 +235,261 @@ export function ExpensesPageClient({
           }}
           onCancel={() => setShowForm(false)}
         />
-      )}
+      ) : null}
 
-      {/* Claimability sections */}
-      <div className="grid gap-4 xl:grid-cols-2">
+      {section === "overview" ? (
+        <div className="space-y-5">
+          <section className="grid gap-4 xl:grid-cols-[1.15fr_0.95fr]">
+            <div className="rounded-[26px] border border-[var(--line)] bg-white px-6 py-6 shadow-[var(--shadow-sm)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
+                Working area
+              </p>
+              <h2 className="mt-2 text-[26px] font-semibold tracking-[-0.03em] text-[var(--ink)]">
+                {activeTab === "expenses"
+                  ? "Expense claims and imported costs"
+                  : "Business mileage claims"}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+                {activeTab === "expenses"
+                  ? "Imported bank transactions feed this page automatically once they are categorised as P&L expenses. Manual entries are for cash costs or anything missing from the statement feed."
+                  : "Mileage stays separate from supplier spend so you can track business travel claims clearly without mixing them into normal expense categories."}
+              </p>
+            </div>
+
+            <div className="rounded-[26px] border border-[var(--line)] bg-[linear-gradient(135deg,#faf8f2_0%,#f3ecde_100%)] px-6 py-6 shadow-[var(--shadow-sm)]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
+                    How this page works
+                  </p>
+                  <h3 className="mt-2 text-lg font-semibold text-[var(--ink)]">
+                    {activeTab === "expenses"
+                      ? "Imported and manual costs work together"
+                      : "Mileage stays standalone by design"}
+                  </h3>
+                </div>
+                <ArrowRight className="mt-1 h-4 w-4 text-[var(--accent-ink)]" />
+              </div>
+              <div className="mt-5 space-y-3">
+                {helperCards.map((item) => (
+                  <div
+                    key={item.title}
+                    className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-[var(--shadow-sm)]"
+                  >
+                    <div className="flex items-center gap-2">
+                      <item.icon className="h-4 w-4 text-[var(--accent-ink)]" />
+                      <span className="text-sm font-semibold text-[var(--ink)]">
+                        {item.title}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-xs leading-5 text-[var(--muted)]">
+                      {item.detail}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {[
+              {
+                icon: Receipt,
+                label: "Cash expenses",
+                value: fmt(totalExpenses),
+                sub: `${cashExpenses.length} entries`,
+              },
+              {
+                icon: Car,
+                label: "Mileage deductions",
+                value: fmt(totalMileage),
+                sub: `${mileageEntries.length} trips`,
+              },
+              {
+                icon: Car,
+                label: "Total miles",
+                value: `${totalMiles.toFixed(0)} mi`,
+                sub: "business travel",
+              },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="flex flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-5 py-4"
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <stat.icon className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+                    {stat.label}
+                  </span>
+                </div>
+                <span className="text-2xl font-bold tabular-nums text-[var(--color-foreground)]">
+                  {stat.value}
+                </span>
+                <span className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
+                  {stat.sub}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div
+              className="cm-kpi cursor-pointer transition-shadow hover:shadow-md"
+              onClick={() => setSection("claimable")}
+            >
+              <p className="cm-kpi-label">Claimable</p>
+              <p className="cm-kpi-value text-[var(--good)]">{fmt(claimableTotal)}</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                {claimableExpenses.length} item{claimableExpenses.length !== 1 ? "s" : ""}
+                <span className="ml-1.5 text-[var(--accent)]">→ View</span>
+              </p>
+            </div>
+            <div
+              className="cm-kpi cursor-pointer transition-shadow hover:shadow-md"
+              onClick={() => setSection("not_claimable")}
+            >
+              <p className="cm-kpi-label">Not claimable</p>
+              <p className="cm-kpi-value text-[var(--color-danger)]">
+                {fmt(nonClaimableTotal)}
+              </p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                {nonClaimableExpenses.length} item
+                {nonClaimableExpenses.length !== 1 ? "s" : ""}
+                <span className="ml-1.5 text-[var(--accent)]">→ View</span>
+              </p>
+            </div>
+            <div
+              className="cm-kpi cursor-pointer transition-shadow hover:shadow-md"
+              onClick={() => setSection("needs_review")}
+            >
+              <p className="cm-kpi-label">Needs review</p>
+              <p
+                className={`cm-kpi-value ${
+                  needsReviewExpenses.length > 0 ? "text-amber-500" : "text-[var(--ink)]"
+                }`}
+              >
+                {needsReviewExpenses.length}
+              </p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Missing or unknown category
+                {needsReviewExpenses.length > 0 ? (
+                  <span className="ml-1.5 text-amber-500">→ Review</span>
+                ) : null}
+              </p>
+            </div>
+          </div>
+
+          {activeTab === "expenses" ? (
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                {
+                  title: "Imported expenses",
+                  value: importedExpenseCount.toString(),
+                  note: "Flowing in automatically from categorised bank transactions.",
+                },
+                {
+                  title: "Manual entries",
+                  value: manualExpenseCount.toString(),
+                  note: "Useful for petty cash, missing receipts, or non-bank costs.",
+                },
+                {
+                  title: "Needs category review",
+                  value: needsReviewExpenses.length.toString(),
+                  note: "These should be checked before relying on the totals with confidence.",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-2xl border border-[var(--line)] bg-white px-5 py-4 shadow-[var(--shadow-sm)]"
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
+                    {item.title}
+                  </p>
+                  <p className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-[var(--ink)]">
+                    {item.value}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{item.note}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!canManageOperationalData ? (
+        <div className="rounded-2xl border border-[var(--line)] bg-white px-5 py-4 text-sm text-[var(--muted)] shadow-[var(--shadow-sm)]">
+          This workspace access level is read-only for expenses and mileage. You can review the
+          data here, but only the workspace owner, accountant admin, or bookkeeper can add or edit
+          entries.
+        </div>
+      ) : null}
+
+      {section === "claimable" ? (
         <ExpensesList
           title="Claimable"
-          description="These reduce taxable profit based on your category settings."
+          description={
+            activeTab === "expenses"
+              ? "These reduce taxable profit based on your category settings or manual overrides."
+              : "Mileage claims usually stay claimable unless you deliberately override them."
+          }
           expenses={claimableExpenses}
           currency={currency}
           claimStatus="claimable"
-          onToggleClaimable={async (id, source, currentStatus, currentlyOverridden) => {
+          canManageOperationalData={canManageOperationalData}
+          onToggleClaimable={async (id, source) => {
             const { toggleExpenseClaimabilityAction } = await import("@/app/actions/bookkeeping");
             await toggleExpenseClaimabilityAction(id, source, false);
             router.refresh();
           }}
         />
+      ) : null}
+
+      {section === "not_claimable" ? (
         <ExpensesList
           title="Not claimable"
-          description="These are tracked, but currently excluded from tax claim calculations."
+          description={
+            activeTab === "expenses"
+              ? "These are tracked, but currently excluded from tax claim calculations."
+              : "Mileage items only appear here if you explicitly override the default treatment."
+          }
           expenses={nonClaimableExpenses}
           currency={currency}
           claimStatus="not_claimable"
-          onToggleClaimable={async (id, source, currentStatus, currentlyOverridden) => {
+          canManageOperationalData={canManageOperationalData}
+          onToggleClaimable={async (id, source) => {
             const { toggleExpenseClaimabilityAction } = await import("@/app/actions/bookkeeping");
             await toggleExpenseClaimabilityAction(id, source, true);
             router.refresh();
           }}
         />
-      </div>
-      {needsReviewExpenses.length > 0 && (
-        <ExpensesList
-          title="Needs review"
-          description="Add or correct the category before relying on the claimable total."
-          expenses={needsReviewExpenses}
-          currency={currency}
-          claimStatus="needs_review"
-          onToggleClaimable={async (id, source, currentStatus, currentlyOverridden) => {
-            const { toggleExpenseClaimabilityAction } = await import("@/app/actions/bookkeeping");
-            await toggleExpenseClaimabilityAction(id, source, true);
-            router.refresh();
-          }}
-        />
-      )}
+      ) : null}
+
+      {section === "needs_review" ? (
+        needsReviewExpenses.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[var(--line)] bg-white px-8 py-12 text-center shadow-[var(--shadow-sm)]">
+            <p className="text-sm font-semibold text-[var(--ink)]">All caught up</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Every expense has a valid category and nothing needs review.
+            </p>
+          </div>
+        ) : (
+          <ExpensesList
+            title="Needs review"
+            description="Add or correct the category before relying on the claimable total."
+            expenses={needsReviewExpenses}
+            currency={currency}
+            claimStatus="needs_review"
+            canManageOperationalData={canManageOperationalData}
+            onToggleClaimable={async (id, source) => {
+              const { toggleExpenseClaimabilityAction } = await import(
+                "@/app/actions/bookkeeping"
+              );
+              await toggleExpenseClaimabilityAction(id, source, true);
+              router.refresh();
+            }}
+          />
+        )
+      ) : null}
     </div>
   );
 }

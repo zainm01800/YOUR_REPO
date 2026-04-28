@@ -50,6 +50,11 @@ import type {
 } from "@/lib/domain/types";
 import { buildReviewRows } from "@/lib/reconciliation/review-rows";
 import { buildRunSummary } from "@/lib/reconciliation/summary";
+import {
+  getWorkspaceRolePermissions,
+  normalizeWorkspaceRole,
+  toStoredWorkspaceRole,
+} from "@/lib/auth/workspace-role";
 
 const detailedRunInclude = {
   workspace: true,
@@ -138,6 +143,16 @@ const summaryRunInclude = {
 
 // Lean include for the bookkeeping/transactions page — only pulls tx fields, no documents or matches
 const transactionOnlyRunInclude = {
+  workspace: {
+    select: {
+      defaultCurrency: true,
+    },
+  },
+  bankStatement: {
+    select: {
+      name: true,
+    },
+  },
   transactions: {
     select: {
       id: true,
@@ -698,7 +713,7 @@ function toWorkspaceMember(m: any): import("@/lib/domain/types").WorkspaceMember
     userId: m.userId,
     userName: m.user.name,
     userEmail: m.user.email,
-    role: m.role,
+    role: normalizeWorkspaceRole(m.role),
     createdAt: m.createdAt.toISOString(),
   };
 }
@@ -707,7 +722,7 @@ function toInvitation(i: any): import("@/lib/domain/types").Invitation {
   return {
     id: i.id,
     email: i.email,
-    role: i.role,
+    role: normalizeWorkspaceRole(i.role),
     status: i.status,
     invitedByName: i.invitedBy.name,
     createdAt: i.createdAt.toISOString(),
@@ -771,6 +786,34 @@ function toSummaryDomainRun(run: DbSummaryRun): ReconciliationRun {
     transactions: run.transactions.map(toTransaction),
     documents: run.documents.map(toDocument),
     matches: run.matches.map(toMatch),
+    auditTrail: [],
+    exports: [],
+  };
+}
+
+function toBookkeepingDomainRun(run: DbTransactionOnlyRun): ReconciliationRun {
+  return {
+    id: run.id,
+    name: run.name,
+    status: run.status as ReconciliationRun["status"],
+    createdAt: run.createdAt.toISOString(),
+    processedAt: toIso(run.processedAt),
+    entity: run.entity || undefined,
+    period: run.period || undefined,
+    locked: run.locked,
+    lockedAt: toIso(run.lockedAt),
+    lockedBy: run.lockedBy || undefined,
+    countryProfile: run.countryProfile || undefined,
+    bankStatementId: run.bankStatementId || undefined,
+    bankSourceMode: run.bankSourceMode as ReconciliationRun["bankSourceMode"] | undefined,
+    bankSourceLabel: run.bankSourceLabel || run.bankStatement?.name || undefined,
+    defaultCurrency: run.workspace.defaultCurrency,
+    transactionFileName: run.transactionFileName || undefined,
+    fxRates: (run.fxRates as Record<string, number> | null) || undefined,
+    uploadedFiles: [],
+    transactions: run.transactions.map(toTransaction),
+    documents: [],
+    matches: [],
     auditTrail: [],
     exports: [],
   };
@@ -1297,6 +1340,18 @@ export const basePrismaRepository: Repository = {
     });
 
     return runs.map(toSummaryDomainRun);
+  },
+
+  async getBookkeepingRuns(): Promise<ReconciliationRun[]> {
+    const prisma = requirePrisma();
+    const { workspace } = await ensureBootstrap(prisma);
+    const runs = await prisma.reconciliationRun.findMany({
+      where: { workspaceId: workspace.id },
+      include: transactionOnlyRunInclude,
+      orderBy: { createdAt: "desc" },
+    });
+
+    return runs.map(toBookkeepingDomainRun);
   },
 
   async getRunRows(runId): Promise<ReviewRow[]> {
@@ -1837,13 +1892,13 @@ export const basePrismaRepository: Repository = {
     try {
       await prisma.transaction.update({
         where: { id: transactionId },
-        data: { noReceiptRequired: allowable === null ? null : !allowable }, // Mapping "Allowable" to the inverse of "No Receipt Required" field which is used for tax-readiness in this schema
+        data: { isClaimableOverride: allowable },
         select: { id: true },
       });
     } catch {
       await prisma.bankTransaction.update({
         where: { id: transactionId },
-        data: { noReceiptRequired: allowable === null ? null : !allowable },
+        data: { isClaimableOverride: allowable },
         select: { id: true },
       }).catch(() => {
         console.warn(`[setTransactionAllowable] Failed to update transaction ${transactionId}`);
@@ -1986,7 +2041,7 @@ export const basePrismaRepository: Repository = {
       id: m.workspace.id,
       name: m.workspace.name,
       slug: m.workspace.slug,
-      role: m.role,
+      role: normalizeWorkspaceRole(m.role),
     }));
   },
   async getInvitationByToken(token: string) {
@@ -2019,6 +2074,8 @@ export const basePrismaRepository: Repository = {
           throw new Error("Invitation has expired.");
         }
 
+        const normalizedRole = toStoredWorkspaceRole(invitation.role);
+
         // 1. Sync user record first to satisfy foreign key constraints
         await upsertUserCompat(tx as PrismaClient, {
           where: { id: userId },
@@ -2034,11 +2091,11 @@ export const basePrismaRepository: Repository = {
               workspaceId: invitation.workspaceId,
             },
           },
-          update: { role: invitation.role },
+          update: { role: normalizedRole },
           create: {
             userId,
             workspaceId: invitation.workspaceId,
-            role: invitation.role,
+            role: normalizedRole,
           },
         });
 
@@ -2074,6 +2131,7 @@ export const basePrismaRepository: Repository = {
   async getClients() {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     const rows = await prisma.client.findMany({
       where: { workspaceId: workspace.id },
       include: { invoices: { select: { id: true, total: true, status: true } } },
@@ -2106,6 +2164,7 @@ export const basePrismaRepository: Repository = {
   async getClient(clientId: string) {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     const c = await prisma.client.findFirst({
       where: { id: clientId, workspaceId: workspace.id },
       include: { invoices: { select: { id: true, total: true, status: true } } },
@@ -2138,6 +2197,7 @@ export const basePrismaRepository: Repository = {
   async createClient(input: import("@/lib/domain/types").CreateClientInput) {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     const c = await prisma.client.create({
       data: { ...input, paymentTermsDays: input.paymentTermsDays ?? 30, workspaceId: workspace.id },
       include: { invoices: true },
@@ -2155,6 +2215,7 @@ export const basePrismaRepository: Repository = {
   async updateClient(clientId: string, input: Partial<import("@/lib/domain/types").CreateClientInput>) {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     const c = await prisma.client.update({
       where: { id: clientId, workspaceId: workspace.id } as any,
       data: input,
@@ -2178,6 +2239,7 @@ export const basePrismaRepository: Repository = {
   async deleteClient(clientId: string) {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     await prisma.client.delete({ where: { id: clientId, workspaceId: workspace.id } as any });
   },
 
@@ -2186,6 +2248,7 @@ export const basePrismaRepository: Repository = {
   async getInvoices() {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     const rows = await prisma.invoice.findMany({
       where: { workspaceId: workspace.id },
       include: { client: { select: { id: true, name: true, email: true } } },
@@ -2197,6 +2260,7 @@ export const basePrismaRepository: Repository = {
   async getInvoice(invoiceId: string) {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     const inv = await prisma.invoice.findFirst({
       where: { id: invoiceId, workspaceId: workspace.id },
       include: { client: { select: { id: true, name: true, email: true } } },
@@ -2208,6 +2272,7 @@ export const basePrismaRepository: Repository = {
   async createInvoice(input: import("@/lib/domain/types").CreateInvoiceInput) {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     const lineItems = input.lineItems as import("@/lib/domain/types").InvoiceLineItem[];
     const subtotal = lineItems.reduce((s, li) => s + li.amount, 0);
     const vatAmount = lineItems.reduce((s, li) => s + li.vatAmount, 0);
@@ -2240,6 +2305,7 @@ export const basePrismaRepository: Repository = {
   ) {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     const data: Record<string, unknown> = {};
     if (input.invoiceNumber !== undefined) data.invoiceNumber = input.invoiceNumber;
     if (input.clientId !== undefined) data.clientId = input.clientId;
@@ -2268,12 +2334,14 @@ export const basePrismaRepository: Repository = {
   async deleteInvoice(invoiceId: string) {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     await prisma.invoice.delete({ where: { id: invoiceId, workspaceId: workspace.id } as any });
   },
 
   async getNextInvoiceNumber() {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     const last = await prisma.invoice.findFirst({
       where: { workspaceId: workspace.id },
       orderBy: { createdAt: "desc" },
@@ -2355,6 +2423,7 @@ export const basePrismaRepository: Repository = {
   async getCategoryBudgets() {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     const rows = await prisma.categoryBudget.findMany({ where: { workspaceId: workspace.id } });
     return rows.map((b) => ({
       id: b.id,
@@ -2368,6 +2437,7 @@ export const basePrismaRepository: Repository = {
   async upsertCategoryBudget(category: string, amount: number, period: "monthly" | "annual") {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     const b = await prisma.categoryBudget.upsert({
       where: { workspaceId_category: { workspaceId: workspace.id, category } },
       update: { amount, period },
@@ -2379,6 +2449,7 @@ export const basePrismaRepository: Repository = {
   async deleteCategoryBudget(budgetId: string) {
     const prisma = requirePrisma();
     const { workspace } = await ensureBootstrap(prisma);
+    await ensureSoleTraderStorage(prisma);
     await prisma.categoryBudget.delete({ where: { id: budgetId, workspaceId: workspace.id } as any });
   },
 };
@@ -2402,16 +2473,32 @@ export async function createPrismaRepository(
   const membership = await prisma.membership.findUnique({
     where: { userId_workspaceId: { userId, workspaceId } },
   });
-  const userRole = membership?.role || "viewer";
+  const userRole = normalizeWorkspaceRole(membership?.role);
+  const permissions = getWorkspaceRolePermissions(userRole);
 
-  function isAdmin() {
-    return userRole === "owner" || userRole === "admin";
+  function requirePermission(allowed: boolean, capability: string) {
+    if (!allowed) {
+      throw new Error(`Permission denied: Your role (${userRole}) does not allow ${capability}.`);
+    }
   }
 
-  function requireAdmin() {
-    if (!isAdmin()) {
-      throw new Error(`Permission denied: Your role (${userRole}) does not allow this action.`);
-    }
+  function requireOperationalData() {
+    requirePermission(permissions.canManageOperationalData, "operational bookkeeping changes");
+  }
+
+  function requireAccountingSettings() {
+    requirePermission(permissions.canManageAccountingSettings, "accounting settings changes");
+  }
+
+  function requireBusinessSettings() {
+    requirePermission(permissions.canManageBusinessSettings, "business settings changes");
+  }
+
+  function requireTemplatesAccess() {
+    requirePermission(
+      permissions.canManageTemplates || permissions.canManageOperationalData,
+      "mapping template access",
+    );
   }
 
   // 4. Return a repository instance bound to this specific workspace
@@ -2424,7 +2511,7 @@ export async function createPrismaRepository(
     },
     getWorkspace: async () => toWorkspace(workspace),
     updateWorkspace: async (input) => {
-      requireAdmin();
+      requireBusinessSettings();
       const updated = await prisma.workspace.update({
         where: { id: workspaceId },
         data: {
@@ -2437,6 +2524,81 @@ export async function createPrismaRepository(
         },
       });
       return toWorkspace(updated);
+    },
+    getTemplates: async () => {
+      requireTemplatesAccess();
+      return basePrismaRepository.getTemplates();
+    },
+    importBankStatement: async (input) => {
+      requireOperationalData();
+      return basePrismaRepository.importBankStatement(input);
+    },
+    deleteBankStatement: async (id) => {
+      requireOperationalData();
+      return basePrismaRepository.deleteBankStatement(id);
+    },
+    createRun: async (input) => {
+      requireOperationalData();
+      return basePrismaRepository.createRun(input);
+    },
+    deleteRun: async (runId) => {
+      requireOperationalData();
+      return basePrismaRepository.deleteRun(runId);
+    },
+    attachBankSourceToRun: async (input) => {
+      requireOperationalData();
+      return basePrismaRepository.attachBankSourceToRun(input);
+    },
+    saveReviewMutation: async (input) => {
+      requireOperationalData();
+      return basePrismaRepository.saveReviewMutation(input);
+    },
+    upsertVatRules: async (input) => {
+      requireBusinessSettings();
+      return basePrismaRepository.upsertVatRules(input);
+    },
+    replaceAllVatRules: async (rules) => {
+      requireBusinessSettings();
+      return basePrismaRepository.replaceAllVatRules(rules);
+    },
+    upsertGlCodeRules: async (input) => {
+      requireAccountingSettings();
+      return basePrismaRepository.upsertGlCodeRules(input);
+    },
+    replaceAllGlCodeRules: async (rules) => {
+      requireAccountingSettings();
+      return basePrismaRepository.replaceAllGlCodeRules(rules);
+    },
+    getCategoryRules: async () => {
+      requirePermission(
+        permissions.canManageAccountingSettings ||
+          permissions.canManageOperationalData ||
+          permissions.canReviewTax ||
+          permissions.canSeeFinancialReports,
+        "category library access",
+      );
+      return basePrismaRepository.getCategoryRules();
+    },
+    replaceAllCategoryRules: async (input) => {
+      requireAccountingSettings();
+      return basePrismaRepository.replaceAllCategoryRules(input);
+    },
+    setTransactionCategory: async (transactionId, category, reason, confidenceScore) => {
+      requireOperationalData();
+      return basePrismaRepository.setTransactionCategory(
+        transactionId,
+        category,
+        reason,
+        confidenceScore,
+      );
+    },
+    setTransactionAllowable: async (transactionId, allowable) => {
+      requireOperationalData();
+      return basePrismaRepository.setTransactionAllowable(transactionId, allowable);
+    },
+    deleteTransactions: async (ids) => {
+      requireOperationalData();
+      return basePrismaRepository.deleteTransactions(ids);
     },
     getDashboardSnapshot: async () => {
       const [runs, vatRules, glRules, categoryRules, templates] = await Promise.all([
@@ -2493,47 +2655,6 @@ export async function createPrismaRepository(
         toRunListItem(toSummaryDomainRun(run), domainVatRules, domainGlRules, domainCategoryRules),
       );
     },
-
-    importBankStatement: async (input) => {
-      requireAdmin();
-      return basePrismaRepository.importBankStatement(input);
-    },
-    deleteBankStatement: async (id) => {
-      requireAdmin();
-      return basePrismaRepository.deleteBankStatement(id);
-    },
-    createRun: async (input) => {
-      requireAdmin();
-      return basePrismaRepository.createRun(input);
-    },
-    deleteRun: async (runId) => {
-      requireAdmin();
-      return basePrismaRepository.deleteRun(runId);
-    },
-    saveReviewMutation: async (input) => {
-      requireAdmin();
-      return basePrismaRepository.saveReviewMutation(input);
-    },
-    upsertVatRules: async (input) => {
-      requireAdmin();
-      return basePrismaRepository.upsertVatRules(input);
-    },
-    replaceAllVatRules: async (rules) => {
-      requireAdmin();
-      return basePrismaRepository.replaceAllVatRules(rules);
-    },
-    upsertGlCodeRules: async (input) => {
-      requireAdmin();
-      return basePrismaRepository.upsertGlCodeRules(input);
-    },
-    replaceAllGlCodeRules: async (rules) => {
-      requireAdmin();
-      return basePrismaRepository.replaceAllGlCodeRules(rules);
-    },
-    replaceAllCategoryRules: async (input) => {
-      requireAdmin();
-      return basePrismaRepository.replaceAllCategoryRules(input);
-    },
     getUserWorkspaces: async () => {
       const memberships = await prisma.membership.findMany({
         where: { userId },
@@ -2545,7 +2666,7 @@ export async function createPrismaRepository(
         id: m.workspace.id,
         name: m.workspace.name,
         slug: m.workspace.slug,
-        role: m.role as import("@/lib/domain/types").WorkspaceRole,
+        role: normalizeWorkspaceRole(m.role),
       }));
     },
 
@@ -2553,6 +2674,18 @@ export async function createPrismaRepository(
       const run = await loadRun(prisma, runId);
       if (!run || run.workspaceId !== workspace.id) return null;
       return toDomainRun(run);
+    },
+    getSettingsSnapshot: async () => {
+      requirePermission(
+        permissions.canSeeFinancialReports ||
+          permissions.canManageOperationalData ||
+          permissions.canManageBusinessSettings ||
+          permissions.canManageAccountingSettings ||
+          permissions.canManageMembers ||
+          permissions.canReviewTax,
+        "settings access",
+      );
+      return basePrismaRepository.getSettingsSnapshot();
     },
     getRunsWithTransactions: async () => {
       const runs = await prisma.reconciliationRun.findMany({
@@ -2599,6 +2732,15 @@ export async function createPrismaRepository(
     },
     getInvitationByToken: (token: string) => basePrismaRepository.getInvitationByToken(token),
     acceptInvitation: (token: string, userId: string, email: string, name: string) => basePrismaRepository.acceptInvitation(token, userId, email, name),
+    getVatRules: async () => {
+      requirePermission(
+        permissions.canReviewTax ||
+          permissions.canManageBusinessSettings ||
+          permissions.canManageAccountingSettings,
+        "VAT configuration access",
+      );
+      return basePrismaRepository.getVatRules();
+    },
 
     getTransactionStats: async () => {
       // Total transactions across all runs
@@ -2843,6 +2985,7 @@ export async function createPrismaRepository(
     async getClients() {
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       const rows = await prisma.client.findMany({
         where: { workspaceId: workspace.id },
         include: {
@@ -2879,6 +3022,7 @@ export async function createPrismaRepository(
     async getClient(clientId: string) {
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       const c = await prisma.client.findFirst({
         where: { id: clientId, workspaceId: workspace.id },
         include: { invoices: { select: { id: true, total: true, status: true } } },
@@ -2909,8 +3053,10 @@ export async function createPrismaRepository(
     },
 
     async createClient(input: import("@/lib/domain/types").CreateClientInput) {
+      requireOperationalData();
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       const c = await prisma.client.create({
         data: {
           ...input,
@@ -2942,8 +3088,10 @@ export async function createPrismaRepository(
     },
 
     async updateClient(clientId: string, input: Partial<import("@/lib/domain/types").CreateClientInput>) {
+      requireOperationalData();
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       const c = await prisma.client.update({
         where: { id: clientId, workspaceId: workspace.id } as any,
         data: input,
@@ -2974,8 +3122,10 @@ export async function createPrismaRepository(
     },
 
     async deleteClient(clientId: string) {
+      requireOperationalData();
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       await prisma.client.delete({ where: { id: clientId, workspaceId: workspace.id } as any });
     },
 
@@ -2984,6 +3134,7 @@ export async function createPrismaRepository(
     async getInvoices() {
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       const rows = await prisma.invoice.findMany({
         where: { workspaceId: workspace.id },
         include: { client: { select: { id: true, name: true, email: true } } },
@@ -2995,6 +3146,7 @@ export async function createPrismaRepository(
     async getInvoice(invoiceId: string) {
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       const inv = await prisma.invoice.findFirst({
         where: { id: invoiceId, workspaceId: workspace.id },
         include: { client: { select: { id: true, name: true, email: true } } },
@@ -3004,8 +3156,10 @@ export async function createPrismaRepository(
     },
 
     async createInvoice(input: import("@/lib/domain/types").CreateInvoiceInput) {
+      requireOperationalData();
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       const lineItems = input.lineItems as import("@/lib/domain/types").InvoiceLineItem[];
       const subtotal = lineItems.reduce((s, li) => s + li.amount, 0);
       const vatAmount = lineItems.reduce((s, li) => s + li.vatAmount, 0);
@@ -3037,8 +3191,10 @@ export async function createPrismaRepository(
         paidAmount?: number | null;
       },
     ) {
+      requireOperationalData();
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       const data: Record<string, unknown> = {};
       if (input.invoiceNumber !== undefined) data.invoiceNumber = input.invoiceNumber;
       if (input.clientId !== undefined) data.clientId = input.clientId;
@@ -3065,14 +3221,17 @@ export async function createPrismaRepository(
     },
 
     async deleteInvoice(invoiceId: string) {
+      requireOperationalData();
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       await prisma.invoice.delete({ where: { id: invoiceId, workspaceId: workspace.id } as any });
     },
 
     async getNextInvoiceNumber() {
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       const last = await prisma.invoice.findFirst({
         where: { workspaceId: workspace.id },
         orderBy: { createdAt: "desc" },
@@ -3106,6 +3265,7 @@ export async function createPrismaRepository(
     },
 
     async createManualExpense(input: import("@/lib/domain/types").CreateManualExpenseInput) {
+      requireOperationalData();
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
       await ensureManualExpenseStorage(prisma);
@@ -3130,6 +3290,7 @@ export async function createPrismaRepository(
     },
 
     async updateManualExpense(expenseId: string, input: Partial<import("@/lib/domain/types").CreateManualExpenseInput>) {
+      requireOperationalData();
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
       await ensureManualExpenseStorage(prisma);
@@ -3143,6 +3304,7 @@ export async function createPrismaRepository(
     },
 
     async deleteManualExpense(expenseId: string) {
+      requireOperationalData();
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
       await ensureManualExpenseStorage(prisma);
@@ -3154,6 +3316,7 @@ export async function createPrismaRepository(
     async getCategoryBudgets() {
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       const rows = await prisma.categoryBudget.findMany({ where: { workspaceId: workspace.id } });
       return rows.map((b) => ({
         id: b.id,
@@ -3165,8 +3328,10 @@ export async function createPrismaRepository(
     },
 
     async upsertCategoryBudget(category: string, amount: number, period: "monthly" | "annual") {
+      requireOperationalData();
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       const b = await prisma.categoryBudget.upsert({
         where: { workspaceId_category: { workspaceId: workspace.id, category } },
         update: { amount, period },
@@ -3176,8 +3341,10 @@ export async function createPrismaRepository(
     },
 
     async deleteCategoryBudget(budgetId: string) {
+      requireOperationalData();
       const prisma = requirePrisma();
       const { workspace } = await ensureBootstrap(prisma);
+      await ensureSoleTraderStorage(prisma);
       await prisma.categoryBudget.delete({ where: { id: budgetId, workspaceId: workspace.id } as any });
     },
   };
@@ -3301,10 +3468,15 @@ async function ensureManualExpenseStorage(prisma: PrismaClient) {
       "mileageRatePerMile" DECIMAL(6,4),
       "receiptStorageKey" TEXT,
       "notes" TEXT,
+      "isClaimableOverride" BOOLEAN,
       "workspaceId" TEXT NOT NULL,
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "ManualExpense_pkey" PRIMARY KEY ("id")
     )
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "ManualExpense"
+    ADD COLUMN IF NOT EXISTS "isClaimableOverride" BOOLEAN
   `);
   await prisma.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS "ManualExpense_workspaceId_date_idx"
@@ -3329,4 +3501,135 @@ async function ensureManualExpenseStorage(prisma: PrismaClient) {
       END IF;
     END $$;
   `);
+}
+
+async function ensureSoleTraderStorage(prisma: PrismaClient) {
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'InvoiceStatus') THEN
+        CREATE TYPE "InvoiceStatus" AS ENUM ('draft', 'sent', 'paid', 'overdue', 'void');
+      END IF;
+    END $$;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "Client" (
+      "id" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "email" TEXT,
+      "phone" TEXT,
+      "addressLine1" TEXT,
+      "addressLine2" TEXT,
+      "city" TEXT,
+      "postcode" TEXT,
+      "country" TEXT,
+      "vatNumber" TEXT,
+      "paymentTermsDays" INTEGER NOT NULL DEFAULT 30,
+      "notes" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "workspaceId" TEXT NOT NULL,
+      CONSTRAINT "Client_pkey" PRIMARY KEY ("id")
+    )
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "Client_workspaceId_name_idx"
+    ON "Client"("workspaceId", "name")
+  `);
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Client_workspaceId_fkey') THEN
+        ALTER TABLE "Client"
+        ADD CONSTRAINT "Client_workspaceId_fkey"
+        FOREIGN KEY ("workspaceId") REFERENCES "Workspace"("id")
+        ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "Invoice" (
+      "id" TEXT NOT NULL,
+      "invoiceNumber" TEXT NOT NULL,
+      "status" "InvoiceStatus" NOT NULL DEFAULT 'draft',
+      "issueDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "dueDate" TIMESTAMP(3),
+      "lineItems" JSONB NOT NULL,
+      "subtotal" DECIMAL(12,2) NOT NULL,
+      "vatAmount" DECIMAL(12,2) NOT NULL,
+      "total" DECIMAL(12,2) NOT NULL,
+      "currency" TEXT NOT NULL DEFAULT 'GBP',
+      "notes" TEXT,
+      "paidAt" TIMESTAMP(3),
+      "paidAmount" DECIMAL(12,2),
+      "clientId" TEXT NOT NULL,
+      "workspaceId" TEXT NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Invoice_pkey" PRIMARY KEY ("id")
+    )
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "Invoice_workspaceId_status_idx"
+    ON "Invoice"("workspaceId", "status")
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "Invoice_workspaceId_issueDate_idx"
+    ON "Invoice"("workspaceId", "issueDate" DESC)
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "Invoice_clientId_idx"
+    ON "Invoice"("clientId")
+  `);
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Invoice_clientId_fkey') THEN
+        ALTER TABLE "Invoice"
+        ADD CONSTRAINT "Invoice_clientId_fkey"
+        FOREIGN KEY ("clientId") REFERENCES "Client"("id")
+        ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Invoice_workspaceId_fkey') THEN
+        ALTER TABLE "Invoice"
+        ADD CONSTRAINT "Invoice_workspaceId_fkey"
+        FOREIGN KEY ("workspaceId") REFERENCES "Workspace"("id")
+        ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "CategoryBudget" (
+      "id" TEXT NOT NULL,
+      "category" TEXT NOT NULL,
+      "amount" DECIMAL(12,2) NOT NULL,
+      "period" TEXT NOT NULL DEFAULT 'monthly',
+      "workspaceId" TEXT NOT NULL,
+      CONSTRAINT "CategoryBudget_pkey" PRIMARY KEY ("id")
+    )
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "CategoryBudget_workspaceId_category_key"
+    ON "CategoryBudget"("workspaceId", "category")
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "CategoryBudget_workspaceId_idx"
+    ON "CategoryBudget"("workspaceId")
+  `);
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CategoryBudget_workspaceId_fkey') THEN
+        ALTER TABLE "CategoryBudget"
+        ADD CONSTRAINT "CategoryBudget_workspaceId_fkey"
+        FOREIGN KEY ("workspaceId") REFERENCES "Workspace"("id")
+        ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+  `);
+
+  await ensureManualExpenseStorage(prisma);
 }

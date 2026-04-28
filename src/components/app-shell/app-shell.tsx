@@ -33,6 +33,7 @@ import {
 import { appConfig } from "@/lib/config";
 import type { Workspace } from "@/lib/domain/types";
 import type { ViewerAccessProfile } from "@/lib/auth/viewer-access";
+import { getWorkspaceRoleLabel } from "@/lib/auth/workspace-role";
 import { cn } from "@/lib/utils";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { ToastProvider } from "@/components/ui/toast";
@@ -55,8 +56,12 @@ type NavigationSection = {
 
 function buildNavigation(
   businessType: Workspace["businessType"],
+  vatRegistered: Workspace["vatRegistered"],
   viewerAccess: ViewerAccessProfile,
 ): NavigationSection[] {
+  const canSeeVatTools =
+    (viewerAccess.isAccountantView || vatRegistered) && viewerAccess.canReviewTax;
+
   if (!viewerAccess.isAccountantView && businessType === "sole_trader") {
     return [
       {
@@ -94,22 +99,26 @@ function buildNavigation(
         items: [
           { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
           { href: "/bookkeeping/tax-estimate", label: "Tax Estimate", icon: PieChart },
-          { href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt },
+          ...(canSeeVatTools
+            ? [{ href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt }]
+            : []),
         ],
       },
       {
         label: "Download",
         items: [
-          { href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen },
+          ...(viewerAccess.canUseExportPack
+            ? [{ href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen }]
+            : []),
         ],
       },
       {
         label: "Configure",
-        items: [
-          { href: "/settings", label: "Settings & Members", icon: Settings2 },
-        ],
+        items: viewerAccess.canSeeSettings
+          ? [{ href: "/settings", label: "Settings & Members", icon: Settings2 }]
+          : [],
       },
-    ];
+    ].filter((section) => section.items.length > 0);
   }
 
   if (!viewerAccess.isAccountantView) {
@@ -141,17 +150,25 @@ function buildNavigation(
       {
         label: "Report",
         items: [
-          { href: "/bookkeeping/reports", label: "Business Reports", icon: BarChart3 },
+          ...(viewerAccess.canSeeFinancialReports
+            ? [{ href: "/bookkeeping/reports", label: "Business Reports", icon: BarChart3 }]
+            : []),
           { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
-          { href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt },
-          { href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen },
+          ...(canSeeVatTools
+            ? [{ href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt }]
+            : []),
+          ...(viewerAccess.canUseExportPack
+            ? [{ href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen }]
+            : []),
         ],
       },
       {
         label: "Configure",
-        items: [{ href: "/settings", label: "Settings & Members", icon: Settings2 }],
+        items: viewerAccess.canSeeSettings
+          ? [{ href: "/settings", label: "Settings & Members", icon: Settings2 }]
+          : [],
       },
-    ];
+    ].filter((section) => section.items.length > 0);
   }
 
   return [
@@ -169,7 +186,9 @@ function buildNavigation(
         { href: "/expenses", label: "Expenses", icon: Receipt },
         { href: "/mileage", label: "Mileage", icon: Car },
         { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
-        { href: "/templates", label: "Mapping Templates", icon: LayoutTemplate },
+        ...(viewerAccess.canSeeTemplates
+          ? [{ href: "/templates", label: "Mapping Templates", icon: LayoutTemplate }]
+          : []),
       ],
     },
     {
@@ -177,46 +196,64 @@ function buildNavigation(
       items: [
         { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { href: "/runs", label: "Reconciliation Runs", icon: FolderOpen },
-        { href: "/runs/new", label: "New Recon Run", icon: PlusSquare },
+        ...(viewerAccess.canManageOperationalData
+          ? [{ href: "/runs/new", label: "New Recon Run", icon: PlusSquare }]
+          : []),
       ],
     },
     {
       label: "Report",
       items: [
-        { href: "/bookkeeping/reports", label: "Financial Reports", icon: BarChart3 },
-        { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
-        { href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt },
+        ...(viewerAccess.canSeeFinancialReports
+          ? [{ href: "/bookkeeping/reports", label: "Financial Reports", icon: BarChart3 }]
+          : []),
+        ...(viewerAccess.canReviewTax
+          ? [{ href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator }]
+          : []),
+        ...(canSeeVatTools
+          ? [{ href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt }]
+          : []),
       ],
     },
     {
       label: "Deliver",
       items: [
-        { href: "/posting-file-builder", label: "Posting File Builder", icon: FileOutput },
-        { href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen },
+        ...(viewerAccess.canSeePostingBuilder
+          ? [{ href: "/posting-file-builder", label: "Posting File Builder", icon: FileOutput }]
+          : []),
+        ...(viewerAccess.canUseExportPack
+          ? [{ href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen }]
+          : []),
       ],
     },
     {
       label: "Configure",
       items: [
-        { href: "/settings", label: "Settings & Members", icon: Settings2 },
-        { href: "/suppliers", label: "Suppliers", icon: Table2 },
+        ...(viewerAccess.canSeeSettings
+          ? [{ href: "/settings", label: "Settings & Members", icon: Settings2 }]
+          : []),
+        ...(viewerAccess.canManageOperationalData || viewerAccess.canManageAccountingSettings
+          ? [{ href: "/suppliers", label: "Suppliers", icon: Table2 }]
+          : []),
       ],
     },
-  ];
+  ].filter((section) => section.items.length > 0);
 }
 
 function NavItems({
   currentPath,
   businessType,
+  vatRegistered,
   viewerAccess,
   onNavigate,
 }: {
   currentPath: string;
   businessType: Workspace["businessType"];
+  vatRegistered: Workspace["vatRegistered"];
   viewerAccess: ViewerAccessProfile;
   onNavigate?: () => void;
 }) {
-  const navigation = buildNavigation(businessType, viewerAccess);
+  const navigation = buildNavigation(businessType, vatRegistered, viewerAccess);
 
   return (
     <nav className="space-y-5">
@@ -239,6 +276,7 @@ function NavItems({
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch
                   onClick={onNavigate}
                   className={cn(
                     "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition",
@@ -265,6 +303,7 @@ export function AppShell({
   workspaces,
   currentWorkspaceId,
   businessType,
+  vatRegistered,
   viewerAccess,
 }: {
   children: React.ReactNode;
@@ -272,6 +311,7 @@ export function AppShell({
   workspaces: WorkspaceInfo[];
   currentWorkspaceId: string;
   businessType: Workspace["businessType"];
+  vatRegistered: Workspace["vatRegistered"];
   viewerAccess: ViewerAccessProfile;
 }) {
   const currentPath = usePathname();
@@ -280,10 +320,10 @@ export function AppShell({
     viewerAccess.isWebsiteOwner
       ? "Owner override"
       : viewerAccess.isAccountantView
-        ? "Accountant mode"
+        ? getWorkspaceRoleLabel(viewerAccess.workspaceRole)
         : businessType === "sole_trader"
-          ? "Sole trader mode"
-          : "Business mode";
+          ? `${getWorkspaceRoleLabel(viewerAccess.workspaceRole)} · Sole trader`
+          : `${getWorkspaceRoleLabel(viewerAccess.workspaceRole)} · Business`;
 
   const brand = (
     <Link href="/dashboard" className="flex items-center gap-2 px-2 pb-0.5">
@@ -313,7 +353,7 @@ export function AppShell({
       <aside className="hidden h-screen shrink-0 overflow-y-auto border-r border-[var(--line)] bg-[var(--bg-side)] px-3.5 py-4 lg:flex lg:flex-col lg:gap-5">
         {brand}
         {workspaceCard}
-        <NavItems currentPath={currentPath} businessType={businessType} viewerAccess={viewerAccess} />
+        <NavItems currentPath={currentPath} businessType={businessType} vatRegistered={vatRegistered} viewerAccess={viewerAccess} />
       </aside>
 
       {/* Mobile overlay */}
@@ -343,7 +383,7 @@ export function AppShell({
           </button>
         </div>
         <div className="mb-5">{workspaceCard}</div>
-        <NavItems currentPath={currentPath} businessType={businessType} viewerAccess={viewerAccess} onNavigate={() => setMobileOpen(false)} />
+        <NavItems currentPath={currentPath} businessType={businessType} vatRegistered={vatRegistered} viewerAccess={viewerAccess} onNavigate={() => setMobileOpen(false)} />
       </aside>
 
       <main className="min-w-0 overflow-y-auto">

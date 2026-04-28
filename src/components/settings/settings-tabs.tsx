@@ -33,44 +33,42 @@ export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsPr
   const workspace = settings.workspace;
 
   const tabs: TabItem[] = ([
-    { id: "business" as TabId, label: "Business details", icon: Building2 },
-    { id: "categories" as TabId, label: "Categories", icon: Layers },
-    { id: "team" as TabId, label: "Members", icon: Users },
-    { id: "notifications" as TabId, label: "Notifications", icon: Bell },
-    { id: "advanced" as TabId, label: "Advanced", icon: CreditCard, hidden: !viewerAccess.canSeeFullAccounting },
-    { id: "danger" as TabId, label: "Danger zone", icon: ShieldAlert },
+    { id: "business" as TabId, label: "Business details", icon: Building2, hidden: !viewerAccess.canManageBusinessSettings },
+    { id: "categories" as TabId, label: "Categories", icon: Layers, hidden: !viewerAccess.canManageAccountingSettings },
+    { id: "team" as TabId, label: "Members", icon: Users, hidden: !viewerAccess.canManageMembers },
+    { id: "notifications" as TabId, label: "Notifications", icon: Bell, hidden: !viewerAccess.canSeeSettings },
+    { id: "advanced" as TabId, label: "Advanced", icon: CreditCard, hidden: !viewerAccess.canManageAccountingSettings },
+    { id: "danger" as TabId, label: "Danger zone", icon: ShieldAlert, hidden: !viewerAccess.canDeleteWorkspace },
   ] as TabItem[]).filter((t) => !t.hidden);
 
   return (
-    <div className="flex gap-6">
-      {/* Left vertical nav */}
-      <aside className="w-48 shrink-0">
-        <nav className="space-y-0.5">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-left transition ${
-                  isActive
-                    ? "bg-white text-[var(--color-foreground)] shadow-sm"
-                    : "text-[var(--color-muted-foreground)] hover:bg-white/80 hover:text-[var(--color-foreground)]"
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </nav>
-      </aside>
+    <div className="space-y-6">
+      {/* Horizontal pill tab bar */}
+      <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-[var(--line)] bg-white p-1 shadow-[var(--shadow-sm)] w-fit">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                isActive
+                  ? "bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]"
+                  : "text-[var(--ink-2)] hover:bg-[#f4f2ed]"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Tab content */}
-      <div className="flex-1 min-w-0">
-        {activeTab === "business" && (
+      <div className="min-w-0">
+        {activeTab === "business" && viewerAccess.canManageBusinessSettings && (
           <div className="space-y-6 max-w-2xl">
             <VatRegistrationCard
               initialVatRegistered={workspace.vatRegistered}
@@ -80,7 +78,7 @@ export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsPr
           </div>
         )}
 
-        {activeTab === "categories" && (
+        {activeTab === "categories" && viewerAccess.canManageAccountingSettings && (
           <div className="space-y-6">
             <Card className="space-y-5">
               <CategoryRuleManager initialRules={settings.categoryRules} />
@@ -88,7 +86,7 @@ export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsPr
           </div>
         )}
 
-        {activeTab === "team" && (
+        {activeTab === "team" && viewerAccess.canManageMembers && (
           <div>
             <MemberManager
               memberships={settings.memberships}
@@ -98,7 +96,7 @@ export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsPr
           </div>
         )}
 
-        {activeTab === "notifications" && (
+        {activeTab === "notifications" && viewerAccess.canSeeSettings && (
           <div className="max-w-2xl space-y-4">
             <Card className="space-y-5 p-6">
               <div>
@@ -129,7 +127,7 @@ export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsPr
           </div>
         )}
 
-        {activeTab === "advanced" && viewerAccess.canSeeFullAccounting && (
+        {activeTab === "advanced" && viewerAccess.canManageAccountingSettings && (
           <div className="space-y-6">
             <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
               <GlRuleManager initialRules={settings.glRules} />
@@ -175,7 +173,7 @@ export function SettingsTabs({ settings, isOwner, viewerAccess }: SettingsTabsPr
           </div>
         )}
 
-        {activeTab === "danger" && (
+        {activeTab === "danger" && viewerAccess.canDeleteWorkspace && (
           <div className="max-w-2xl">
             <p className="mb-4 text-sm text-[var(--color-muted-foreground)]">
               Destructive actions that cannot be undone. Please be certain before proceeding.
