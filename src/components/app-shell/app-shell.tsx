@@ -37,6 +37,8 @@ import { getWorkspaceRoleLabel } from "@/lib/auth/workspace-role";
 import { cn } from "@/lib/utils";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { ToastProvider } from "@/components/ui/toast";
+import { setViewAsModeAction, type ViewAsMode } from "@/app/actions/view-as-actions";
+import { InviteMemberDialog } from "@/components/invitations/invite-member-dialog";
 
 interface WorkspaceInfo {
   id: string;
@@ -62,6 +64,9 @@ function buildNavigation(
   const canSeeVatTools =
     (viewerAccess.isAccountantView || vatRegistered) && viewerAccess.canReviewTax;
 
+  // ── Business user · Sole trader ──────────────────────────────────────────
+  // Simplified view for the business owner themselves. No accounting tooling,
+  // no OCR, no reconciliation runs — just sales, expenses, and basic reports.
   if (!viewerAccess.isAccountantView && businessType === "sole_trader") {
     return [
       {
@@ -78,10 +83,9 @@ function buildNavigation(
         ],
       },
       {
-        label: "Import",
+        label: "Expenses",
         items: [
           { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
-          { href: "/ocr-extraction", label: "OCR Extraction", icon: ScanText },
           { href: "/expenses", label: "Expenses", icon: Receipt },
           { href: "/mileage", label: "Mileage", icon: Car },
         ],
@@ -90,12 +94,11 @@ function buildNavigation(
         label: "Review",
         items: [
           { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
-          { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
           { href: "/bookkeeping/budget", label: "Budget vs. Actual", icon: Target },
         ],
       },
       {
-        label: "Report",
+        label: "Reports",
         items: [
           { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
           { href: "/bookkeeping/tax-estimate", label: "Tax Estimate", icon: PieChart },
@@ -105,15 +108,7 @@ function buildNavigation(
         ],
       },
       {
-        label: "Download",
-        items: [
-          ...(viewerAccess.canUseExportPack
-            ? [{ href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen }]
-            : []),
-        ],
-      },
-      {
-        label: "Configure",
+        label: "Settings",
         items: viewerAccess.canSeeSettings
           ? [{ href: "/settings", label: "Settings & Members", icon: Settings2 }]
           : [],
@@ -121,49 +116,44 @@ function buildNavigation(
     ].filter((section) => section.items.length > 0);
   }
 
+  // ── Business user · General (non-sole-trader) ────────────────────────────
   if (!viewerAccess.isAccountantView) {
     return [
       {
-        label: "Ingest",
-        items: [
-          { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
-          { href: "/ocr-extraction", label: "OCR Extraction", icon: ScanText },
-        ],
-      },
-      {
-        label: "Process",
-        items: [
-          { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
-          { href: "/expenses", label: "Expenses", icon: Receipt },
-          { href: "/mileage", label: "Mileage", icon: Car },
-          { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
-        ],
-      },
-      {
-        label: "Reconcile",
+        label: "Overview",
         items: [
           { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-          { href: "/runs", label: "Reconciliation Runs", icon: FolderOpen },
-          { href: "/runs/new", label: "New Recon Run", icon: PlusSquare },
         ],
       },
       {
-        label: "Report",
+        label: "Expenses",
         items: [
+          { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
+          { href: "/expenses", label: "Expenses", icon: Receipt },
+          { href: "/mileage", label: "Mileage", icon: Car },
+        ],
+      },
+      {
+        label: "Review",
+        items: [
+          { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
+          { href: "/bookkeeping/budget", label: "Budget vs. Actual", icon: Target },
           ...(viewerAccess.canSeeFinancialReports
             ? [{ href: "/bookkeeping/reports", label: "Business Reports", icon: BarChart3 }]
             : []),
+        ],
+      },
+      {
+        label: "Reports",
+        items: [
           { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
           ...(canSeeVatTools
             ? [{ href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt }]
             : []),
-          ...(viewerAccess.canUseExportPack
-            ? [{ href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen }]
-            : []),
         ],
       },
       {
-        label: "Configure",
+        label: "Settings",
         items: viewerAccess.canSeeSettings
           ? [{ href: "/settings", label: "Settings & Members", icon: Settings2 }]
           : [],
@@ -171,7 +161,16 @@ function buildNavigation(
     ].filter((section) => section.items.length > 0);
   }
 
+  // ── Accountant / Owner ───────────────────────────────────────────────────
+  // Full accounting toolset. Dashboard at top, then data ingestion, core
+  // bookkeeping, reconciliation, reporting, and delivery/config at the bottom.
   return [
+    {
+      label: "Overview",
+      items: [
+        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      ],
+    },
     {
       label: "Ingest",
       items: [
@@ -180,7 +179,7 @@ function buildNavigation(
       ],
     },
     {
-      label: "Process",
+      label: "Bookkeeping",
       items: [
         { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
         { href: "/expenses", label: "Expenses", icon: Receipt },
@@ -194,7 +193,6 @@ function buildNavigation(
     {
       label: "Reconcile",
       items: [
-        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { href: "/runs", label: "Reconciliation Runs", icon: FolderOpen },
         ...(viewerAccess.canManageOperationalData
           ? [{ href: "/runs/new", label: "New Recon Run", icon: PlusSquare }]
@@ -202,7 +200,7 @@ function buildNavigation(
       ],
     },
     {
-      label: "Report",
+      label: "Reports",
       items: [
         ...(viewerAccess.canSeeFinancialReports
           ? [{ href: "/bookkeeping/reports", label: "Financial Reports", icon: BarChart3 }]
@@ -297,6 +295,47 @@ function NavItems({
   );
 }
 
+const VIEW_AS_OPTIONS: { mode: ViewAsMode; label: string; description: string }[] = [
+  { mode: "owner", label: "Owner", description: "Your real access — full control" },
+  { mode: "accountant", label: "Accountant", description: "Accounting tools, no workspace admin" },
+  { mode: "business_user", label: "Business user", description: "Client-facing view — simplified nav" },
+];
+
+function ViewAsSwitcher({
+  currentMode,
+}: {
+  currentMode: ViewAsMode;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2 py-1.5">
+      <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-600">
+        View as
+      </span>
+      <div className="flex items-center gap-0.5">
+        {VIEW_AS_OPTIONS.map(({ mode, label }) => {
+          const isActive = currentMode === mode;
+          return (
+            <form key={mode} action={setViewAsModeAction.bind(null, mode)}>
+              <button
+                type="submit"
+                title={VIEW_AS_OPTIONS.find(o => o.mode === mode)?.description}
+                className={cn(
+                  "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                  isActive
+                    ? "bg-amber-500 text-white shadow-sm"
+                    : "text-amber-700 hover:bg-amber-100",
+                )}
+              >
+                {label}
+              </button>
+            </form>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function AppShell({
   children,
   workspaceName,
@@ -305,6 +344,7 @@ export function AppShell({
   businessType,
   vatRegistered,
   viewerAccess,
+  viewAsMode = "owner",
 }: {
   children: React.ReactNode;
   workspaceName: string;
@@ -313,11 +353,13 @@ export function AppShell({
   businessType: Workspace["businessType"];
   vatRegistered: Workspace["vatRegistered"];
   viewerAccess: ViewerAccessProfile;
+  viewAsMode?: ViewAsMode;
 }) {
   const currentPath = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const businessTypeLabel =
-    viewerAccess.isWebsiteOwner
+    viewerAccess.isRealOwner && viewAsMode === "owner"
       ? "Owner override"
       : viewerAccess.isAccountantView
         ? getWorkspaceRoleLabel(viewerAccess.workspaceRole)
@@ -353,6 +395,14 @@ export function AppShell({
       <aside className="hidden h-screen shrink-0 overflow-y-auto border-r border-[var(--line)] bg-[var(--bg-side)] px-3.5 py-4 lg:flex lg:flex-col lg:gap-5">
         {brand}
         {workspaceCard}
+        {viewerAccess.isRealOwner && viewAsMode !== "owner" && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-amber-600">Preview mode</p>
+            <p className="mt-0.5 text-xs text-amber-700">
+              Viewing as {VIEW_AS_OPTIONS.find(o => o.mode === viewAsMode)?.label ?? viewAsMode}
+            </p>
+          </div>
+        )}
         <NavItems currentPath={currentPath} businessType={businessType} vatRegistered={vatRegistered} viewerAccess={viewerAccess} />
       </aside>
 
@@ -383,6 +433,11 @@ export function AppShell({
           </button>
         </div>
         <div className="mb-5">{workspaceCard}</div>
+        {viewerAccess.isRealOwner && (
+          <div className="mb-4">
+            <ViewAsSwitcher currentMode={viewAsMode ?? "owner"} />
+          </div>
+        )}
         <NavItems currentPath={currentPath} businessType={businessType} vatRegistered={vatRegistered} viewerAccess={viewerAccess} onNavigate={() => setMobileOpen(false)} />
       </aside>
 
@@ -438,6 +493,23 @@ export function AppShell({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Invite member button — owners/admins only */}
+              {viewerAccess.canManageMembers && (
+                <button
+                  type="button"
+                  onClick={() => setInviteOpen(true)}
+                  className="hidden items-center gap-1.5 rounded-[10px] border border-[var(--line)] bg-white px-3 py-2 text-[13px] font-medium text-[var(--ink-2)] shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--ink)] lg:flex"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Invite
+                </button>
+              )}
+              {/* View-as switcher — only for real website owners */}
+              {viewerAccess.isRealOwner && (
+                <div className="hidden lg:block">
+                  <ViewAsSwitcher currentMode={viewAsMode ?? "owner"} />
+                </div>
+              )}
               {/* Notification bell */}
               <button
                 type="button"
@@ -454,6 +526,7 @@ export function AppShell({
         </div>
       </main>
     </div>
+      <InviteMemberDialog open={inviteOpen} onOpenChange={setInviteOpen} />
     </ToastProvider>
   );
 }

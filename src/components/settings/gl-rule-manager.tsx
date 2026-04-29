@@ -91,10 +91,7 @@ export function GlRuleManager({ initialRules }: { initialRules: GlCodeRule[] }) 
     <Card className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold">GL rules</h2>
-          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-            Edit or remove imported GL mappings, then save the workspace rule set.
-          </p>
+          <h2 className="text-sm font-semibold text-[var(--color-foreground)]">GL rules</h2>
         </div>
         <Button type="button" variant="secondary" onClick={addRule}>
           <Plus className="mr-2 h-4 w-4" />

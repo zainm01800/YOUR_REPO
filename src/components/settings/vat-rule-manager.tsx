@@ -96,10 +96,7 @@ export function VatRuleManager({ initialRules }: { initialRules: VatRule[] }) {
     <Card className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold">VAT rule table</h2>
-          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-            Edit or remove individual VAT mappings directly when imports need cleanup.
-          </p>
+          <h2 className="text-sm font-semibold text-[var(--color-foreground)]">VAT rules</h2>
         </div>
         <Button type="button" variant="secondary" onClick={addRule}>
           <Plus className="mr-2 h-4 w-4" />

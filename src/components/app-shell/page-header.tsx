@@ -16,7 +16,7 @@ export function PageHeader({
 }: {
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
   actions?: React.ReactNode;
   breadcrumbs?: Breadcrumb[];
 }) {
@@ -45,9 +45,11 @@ export function PageHeader({
         <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.03em] text-[var(--ink)]">
           {title}
         </h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-          {description}
-        </p>
+        {description ? (
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
+            {description}
+          </p>
+        ) : null}
       </div>
       {actions ? <div className="flex shrink-0 gap-3">{actions}</div> : null}
     </Card>

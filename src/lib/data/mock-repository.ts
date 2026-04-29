@@ -406,7 +406,7 @@ export const mockRepository: Repository = {
     for (const run of store.runs) {
       const tx = run.transactions.find((t) => t.id === transactionId);
       if (tx) {
-        tx.noReceiptRequired = !allowable;
+        tx.isClaimableOverride = allowable ?? undefined;
         return;
       }
     }
@@ -414,12 +414,12 @@ export const mockRepository: Repository = {
     for (const statement of store.bankStatements) {
       const tx = statement.transactions.find((t) => t.id === transactionId);
       if (tx) {
-        tx.noReceiptRequired = !allowable;
+        tx.isClaimableOverride = allowable ?? undefined;
         return;
       }
     }
 
-    throw new Error(`Transaction ${transactionId} was not found.`);
+    // Not found — unassigned bank transactions may not be in these stores; silently ignore
   },
 
   async deleteTransactions(ids: string[]): Promise<void> {

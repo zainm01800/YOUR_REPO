@@ -21,9 +21,8 @@ interface ExpensesListProps {
   onToggleClaimable?: (
     id: string,
     source: "manual" | "transaction",
-    currentStatus: boolean,
-    currentlyOverridden: boolean,
-  ) => void;
+    claimable: boolean | null,
+  ) => Promise<void> | void;
 }
 
 export function ExpensesList({
@@ -160,14 +159,10 @@ export function ExpensesList({
                             <button
                               type="button"
                               disabled={toggling === exp.id}
-                              onClick={() => {
+                              onClick={async () => {
                                 setToggling(exp.id);
-                                onToggleClaimable(
-                                  exp.id,
-                                  exp.source || "manual",
-                                  true,
-                                  exp.allowableOverride !== undefined,
-                                );
+                                try { await onToggleClaimable(exp.id, exp.source || "manual", true); }
+                                finally { setToggling(null); }
                               }}
                               className="rounded-lg border border-[var(--line)] px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--muted)] transition hover:border-[var(--good)] hover:bg-[var(--good-soft)] hover:text-[var(--good)] disabled:opacity-40"
                               title="Force this expense to be Claimable"
@@ -179,14 +174,10 @@ export function ExpensesList({
                             <button
                               type="button"
                               disabled={toggling === exp.id}
-                              onClick={() => {
+                              onClick={async () => {
                                 setToggling(exp.id);
-                                onToggleClaimable(
-                                  exp.id,
-                                  exp.source || "manual",
-                                  false,
-                                  exp.allowableOverride !== undefined,
-                                );
+                                try { await onToggleClaimable(exp.id, exp.source || "manual", false); }
+                                finally { setToggling(null); }
                               }}
                               className="rounded-lg border border-[var(--line)] px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--muted)] transition hover:border-[var(--danger)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] disabled:opacity-40"
                               title="Force this expense to be Non-Claimable"
@@ -198,14 +189,10 @@ export function ExpensesList({
                             <button
                               type="button"
                               disabled={toggling === exp.id}
-                              onClick={() => {
+                              onClick={async () => {
                                 setToggling(exp.id);
-                                onToggleClaimable(
-                                  exp.id,
-                                  exp.source || "manual",
-                                  null as never,
-                                  true,
-                                );
+                                try { await onToggleClaimable(exp.id, exp.source || "manual", null); }
+                                finally { setToggling(null); }
                               }}
                               className="rounded-lg border border-[var(--line)] px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--muted)] transition hover:bg-[var(--color-panel)] hover:text-[var(--ink)] disabled:opacity-40"
                               title="Clear override and use default category rules"

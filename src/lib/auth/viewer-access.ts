@@ -15,6 +15,8 @@ export interface ViewerAccessProfile {
   businessType: BusinessType;
   workspaceRole: WorkspaceRole;
   isWebsiteOwner: boolean;
+  /** True when the user IS a real website owner, even when previewing another view mode. */
+  isRealOwner: boolean;
   isAccountantView: boolean;
   canManageMembers: boolean;
   canDeleteWorkspace: boolean;
@@ -79,6 +81,7 @@ export function buildViewerAccessProfile(
     businessType: workspace.businessType,
     workspaceRole,
     isWebsiteOwner,
+    isRealOwner: isWebsiteOwner,
     isAccountantView,
     canManageMembers: isWebsiteOwner || rolePermissions.canManageMembers,
     canDeleteWorkspace: isWebsiteOwner || rolePermissions.canDeleteWorkspace,

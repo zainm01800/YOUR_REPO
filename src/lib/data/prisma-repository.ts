@@ -81,6 +81,7 @@ const detailedRunInclude = {
       taxRate: true,
       noReceiptRequired: true,
       excludedFromExport: true,
+      isClaimableOverride: true,
       sourceBankTransaction: {
         select: {
           id: true,
@@ -124,6 +125,7 @@ const summaryRunInclude = {
       taxRate: true,
       noReceiptRequired: true,
       excludedFromExport: true,
+      isClaimableOverride: true,
       sourceBankTransaction: {
         select: {
           id: true,
@@ -174,6 +176,7 @@ const transactionOnlyRunInclude = {
       taxRate: true,
       noReceiptRequired: true,
       excludedFromExport: true,
+      isClaimableOverride: true,
       sourceBankTransaction: {
         select: { id: true, bankStatementId: true, bankStatement: { select: { name: true } } },
       },
@@ -244,6 +247,7 @@ const bankStatementInclude = {
       taxRate: true,
       noReceiptRequired: true,
       excludedFromExport: true,
+      isClaimableOverride: true,
     },
   },
 } satisfies Prisma.BankStatementInclude;
@@ -290,6 +294,7 @@ const unassignedBankTransactionSelect = {
   taxRate: true,
   noReceiptRequired: true,
   excludedFromExport: true,
+  isClaimableOverride: true,
   bankStatement: {
     select: {
       name: true,
@@ -539,6 +544,7 @@ function toTransaction(
     taxRate: transaction.taxRate !== null && transaction.taxRate !== undefined ? Number(transaction.taxRate) : undefined,
     noReceiptRequired: transaction.noReceiptRequired || undefined,
     excludedFromExport: transaction.excludedFromExport || undefined,
+    isClaimableOverride: (transaction as any).isClaimableOverride ?? undefined,
     categoryConfidence: (transaction as any).categoryConfidence || undefined,
     categoryReason: (transaction as any).categoryReason || undefined,
     confidenceScore: (transaction as any).confidenceScore ? Number((transaction as any).confidenceScore) : undefined,
@@ -567,6 +573,7 @@ function toBankTransaction(transaction: DbBankStatement["transactions"][number])
     taxRate: transaction.taxRate !== null && transaction.taxRate !== undefined ? Number(transaction.taxRate) : undefined,
     noReceiptRequired: transaction.noReceiptRequired || undefined,
     excludedFromExport: transaction.excludedFromExport || undefined,
+    isClaimableOverride: (transaction as any).isClaimableOverride ?? undefined,
     categoryConfidence: (transaction as any).categoryConfidence || undefined,
     categoryReason: (transaction as any).categoryReason || undefined,
     confidenceScore: (transaction as any).confidenceScore ? Number((transaction as any).confidenceScore) : undefined,
@@ -631,6 +638,7 @@ function toUnassignedBankTransaction(transaction: DbUnassignedBankTransaction): 
     taxRate: transaction.taxRate !== null && transaction.taxRate !== undefined ? Number(transaction.taxRate) : undefined,
     noReceiptRequired: transaction.noReceiptRequired || undefined,
     excludedFromExport: transaction.excludedFromExport || undefined,
+    isClaimableOverride: transaction.isClaimableOverride ?? undefined,
     categoryConfidence: (transaction as any).categoryConfidence || undefined,
     categoryReason: (transaction as any).categoryReason || undefined,
     confidenceScore: (transaction as any).confidenceScore ? Number((transaction as any).confidenceScore) : undefined,
@@ -2727,6 +2735,7 @@ export async function createPrismaRepository(
           noReceiptRequired: tx.noReceiptRequired ?? undefined,
           taxRate: tx.taxRate ? tx.taxRate.toNumber() : undefined,
           excludedFromExport: tx.excludedFromExport ?? false,
+          isClaimableOverride: tx.isClaimableOverride ?? undefined,
         })),
       }));
     },
@@ -2874,6 +2883,7 @@ export async function createPrismaRepository(
           taxRate: true,
           noReceiptRequired: true,
           excludedFromExport: true,
+          isClaimableOverride: true,
           run: { select: { id: true, name: true, period: true } },
           sourceBankTransaction: {
             select: {
@@ -2909,6 +2919,7 @@ export async function createPrismaRepository(
         noReceiptRequired: tx.noReceiptRequired ?? undefined,
         taxRate: tx.taxRate ? tx.taxRate.toNumber() : undefined,
         excludedFromExport: tx.excludedFromExport ?? false,
+        isClaimableOverride: tx.isClaimableOverride ?? undefined,
         runId: tx.run.id,
         runName: tx.run.name,
         period: tx.run.period ?? undefined,
@@ -2944,6 +2955,7 @@ export async function createPrismaRepository(
             taxRate: true,
             noReceiptRequired: true,
             excludedFromExport: true,
+            isClaimableOverride: true,
             bankStatement: { select: { id: true, name: true } },
           },
           orderBy: { transactionDate: "desc" },
@@ -2972,6 +2984,7 @@ export async function createPrismaRepository(
           noReceiptRequired: tx.noReceiptRequired ?? undefined,
           taxRate: tx.taxRate ? tx.taxRate.toNumber() : undefined,
           excludedFromExport: tx.excludedFromExport ?? false,
+          isClaimableOverride: tx.isClaimableOverride ?? undefined,
           runName: tx.bankStatement.name,
           runId: tx.bankStatement.id,
         })));

@@ -4,16 +4,15 @@ import { useState, useTransition } from "react";
 import {
   UserPlus,
   Mail,
-  Shield,
   Trash2,
   X,
   Check,
   Loader2,
   User,
   Key,
-  Globe,
   Copy,
   ChevronDown,
+  Globe,
 } from "lucide-react";
 import type { WorkspaceMember, Invitation, WorkspaceRole } from "@/lib/domain/types";
 import { Card } from "@/components/ui/card";
@@ -22,8 +21,8 @@ import { useToast } from "@/components/ui/toast";
 import { useRouter } from "next/navigation";
 import {
   WORKSPACE_ACCESS_LEVELS,
-  WORKSPACE_ROLE_DESCRIPTIONS,
   WORKSPACE_ROLE_LABELS,
+  WORKSPACE_ROLE_DESCRIPTIONS,
   normalizeWorkspaceRole,
 } from "@/lib/auth/workspace-role";
 import {
@@ -159,14 +158,8 @@ export function MemberManager({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Team &amp; Access</h2>
-          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-            The business owner controls access. Invite accountants and assign the level that matches
-            the work they should handle.
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-base font-semibold text-[var(--color-foreground)]">Members</h2>
         {!isInviting && (
           <Button
             onClick={() => {
@@ -177,7 +170,7 @@ export function MemberManager({
             className="gap-2"
           >
             <UserPlus className="h-4 w-4" />
-            Invite member
+            Invite
           </Button>
         )}
       </div>
@@ -256,7 +249,7 @@ export function MemberManager({
               <div className="flex items-center justify-between">
                 <h3 className="flex items-center gap-2 font-semibold">
                   <Mail className="h-4 w-4 text-[var(--color-accent)]" />
-                  Invite an accountant or collaborator
+                  Invite member
                 </h3>
                 <button type="button" onClick={() => setIsInviting(false)}>
                   <X className="h-4 w-4 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]" />
@@ -327,9 +320,8 @@ export function MemberManager({
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="flex flex-col">
           <div className="mb-4 flex items-center gap-2">
-            <Shield className="h-5 w-5 text-[var(--color-foreground)]" />
-            <h3 className="text-lg font-semibold">Active members</h3>
-            <span className="ml-auto text-xs text-[var(--color-muted-foreground)]">
+            <h3 className="text-sm font-semibold text-[var(--color-foreground)]">Active</h3>
+            <span className="ml-auto rounded-full bg-[var(--color-panel)] px-2 py-0.5 text-xs font-medium text-[var(--color-muted-foreground)]">
               {memberships.length}
             </span>
           </div>
@@ -419,9 +411,8 @@ export function MemberManager({
 
         <Card className="flex flex-col">
           <div className="mb-4 flex items-center gap-2">
-            <Mail className="h-5 w-5 text-[var(--color-foreground)]" />
-            <h3 className="text-lg font-semibold">Pending invitations</h3>
-            <span className="ml-auto text-xs text-[var(--color-muted-foreground)]">
+            <h3 className="text-sm font-semibold text-[var(--color-foreground)]">Pending invites</h3>
+            <span className="ml-auto rounded-full bg-[var(--color-panel)] px-2 py-0.5 text-xs font-medium text-[var(--color-muted-foreground)]">
               {invitations.length}
             </span>
           </div>
@@ -505,21 +496,6 @@ export function MemberManager({
         </Card>
       </div>
 
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-5 py-4">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted-foreground)]">
-          Access level guide
-        </p>
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5 text-sm">
-          {WORKSPACE_ACCESS_LEVELS.map((role) => (
-            <div key={role} className="flex flex-col gap-1.5">
-              <RoleBadge role={role} />
-              <p className="text-xs leading-snug text-[var(--color-muted-foreground)]">
-                {WORKSPACE_ROLE_DESCRIPTIONS[role]}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

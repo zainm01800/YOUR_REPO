@@ -48,24 +48,14 @@ export function VatRegistrationCard({
   }
 
   return (
-    <Card className="space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold">Tax profile</h2>
-        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-          Set the business type and VAT registration status ClearMatch should use when building
-          bookkeeping reports and tax estimates.
-        </p>
-      </div>
+    <Card className="space-y-4">
+      <h2 className="text-sm font-semibold text-[var(--color-foreground)]">Tax profile</h2>
 
-      <div className="space-y-4 rounded-2xl bg-[var(--color-panel)] p-5">
-        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+      <div className="space-y-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] overflow-hidden">
+        <div className="flex items-center justify-between gap-4 px-4 py-3">
           <div>
-            <p className="text-sm font-semibold text-[var(--color-foreground)]">Business type</p>
-            <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-              Sole trader mode simplifies the app around profit, tax, and everyday bookkeeping,
-              and hides the fuller balance-sheet-style statement screens. General small business
-              mode keeps the broader accounting reporting experience available.
-            </p>
+            <p className="text-sm font-medium text-[var(--color-foreground)]">Business type</p>
+            <p className="text-xs text-[var(--color-muted-foreground)]">Controls which reports and views are available.</p>
           </div>
           <select
             value={businessType}
@@ -73,22 +63,18 @@ export function VatRegistrationCard({
               save({ businessType: event.target.value as Workspace["businessType"] })
             }
             disabled={isPending}
-            className="h-11 rounded-xl border border-[var(--color-border)] bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+            className="h-9 rounded-lg border border-[var(--color-border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
           >
             <option value="sole_trader">Sole trader / self-employed</option>
             <option value="general_small_business">General small business</option>
           </select>
         </div>
 
-        <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-4">
+        <div className="flex items-center justify-between gap-4 border-t border-[var(--color-border)] px-4 py-3">
           <div>
-            <p className="text-sm font-semibold text-[var(--color-foreground)]">
-              VAT registration
-            </p>
-            <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-              {vatRegistered
-                ? "Transactions are split into net and VAT, and the VAT summary report is active."
-                : "Transactions are treated as gross-only for bookkeeping outputs."}
+            <p className="text-sm font-medium text-[var(--color-foreground)]">VAT registered</p>
+            <p className="text-xs text-[var(--color-muted-foreground)]">
+              {vatRegistered ? "Transactions split into net + VAT. VAT report active." : "Transactions treated as gross-only."}
             </p>
           </div>
           <Switch

@@ -194,10 +194,7 @@ export function CategoryRuleManager({ initialRules }: { initialRules: CategoryRu
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-xl font-semibold">Category library</h2>
-          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-            Manage the master bookkeeping category library for this workspace. Activate, hide, and customise the categories that should appear across categorisation, review, and reporting.
-          </p>
+          <h2 className="text-sm font-semibold text-[var(--color-foreground)]">Categories</h2>
         </div>
         <button
           type="button"
@@ -650,17 +647,6 @@ export function CategoryRuleManager({ initialRules }: { initialRules: CategoryRu
         </div>
       </div>
 
-      {/* Help text */}
-      <div className="rounded-2xl bg-[var(--color-panel)] p-4 text-xs text-[var(--color-muted-foreground)] space-y-1.5">
-        <p className="font-semibold text-[var(--color-foreground)]">Accounting notes</p>
-        <p><strong>Active</strong> categories can be auto-suggested and used operationally. <strong>Visible</strong> categories appear in normal dropdowns and review pickers.</p>
-        <p><strong>Account type</strong> determines whether a transaction is income, an expense, an asset acquisition, a liability, or an equity movement.</p>
-        <p><strong>Financial statement</strong> determines where it appears: P&amp;L (income + expenses), Balance Sheet (assets + liabilities), Equity (drawings, capital), or Tax Control.</p>
-        <p><strong>Tax treatment</strong> drives the VAT split. For non-VAT-registered businesses, set to <em>No VAT</em> or use the workspace toggle in Settings.</p>
-        <p><strong>Drawings</strong> and <strong>Capital Introduced</strong> are equity movements — they do not appear on the P&amp;L.</p>
-        <p><strong>Loan repayments</strong> reduce a liability — they are <em>not</em> an expense. The interest portion should be a separate expense category.</p>
-        <p><strong>Allowable for tax</strong> controls whether an expense reduces taxable profit. Non-allowable expenses (e.g. parking fines, client entertainment) appear in the P&amp;L but are added back in the tax calculation. Partially allowable expenses (e.g. 50% private use) are split accordingly.</p>
-      </div>
     </div>
   );
 }

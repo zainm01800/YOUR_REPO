@@ -43,7 +43,7 @@ export function ToleranceEditor({ workspace }: { workspace: Workspace }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Tolerance</h2>
+        <h2 className="text-sm font-semibold text-[var(--color-foreground)]">Reconciliation tolerances</h2>
         {!editing ? (
           <Button variant="ghost" className="gap-2 text-sm" onClick={() => setEditing(true)}>
             <Pencil className="h-3.5 w-3.5" />
@@ -95,14 +95,18 @@ export function ToleranceEditor({ workspace }: { workspace: Workspace }) {
           </Button>
         </div>
       ) : (
-        <div className="rounded-2xl bg-[var(--color-panel)] p-5 text-sm leading-8 text-[var(--color-muted-foreground)]">
-          Amount tolerance: <span className="font-semibold text-[var(--color-foreground)]">{workspace.amountTolerance.toFixed(2)}</span>
-          <br />
-          Date tolerance: <span className="font-semibold text-[var(--color-foreground)]">{workspace.dateToleranceDays} days</span>
-          <br />
-          Default currency: <span className="font-semibold text-[var(--color-foreground)]">{workspace.defaultCurrency}</span>
-          <br />
-          Country profile: <span className="font-semibold text-[var(--color-foreground)]">{workspace.countryProfile}</span>
+        <div className="divide-y divide-[var(--color-border)] rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] text-sm">
+          {[
+            ["Amount tolerance", workspace.amountTolerance.toFixed(2)],
+            ["Date tolerance", `${workspace.dateToleranceDays} days`],
+            ["Default currency", workspace.defaultCurrency],
+            ["Country profile", workspace.countryProfile],
+          ].map(([label, value]) => (
+            <div key={label} className="flex items-center justify-between gap-4 px-4 py-2.5">
+              <span className="text-[var(--color-muted-foreground)]">{label}</span>
+              <span className="font-medium text-[var(--color-foreground)]">{value}</span>
+            </div>
+          ))}
         </div>
       )}
 

@@ -436,9 +436,9 @@ export function ExpensesPageClient({
           currency={currency}
           claimStatus="claimable"
           canManageOperationalData={canManageOperationalData}
-          onToggleClaimable={async (id, source) => {
+          onToggleClaimable={async (id, source, claimable) => {
             const { toggleExpenseClaimabilityAction } = await import("@/app/actions/bookkeeping");
-            await toggleExpenseClaimabilityAction(id, source, false);
+            await toggleExpenseClaimabilityAction(id, source, claimable);
             router.refresh();
           }}
         />
@@ -456,9 +456,9 @@ export function ExpensesPageClient({
           currency={currency}
           claimStatus="not_claimable"
           canManageOperationalData={canManageOperationalData}
-          onToggleClaimable={async (id, source) => {
+          onToggleClaimable={async (id, source, claimable) => {
             const { toggleExpenseClaimabilityAction } = await import("@/app/actions/bookkeeping");
-            await toggleExpenseClaimabilityAction(id, source, true);
+            await toggleExpenseClaimabilityAction(id, source, claimable);
             router.refresh();
           }}
         />
@@ -480,11 +480,11 @@ export function ExpensesPageClient({
             currency={currency}
             claimStatus="needs_review"
             canManageOperationalData={canManageOperationalData}
-            onToggleClaimable={async (id, source) => {
+            onToggleClaimable={async (id, source, claimable) => {
               const { toggleExpenseClaimabilityAction } = await import(
                 "@/app/actions/bookkeeping"
               );
-              await toggleExpenseClaimabilityAction(id, source, true);
+              await toggleExpenseClaimabilityAction(id, source, claimable);
               router.refresh();
             }}
           />

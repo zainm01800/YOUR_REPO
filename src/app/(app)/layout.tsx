@@ -41,6 +41,7 @@ export default async function AuthenticatedLayout({
   let storedUser: User | null = null;
   let viewerUser: User | null = null;
   let viewerAccess: ViewerAccessProfile | null = null;
+  let viewAsMode: import("@/app/actions/view-as-actions").ViewAsMode = "owner";
 
   try {
     const access = await getServerViewerAccess();
@@ -49,6 +50,7 @@ export default async function AuthenticatedLayout({
     storedUser = access.currentUser;
     viewerUser = access.viewerUser;
     viewerAccess = access.viewerAccess;
+    viewAsMode = access.viewAsMode;
 
     if (!workspace || !workspaces || !storedUser) {
       redirect("/sign-up");
@@ -74,6 +76,7 @@ export default async function AuthenticatedLayout({
       businessType={workspace.businessType}
       vatRegistered={workspace.vatRegistered}
       viewerAccess={viewerAccess}
+      viewAsMode={viewAsMode}
     >
       {children}
     </AppShell>

@@ -12,7 +12,6 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import {
-  ArrowRight,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -499,100 +498,11 @@ export function TransactionsTable({
     }).format(n);
 
   const net = totalIn - totalOut;
-  const visibleMonths = monthGroups.length;
   const incomeCount = filtered.filter((tx) => tx.amount >= 0).length;
   const expenseCount = filtered.length - incomeCount;
-  const categorisedPct =
-    stats.totalCount > 0 ? Math.round((stats.categorisedCount / stats.totalCount) * 100) : 0;
-  const filterSummary =
-    filterCategory === "all"
-      ? "All categories"
-      : filterCategory === "uncategorised"
-        ? "Uncategorised only"
-        : filterCategory;
-
-  const reviewCards = [
-    {
-      label: "Needs category",
-      value: stats.uncategorisedCount.toString(),
-      detail: "Transactions still waiting for a category before reports are fully reliable.",
-      tone:
-        stats.uncategorisedCount > 0
-          ? "bg-[var(--amber-soft)] text-[var(--amber)]"
-          : "bg-[var(--accent-softer)] text-[var(--accent-ink)]",
-    },
-    {
-      label: "P&L lines",
-      value: stats.pnlCount.toString(),
-      detail: "Income and expense rows already flowing into profit reporting.",
-      tone: "bg-[var(--accent-softer)] text-[var(--accent-ink)]",
-    },
-    {
-      label: "Balance sheet",
-      value: `${stats.balanceSheetCount + stats.equityCount}`,
-      detail: "Capital items, liabilities, transfers, and equity-style movements.",
-      tone: "bg-[var(--accent-softer)] text-[var(--accent-ink)]",
-    },
-  ] as const;
 
   return (
     <div className="space-y-5">
-      <section className="grid gap-4 xl:grid-cols-[1.25fr_0.95fr]">
-        <div className="rounded-[26px] border border-[var(--line)] bg-white px-6 py-6 shadow-[var(--shadow-sm)]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
-            Review workspace
-          </p>
-          <h2 className="mt-2 text-[26px] font-semibold tracking-[-0.03em] text-[var(--ink)]">
-            Monthly transaction review
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-            Categorise every imported line once, then let expenses, tax, and reporting reuse the
-            same accounting treatment automatically.
-          </p>
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-[var(--accent-softer)] px-3 py-1 text-xs font-semibold text-[var(--accent-ink)]">
-              {categorisedPct}% categorised
-            </span>
-            <span className="rounded-full bg-[#f4f2ed] px-3 py-1 text-xs font-semibold text-[var(--ink-2)]">
-              {visibleMonths} month{visibleMonths !== 1 ? "s" : ""} in view
-            </span>
-            <span className="rounded-full bg-[#f4f2ed] px-3 py-1 text-xs font-semibold text-[var(--ink-2)]">
-              {filterSummary}
-            </span>
-          </div>
-        </div>
-
-        <div className="rounded-[26px] border border-[var(--line)] bg-[linear-gradient(135deg,#faf8f2_0%,#f3ecde_100%)] px-6 py-6 shadow-[var(--shadow-sm)]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
-                Current review state
-              </p>
-              <h3 className="mt-2 text-lg font-semibold text-[var(--ink)]">
-                What to work through next
-              </h3>
-            </div>
-            <ArrowRight className="mt-1 h-4 w-4 text-[var(--accent-ink)]" />
-          </div>
-          <div className="mt-5 space-y-3">
-            {reviewCards.map((card) => (
-              <div
-                key={card.label}
-                className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-[var(--shadow-sm)]"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-[var(--ink)]">{card.label}</span>
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${card.tone}`}>
-                    {card.value}
-                  </span>
-                </div>
-                <p className="mt-1.5 text-xs leading-5 text-[var(--muted)]">{card.detail}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <div className="rounded-[24px] border border-[var(--line)] bg-white p-4 shadow-[var(--shadow-sm)]">
         <div className="mb-4 grid gap-4 lg:grid-cols-4">
           {[
