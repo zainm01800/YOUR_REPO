@@ -232,6 +232,9 @@ export default async function DashboardPage() {
   const monthlyExpenseMap: Record<string, number> = {};
   let txIncomeTotal = 0;
   let txExpenseTotal = 0;
+  let importedCashMovement = 0;
+  let outputVatTotal = 0;
+  let inputVatTotal = 0;
 
   try {
     for (const tx of dashboardTransactions) {
@@ -242,11 +245,14 @@ export default async function DashboardPage() {
         const cat = catName ? categoryRuleMap.get(catName.trim().toLowerCase()) : undefined;
         const cls = classifyTransaction(tx, cat, workspace.vatRegistered);
         const mk = tx.transactionDate.slice(0, 7);
+        importedCashMovement += tx.amount;
         if (cls.accountType === "income") {
           txIncomeTotal += Math.abs(cls.grossAmount);
+          outputVatTotal += Math.max(0, cls.taxAmount);
           monthlyIncomeMap[mk] = (monthlyIncomeMap[mk] ?? 0) + Math.abs(cls.grossAmount);
         } else if (cls.accountType === "expense") {
           txExpenseTotal += Math.abs(cls.grossAmount);
+          if (cls.vatRecoverable) inputVatTotal += Math.abs(Math.min(0, cls.taxAmount));
           monthlyExpenseMap[mk] = (monthlyExpenseMap[mk] ?? 0) + Math.abs(cls.grossAmount);
         }
     }
@@ -384,13 +390,18 @@ export default async function DashboardPage() {
     return !category || category === "uncategorized" || category === "uncategorised" || category === "needs review";
   }).length;
   const dashboardDuplicateCounts = buildDuplicateCounts(dashboardTransactions);
-  const reviewIssueCount = dashboardTransactions.filter((tx) => {
+  const dashboardHealth = dashboardTransactions.map((tx) => {
     const health = getTransactionHealth(tx, categoryRules, {
       vatRegistered: workspace.vatRegistered,
       duplicateCount: dashboardDuplicateCounts.get(getDuplicateKey(tx)) ?? 0,
     });
-    return health.status === "needs_review";
-  }).length;
+    return { tx, health };
+  });
+  const reviewIssueCount = dashboardHealth.filter(({ health }) => health.status === "needs_review").length;
+  const missingReceiptCount = dashboardHealth.filter(({ health }) =>
+    health.issues.some((issue) => issue.code === "missing_receipt"),
+  ).length;
+  const netVatPosition = outputVatTotal - inputVatTotal;
   const nextActions = [
     {
       label: "Import bank activity",
@@ -446,11 +457,13 @@ export default async function DashboardPage() {
     },
     {
       label: "Expenses and mileage checked",
-      detail: manualYTD.length > 0
-        ? `${manualYTD.length} manual claim${manualYTD.length !== 1 ? "s" : ""} logged`
-        : "Add any cash expenses or mileage claims",
-      href: "/expenses",
-      done: totalExpenses > 0,
+      detail: missingReceiptCount > 0
+        ? `${missingReceiptCount} receipt${missingReceiptCount !== 1 ? "s" : ""} may be missing`
+        : manualYTD.length > 0
+          ? `${manualYTD.length} manual claim${manualYTD.length !== 1 ? "s" : ""} logged`
+          : "Add any cash expenses or mileage claims",
+      href: missingReceiptCount > 0 ? "/bookkeeping/missing-receipts" : "/expenses",
+      done: totalExpenses > 0 && missingReceiptCount === 0,
     },
     {
       label: "Tax estimate reviewed",
@@ -611,17 +624,17 @@ export default async function DashboardPage() {
       {/* ── KPI cards ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <KpiCard
-          label="Income (YTD)"
+          label="Money in"
           value={formatCurrency(totalIncome, currency)}
-          sub={totalIncome > 0 ? `${invoices.filter(i => i.status === "paid").length} paid invoice${invoices.filter(i => i.status === "paid").length !== 1 ? "s" : ""}` : "No income yet"}
+          sub={totalIncome > 0 ? `${formatCurrency(txIncomeTotal, currency)} from bank + ${formatCurrency(invoiceIncomeYTD, currency)} paid invoices` : "No income yet"}
           subColor="text-emerald-600"
           sparkData={incomeSparkline}
           sparkColor="#16a34a"
         />
         <KpiCard
-          label="Expenses"
+          label="Money out"
           value={formatCurrency(totalExpenses, currency)}
-          sub={`${manualYTD.length} expense${manualYTD.length !== 1 ? "s" : ""} logged`}
+          sub={`${formatCurrency(txExpenseTotal, currency)} bank spend + ${manualYTD.length} manual claim${manualYTD.length !== 1 ? "s" : ""}`}
           sparkData={expenseSparkline}
           sparkColor="#9ca3af"
         />
@@ -634,17 +647,62 @@ export default async function DashboardPage() {
           sparkColor="var(--color-accent)"
         />
         <KpiCard
-          label="Overdue Invoices"
-          value={overdueTotal > 0 ? formatCurrency(overdueTotal, currency) : "—"}
-          sub={
-            overdueClients > 0
-              ? `${overdueClients} client${overdueClients !== 1 ? "s" : ""}${over30Count > 0 ? ` · ${over30Count} over 30 days` : ""}`
-              : "All invoices on time"
-          }
-          subColor={overdueClients > 0 ? "text-red-600" : "text-emerald-600"}
-          sparkData={months6.map((_, i) => (i === months6.length - 1 ? overdueTotal : 0))}
-          sparkColor="#ef4444"
+          label="Imported cash movement"
+          value={formatCurrency(importedCashMovement, currency)}
+          sub={`${dashboardTransactions.length} imported bank transaction${dashboardTransactions.length !== 1 ? "s" : ""}`}
+          subColor={importedCashMovement >= 0 ? "text-emerald-600" : "text-red-600"}
+          sparkData={months6.map((m) => (monthlyIncomeMap[m] ?? 0) - (monthlyExpenseMap[m] ?? 0))}
+          sparkColor={importedCashMovement >= 0 ? "#16a34a" : "#ef4444"}
         />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <Link
+          href="/bookkeeping/review-queue"
+          className="rounded-2xl border border-[var(--line)] bg-white p-4 shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)]"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+            Check these transactions
+          </p>
+          <p className="mt-2 text-2xl font-extrabold tabular-nums text-[var(--color-foreground)]">
+            {reviewIssueCount}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-[var(--color-muted-foreground)]">
+            Category, receipt, VAT, personal-use, duplicate, or large-spend checks.
+          </p>
+        </Link>
+        <Link
+          href="/bookkeeping/missing-receipts"
+          className="rounded-2xl border border-[var(--line)] bg-white p-4 shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)]"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+            Receipts missing
+          </p>
+          <p className="mt-2 text-2xl font-extrabold tabular-nums text-[var(--color-foreground)]">
+            {missingReceiptCount}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-[var(--color-muted-foreground)]">
+            Expenses likely needing evidence before the records are accountant-ready.
+          </p>
+        </Link>
+        <Link
+          href="/bookkeeping/vat-reconciliation"
+          className="rounded-2xl border border-[var(--line)] bg-white p-4 shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)]"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+            VAT estimate
+          </p>
+          <p className="mt-2 text-2xl font-extrabold tabular-nums text-[var(--color-foreground)]">
+            {workspace.vatRegistered ? formatCurrency(Math.abs(netVatPosition), currency) : "VAT off"}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-[var(--color-muted-foreground)]">
+            {workspace.vatRegistered
+              ? netVatPosition >= 0
+                ? "Estimated VAT payable from categorised transactions."
+                : "Estimated VAT reclaimable from categorised transactions."
+              : "VAT is ignored until the workspace is marked VAT registered."}
+          </p>
+        </Link>
       </div>
 
       {/* ── Two panels ──────────────────────────────────────────────────── */}
