@@ -588,7 +588,7 @@ export interface PeriodExportOptions {
 
 export async function buildPeriodExportWorkbook(opts: PeriodExportOptions): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "ClearMatch";
+  wb.creator = "Zentra";
   wb.created = new Date();
   wb.modified = new Date();
 

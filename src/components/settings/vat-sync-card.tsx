@@ -60,7 +60,7 @@ export function VatSyncCard({ currentRuleCount }: { currentRuleCount: number }) 
         <div>
           <h2 className="text-xl font-semibold">Live VAT rate sync</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-            Pull the latest UK and EU VAT rates into your workspace rules. ClearMatch syncs
+              Pull the latest UK and EU VAT rates into your workspace rules. Zentra syncs
             UK rates from GOV.UK and EU rates from the European Commission TEDB service, then
             stores them in your own database for review and export logic.
           </p>

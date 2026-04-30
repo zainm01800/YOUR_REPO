@@ -429,9 +429,9 @@ export function TaxSummary({
               Tax summary
             </div>
             <div>
-              <h2 className="text-[28px] font-semibold tracking-[-0.03em] text-[var(--ink)]">Plain-English tax view</h2>
+              <h2 className="text-[28px] font-semibold tracking-[-0.03em] text-[var(--ink)]">Your tax year at a glance</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-                Start with profit, VAT, and a simple estimate. Detailed category and tax-band breakdowns live in the tabs below.
+                Start here for the figures that matter: money in, claimable costs, taxable profit, and the estimated amount to set aside. Detailed breakdowns live in the tabs below.
               </p>
             </div>
           </div>
@@ -465,6 +465,53 @@ export function TaxSummary({
               Export CSV
             </button>
           </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            {
+              label: "Income counted",
+              value: formatAmount(taxSummary.profitSummary.totalIncome, taxSummary.currency),
+              help: "Sales and other income in this period.",
+            },
+            {
+              label: "Claimed expenses",
+              value: formatAmount(taxSummary.profitSummary.totalExpenses, taxSummary.currency),
+              help: "Business costs before tax adjustments.",
+            },
+            {
+              label: "Taxable profit",
+              value: formatAmount(taxSummary.profitSummary.taxableProfit, taxSummary.currency),
+              help: "The starting point for the estimate.",
+            },
+            {
+              label: hasEstimatedTax ? "Estimated to set aside" : taxSummary.vatSummary.enabled ? "Net VAT position" : "Review status",
+              value: hasEstimatedTax
+                ? formatAmount(taxSummary.estimatedTax!.totalEstimatedTax, taxSummary.currency)
+                : taxSummary.vatSummary.enabled
+                  ? formatAmount(Math.abs(taxSummary.vatSummary.netVatPosition), taxSummary.currency)
+                  : taxSummary.profitSummary.uncategorizedCount === 0
+                    ? "Ready"
+                    : `${taxSummary.profitSummary.uncategorizedCount} to review`,
+              help: hasEstimatedTax
+                ? "Planning estimate only, not a filing result."
+                : taxSummary.vatSummary.enabled
+                  ? netVatDue ? "Likely VAT payable." : "Likely VAT reclaimable."
+                  : "Categorisation confidence check.",
+            },
+          ].map((item) => (
+            <div key={item.label} className="rounded-2xl border border-[var(--line)] bg-[var(--color-panel)] px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                {item.label}
+              </p>
+              <p className="mt-2 font-mono text-lg font-bold tabular-nums text-[var(--color-foreground)]">
+                {item.value}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-[var(--color-muted-foreground)]">
+                {item.help}
+              </p>
+            </div>
+          ))}
         </div>
       </Card>
 

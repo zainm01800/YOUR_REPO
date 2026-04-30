@@ -151,7 +151,7 @@ export async function POST(
     
     // 2. Add Reports (Mocking P&L and Balance Sheet for the pack)
     // In a full implementation, these would be separate curated workbooks
-    zip.file("financial-summary.txt", "ClearMatch Period Management Pack\nRun: " + run.name + "\nDate: " + new Date().toLocaleDateString());
+    zip.file("financial-summary.txt", "Zentra Period Management Pack\nRun: " + run.name + "\nDate: " + new Date().toLocaleDateString());
 
     // 3. Add Documents folder with manifest
     const docsFolder = zip.folder("supporting-documents");

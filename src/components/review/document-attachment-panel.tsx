@@ -337,7 +337,7 @@ export function DocumentAttachmentPanel({
       <div>
         <h2 className="text-xl font-semibold">Attached documents</h2>
         <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-          Pick an existing document, or drag in PDFs, images, or ZIPs and ClearMatch will extract the details automatically.
+              Pick an existing document, or drag in PDFs, images, or ZIPs and Zentra will extract the details automatically.
         </p>
       </div>
 
@@ -393,7 +393,7 @@ export function DocumentAttachmentPanel({
           Upload new documents
         </div>
         <p className="text-xs text-[var(--color-muted-foreground)]">
-          New uploads are added to the run as documents. By default, ClearMatch links the selected
+                New uploads are added to the run as documents. By default, Zentra links the selected
           document to the current transaction rather than creating duplicate spend.
         </p>
 

@@ -1,11 +1,12 @@
 {
-  "name": "clearmatch-web",
+  "name": "zentra-web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
+    "test:logic": "tsx --test \"src/lib/**/*.test.ts\"",
     "lint": "eslint .",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",

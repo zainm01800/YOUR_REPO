@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://clearmatch.finance';
+const baseUrl = 'https://zentra.finance';
   
   return [
     {

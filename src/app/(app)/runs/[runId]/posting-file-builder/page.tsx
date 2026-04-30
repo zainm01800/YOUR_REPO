@@ -36,7 +36,7 @@ export default async function PostingFileBuilderPage({
       <PageHeader
         eyebrow="Posting file builder"
         title="Generate a filled ERP workbook from this run"
-        description="Upload a posting template workbook, map its columns to ClearMatch fields, and download a filled copy in the same workbook structure."
+        description="Upload a posting template workbook, map its columns to Zentra fields, and download a filled copy in the same workbook structure."
         actions={
           <Link href={`/runs/${run.id}/export`}>
             <Button variant="secondary">Back to export</Button>

@@ -4,6 +4,7 @@ import { getRepository } from "@/lib/data";
 import { buildCategoryRuleMap, classifyTransaction } from "@/lib/accounting/classifier";
 import { resolveCategory } from "@/lib/categories/suggester";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { buildDuplicateCounts, getDuplicateKey, getTransactionHealth } from "@/lib/bookkeeping/transaction-health";
 import type { Metadata } from "next";
 
 // ── Reconciliation dashboard (for non-sole-trader workspaces) ──────────────
@@ -378,7 +379,18 @@ export default async function DashboardPage() {
     ["sent", "overdue", "draft"].includes(i.effectiveStatus)
   );
   const openTotal = openInvs.reduce((s, i) => s + i.total, 0);
-  const uncategorisedCount = dashboardTransactions.filter((tx) => !tx.category).length;
+  const uncategorisedCount = dashboardTransactions.filter((tx) => {
+    const category = tx.category?.trim().toLowerCase();
+    return !category || category === "uncategorized" || category === "uncategorised" || category === "needs review";
+  }).length;
+  const dashboardDuplicateCounts = buildDuplicateCounts(dashboardTransactions);
+  const reviewIssueCount = dashboardTransactions.filter((tx) => {
+    const health = getTransactionHealth(tx, categoryRules, {
+      vatRegistered: workspace.vatRegistered,
+      duplicateCount: dashboardDuplicateCounts.get(getDuplicateKey(tx)) ?? 0,
+    });
+    return health.status === "needs_review";
+  }).length;
   const nextActions = [
     {
       label: "Import bank activity",
@@ -388,11 +400,15 @@ export default async function DashboardPage() {
       active: dashboardTransactions.length === 0,
     },
     {
-      label: "Review uncategorised items",
-      detail: `${uncategorisedCount} transaction${uncategorisedCount !== 1 ? "s" : ""} still need a category.`,
-      href: "/bookkeeping/transactions",
+      label: "Clear review queue",
+      detail: dashboardTransactions.length === 0
+        ? "Import transactions first, then Zentra will flag anything unclear."
+        : reviewIssueCount > 0
+          ? `${reviewIssueCount} transaction${reviewIssueCount !== 1 ? "s" : ""} need a category, receipt, VAT, or duplicate check.`
+          : "No obvious transaction issues found.",
+      href: "/bookkeeping/review-queue",
       cta: "Review",
-      active: uncategorisedCount > 0,
+      active: reviewIssueCount > 0,
     },
     {
       label: "Check tax estimate",
@@ -401,7 +417,52 @@ export default async function DashboardPage() {
       cta: "Open",
       active: taxCalc.totalTax > 0,
     },
+    {
+      label: "Download records",
+      detail: "Export the tax year pack when you are ready to share or file.",
+      href: "/export/period-pack",
+      cta: "Export",
+      active: dashboardTransactions.length > 0 && uncategorisedCount === 0,
+    },
   ];
+  const readinessItems = [
+    {
+      label: "Bank activity imported",
+      detail: dashboardTransactions.length > 0
+        ? `${dashboardTransactions.length} transaction${dashboardTransactions.length !== 1 ? "s" : ""} available`
+        : "Import a bank statement to start",
+      href: "/bank-statements",
+      done: dashboardTransactions.length > 0,
+    },
+    {
+      label: "Transactions categorised",
+      detail: dashboardTransactions.length === 0
+        ? "Import transactions first"
+        : uncategorisedCount > 0
+        ? `${uncategorisedCount} still need a category`
+        : "No uncategorised transactions found",
+      href: "/bookkeeping/transactions",
+      done: dashboardTransactions.length > 0 && uncategorisedCount === 0,
+    },
+    {
+      label: "Expenses and mileage checked",
+      detail: manualYTD.length > 0
+        ? `${manualYTD.length} manual claim${manualYTD.length !== 1 ? "s" : ""} logged`
+        : "Add any cash expenses or mileage claims",
+      href: "/expenses",
+      done: totalExpenses > 0,
+    },
+    {
+      label: "Tax estimate reviewed",
+      detail: taxCalc.totalTax > 0
+        ? `${formatCurrency(taxCalc.totalTax, currency)} estimated to set aside`
+        : "Open the tax summary when records are ready",
+      href: "/bookkeeping/tax-summary",
+      done: totalIncome > 0 || totalExpenses > 0,
+    },
+  ];
+  const readinessComplete = readinessItems.filter((item) => item.done).length;
+  const readinessPercent = Math.round((readinessComplete / readinessItems.length) * 100);
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -456,7 +517,56 @@ export default async function DashboardPage() {
       </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="rounded-[24px] border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+              Tax year readiness
+            </p>
+            <h2 className="mt-1 text-xl font-extrabold tracking-[-0.035em] text-[var(--color-foreground)]">
+              {readinessPercent}% ready for your year-end figures
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--color-muted-foreground)]">
+              This checks the basics a sole trader needs before relying on the tax estimate: bank activity, categories, claims, and the summary view.
+            </p>
+          </div>
+          <div className="min-w-[190px] rounded-2xl bg-[var(--color-panel)] p-4">
+            <div className="flex items-end justify-between gap-4">
+              <span className="text-xs font-semibold text-[var(--color-muted-foreground)]">
+                Progress
+              </span>
+              <span className="text-2xl font-extrabold tabular-nums text-[var(--color-foreground)]">
+                {readinessComplete}/{readinessItems.length}
+              </span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+              <div
+                className="h-full rounded-full bg-[var(--color-accent)]"
+                style={{ width: `${readinessPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {readinessItems.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className="rounded-2xl border border-[var(--line)] bg-[var(--color-panel)] px-4 py-3 transition hover:border-[var(--color-border-strong)] hover:bg-white"
+            >
+              <div className="flex items-center gap-2">
+                <span className={item.done ? "grid h-5 w-5 place-items-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700" : "grid h-5 w-5 place-items-center rounded-full bg-amber-100 text-[10px] font-bold text-amber-700"}>
+                  {item.done ? "OK" : "!"}
+                </span>
+                <span className="text-sm font-bold text-[var(--color-foreground)]">{item.label}</span>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-[var(--color-muted-foreground)]">{item.detail}</p>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-4">
         {nextActions.map((action) => (
           <Link
             key={action.label}
@@ -516,7 +626,7 @@ export default async function DashboardPage() {
           sparkColor="#9ca3af"
         />
         <KpiCard
-          label="Est. Tax Owed"
+          label="Tax to set aside"
           value={formatCurrency(taxCalc.totalTax, currency)}
           sub={`On track · due Jan ${taxYear + 1}`}
           subColor="text-emerald-600"
@@ -545,7 +655,7 @@ export default async function DashboardPage() {
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-[var(--color-muted-foreground)]">
-                Live Self Assessment Estimate
+                Tax estimate
               </p>
               <p className="mt-1 text-sm font-semibold text-[var(--color-foreground)]">
                 Based on {formatCurrency(profit, currency)} taxable profit

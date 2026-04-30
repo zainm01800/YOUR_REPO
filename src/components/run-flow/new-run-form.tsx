@@ -291,7 +291,7 @@ export function NewRunForm({
         JSON.stringify(clientExtractedDocuments),
       );
 
-      setOcrMessage("Sending upload package and extracted text to ClearMatch...");
+    setOcrMessage("Sending upload package and extracted text to Zentra...");
       const response = await fetch("/api/runs", {
         method: "POST",
         body: formData,

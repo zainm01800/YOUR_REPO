@@ -16,9 +16,9 @@ import {
   LayoutDashboard,
   LayoutTemplate,
   Landmark,
+  ListChecks,
   Menu,
   PackageOpen,
-  PieChart,
   PlusSquare,
   Receipt,
   ScanText,
@@ -37,7 +37,7 @@ import { getWorkspaceRoleLabel } from "@/lib/auth/workspace-role";
 import { cn } from "@/lib/utils";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { ToastProvider } from "@/components/ui/toast";
-import { setViewAsModeAction, type ViewAsMode } from "@/app/actions/view-as-actions";
+import type { ViewAsMode } from "@/app/actions/view-as-actions";
 import { InviteMemberDialog } from "@/components/invitations/invite-member-dialog";
 
 interface WorkspaceInfo {
@@ -83,29 +83,35 @@ function buildNavigation(
         ],
       },
       {
-        label: "Expenses",
+        label: "Records",
         items: [
           { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
+          { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
+          { href: "/bookkeeping/review-queue", label: "Review Queue", icon: ListChecks },
+        ],
+      },
+      {
+        label: "Claims",
+        items: [
           { href: "/expenses", label: "Expenses", icon: Receipt },
+          { href: "/bookkeeping/missing-receipts", label: "Missing Receipts", icon: Receipt },
           { href: "/mileage", label: "Mileage", icon: Car },
         ],
       },
       {
-        label: "Review",
-        items: [
-          { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
-          { href: "/bookkeeping/budget", label: "Budget vs. Actual", icon: Target },
-        ],
-      },
-      {
-        label: "Reports",
+        label: "Tax",
         items: [
           { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
-          { href: "/bookkeeping/tax-estimate", label: "Tax Estimate", icon: PieChart },
           ...(canSeeVatTools
             ? [{ href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt }]
             : []),
         ],
+      },
+      {
+        label: "Download",
+        items: viewerAccess.canUseExportPack
+          ? [{ href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen }]
+          : [],
       },
       {
         label: "Settings",
@@ -130,6 +136,7 @@ function buildNavigation(
         items: [
           { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
           { href: "/expenses", label: "Expenses", icon: Receipt },
+          { href: "/bookkeeping/missing-receipts", label: "Missing Receipts", icon: Receipt },
           { href: "/mileage", label: "Mileage", icon: Car },
         ],
       },
@@ -137,6 +144,7 @@ function buildNavigation(
         label: "Review",
         items: [
           { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
+          { href: "/bookkeeping/review-queue", label: "Review Queue", icon: ListChecks },
           { href: "/bookkeeping/budget", label: "Budget vs. Actual", icon: Target },
           ...(viewerAccess.canSeeFinancialReports
             ? [{ href: "/bookkeeping/reports", label: "Business Reports", icon: BarChart3 }]
@@ -182,7 +190,9 @@ function buildNavigation(
       label: "Bookkeeping",
       items: [
         { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
+        { href: "/bookkeeping/review-queue", label: "Review Queue", icon: ListChecks },
         { href: "/expenses", label: "Expenses", icon: Receipt },
+        { href: "/bookkeeping/missing-receipts", label: "Missing Receipts", icon: Receipt },
         { href: "/mileage", label: "Mileage", icon: Car },
         { href: "/bookkeeping/spending", label: "Supplier Analysis", icon: TrendingUp },
         ...(viewerAccess.canSeeTemplates
@@ -306,6 +316,8 @@ function ViewAsSwitcher({
 }: {
   currentMode: ViewAsMode;
 }) {
+  const currentPath = usePathname();
+
   return (
     <div className="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2 py-1.5">
       <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-600">
@@ -314,21 +326,27 @@ function ViewAsSwitcher({
       <div className="flex items-center gap-0.5">
         {VIEW_AS_OPTIONS.map(({ mode, label }) => {
           const isActive = currentMode === mode;
+          const href = `/api/view-as?mode=${mode}&returnTo=${encodeURIComponent(currentPath || "/dashboard")}`;
           return (
-            <form key={mode} action={setViewAsModeAction.bind(null, mode)}>
-              <button
-                type="submit"
+            <div key={mode}>
+              {isActive ? (
+                <span
+                  title={VIEW_AS_OPTIONS.find(o => o.mode === mode)?.description}
+                  className="inline-flex rounded-lg bg-amber-500 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm"
+                >
+                  {label}
+                </span>
+              ) : (
+                <Link
+                  href={href}
+                  prefetch={false}
                 title={VIEW_AS_OPTIONS.find(o => o.mode === mode)?.description}
-                className={cn(
-                  "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors",
-                  isActive
-                    ? "bg-amber-500 text-white shadow-sm"
-                    : "text-amber-700 hover:bg-amber-100",
-                )}
+                  className="inline-flex rounded-lg px-2.5 py-1 text-[11px] font-semibold text-amber-700 transition-colors hover:bg-amber-100"
               >
-                {label}
-              </button>
-            </form>
+                  {label}
+                </Link>
+              )}
+            </div>
           );
         })}
       </div>

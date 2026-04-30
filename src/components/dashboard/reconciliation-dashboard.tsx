@@ -163,7 +163,7 @@ export async function ReconciliationDashboard() {
               </div>
               <div className="max-w-2xl">
                 <h2 className="text-2xl font-bold tracking-tight text-[var(--color-foreground)]">
-                  Welcome to ClearMatch. Let&apos;s run your first reconciliation.
+                Welcome to Zentra. Let&apos;s run your first reconciliation.
                 </h2>
                 <p className="mt-2 text-base text-[var(--color-muted-foreground)] leading-relaxed">
                   Your workspace is ready. The reconciliation control room helps you match transactions to internal records, detect VAT discrepancies, and export audit-ready reports.

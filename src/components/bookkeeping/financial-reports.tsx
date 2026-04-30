@@ -64,7 +64,7 @@ function StatementCover({
     <div className="rounded-t-2xl bg-[var(--accent)] px-8 py-7 text-white">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-base font-semibold">ClearMatch</p>
+            <p className="text-base font-semibold">Zentra</p>
           <h2 className="mt-2 text-3xl font-bold">{title}</h2>
           <p className="mt-2 text-sm text-[color:rgba(246,247,243,0.92)]">{subtitle}</p>
           <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[color:rgba(246,247,243,0.72)]">{meta}</p>

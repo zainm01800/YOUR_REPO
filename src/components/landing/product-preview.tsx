@@ -34,7 +34,7 @@ export function ProductPreview() {
         {/* Sidebar */}
         <div className="hidden w-52 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-sidebar)] p-4 md:block">
           <div className="rounded-2xl border border-[var(--color-border)] bg-white p-3">
-            <div className="text-[9px] font-semibold uppercase tracking-[0.24em] text-[var(--color-muted-foreground)]">ClearMatch</div>
+          <div className="text-[9px] font-semibold uppercase tracking-[0.24em] text-[var(--color-muted-foreground)]">Zentra</div>
             <div className="mt-1 text-sm font-semibold text-[var(--color-foreground)]">Northstar Finance</div>
           </div>
           <div className="mt-4 space-y-1">

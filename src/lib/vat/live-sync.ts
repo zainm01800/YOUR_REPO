@@ -65,7 +65,7 @@ function buildGovUkRule(rate: number, description: string): VatRule {
 async function fetchText(url: string) {
   const response = await fetch(url, {
     headers: {
-      "User-Agent": "ClearMatch VAT Sync/1.0",
+      "User-Agent": "Zentra VAT Sync/1.0",
       Accept: "text/html, application/xml, text/xml;q=0.9, */*;q=0.8",
     },
     cache: "no-store",

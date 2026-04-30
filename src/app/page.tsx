@@ -74,7 +74,7 @@ export default function Home() {
                 <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
                 <span className="h-3 w-3 rounded-full bg-[#28c840]" />
               </div>
-              <span className="mx-auto text-xs text-gray-400">app.clearmatch.co.uk/dashboard</span>
+                <span className="mx-auto text-xs text-gray-400">app.zentra.co.uk/dashboard</span>
             </div>
 
             <div className="flex" style={{ minHeight: 500 }}>
@@ -84,7 +84,7 @@ export default function Home() {
                   <div className="flex h-6 w-6 items-center justify-center rounded-lg" style={{ background: ACCENT }}>
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h8M2 12h10" stroke="white" strokeWidth="2.5" strokeLinecap="round"/></svg>
                   </div>
-                  <span className="text-sm font-bold text-gray-800">ClearMatch</span>
+                    <span className="text-sm font-bold text-gray-800">Zentra</span>
                 </div>
                 {[
                   { label: "Dashboard", active: true },
@@ -378,7 +378,7 @@ export default function Home() {
               One plan. Everything included. No accountant required.
             </h2>
             <p className="mt-5 text-base leading-relaxed text-gray-400">
-              We priced ClearMatch so it pays for itself the first time you
+                  We priced Zentra so it pays for itself the first time you
               don't hire someone to file a VAT return. Cancel any time —
               your data exports cleanly to CSV or your accountant's software.
             </p>

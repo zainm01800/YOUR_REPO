@@ -65,7 +65,7 @@ export default async function InvitationPage(props: {
           </div>
 
           <p className="text-center text-[11px] text-gray-400 font-medium uppercase tracking-wider">
-            ClearMatch Secure Invitation
+                Zentra Secure Invitation
           </p>
         </div>
       </Card>

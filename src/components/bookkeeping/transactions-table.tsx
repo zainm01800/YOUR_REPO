@@ -24,8 +24,13 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { CategoryRule, TransactionRecord } from "@/lib/domain/types";
-import { resolveCategoryWithConfidence } from "@/lib/categories/suggester";
 import { categorySection } from "@/lib/categories/sections";
+import {
+  buildDuplicateCounts,
+  getDuplicateKey,
+  getTransactionHealth,
+  type TransactionHealthTone,
+} from "@/lib/bookkeeping/transaction-health";
 import { fmtDate } from "./transaction-row";
 import {
   bulkUpdateTransactionCategoryAction,
@@ -57,12 +62,20 @@ interface Props {
 }
 
 type TypeFilter = "all" | "income" | "expense";
+type ReviewFilter = "all" | "needs_review" | "ready";
 
 interface BulkPrompt {
   merchant: string;
   txIds: string[];
   category: string;
 }
+
+const HEALTH_CLASSES: Record<TransactionHealthTone, string> = {
+  success: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  warning: "border-amber-200 bg-amber-50 text-amber-800",
+  danger: "border-red-200 bg-red-50 text-red-700",
+  muted: "border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-muted-foreground)]",
+};
 
 const STOP_WORDS = new Set([
   "the",
@@ -255,6 +268,7 @@ export function TransactionsTable({
   transactions,
   categoryRules,
   pickerCategoryRules,
+  vatRegistered,
   stats,
   totalIn,
   totalOut,
@@ -270,6 +284,7 @@ export function TransactionsTable({
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterType, setFilterType] = useState<TypeFilter>("all");
+  const [filterReview, setFilterReview] = useState<ReviewFilter>("all");
   const [categoryOverrides, setCategoryOverrides] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -283,17 +298,20 @@ export function TransactionsTable({
     setLocalTransactions(transactions);
   }, [transactions]);
 
+  const duplicateCounts = useMemo(() => buildDuplicateCounts(localTransactions), [localTransactions]);
+
   const rowsWithCategory = useMemo(
     () =>
       localTransactions.map((tx) => {
         const override = categoryOverrides[tx.id];
-        const { category: resolved } = resolveCategoryWithConfidence(
-          { ...tx, category: override ?? tx.category },
-          categoryRules,
-        );
-        return { ...tx, resolvedCategory: resolved ?? "" };
+        const transaction = { ...tx, category: override ?? tx.category };
+        const health = getTransactionHealth(transaction, categoryRules, {
+          vatRegistered,
+          duplicateCount: duplicateCounts.get(getDuplicateKey(transaction)) ?? 0,
+        });
+        return { ...transaction, resolvedCategory: health.resolvedCategory, health };
       }),
-    [localTransactions, categoryRules, categoryOverrides],
+    [localTransactions, categoryRules, categoryOverrides, vatRegistered, duplicateCounts],
   );
 
   const filtered = useMemo(() => {
@@ -301,6 +319,8 @@ export function TransactionsTable({
     return rowsWithCategory.filter((tx) => {
       if (filterType === "income" && tx.amount < 0) return false;
       if (filterType === "expense" && tx.amount >= 0) return false;
+      if (filterReview === "needs_review" && tx.health.status !== "needs_review") return false;
+      if (filterReview === "ready" && tx.health.status !== "ready") return false;
       if (filterCategory !== "all") {
         const cat = tx.resolvedCategory || "Uncategorised";
         if (filterCategory === "uncategorised" ? cat !== "Uncategorised" : cat !== filterCategory) {
@@ -314,7 +334,7 @@ export function TransactionsTable({
         (tx.resolvedCategory || "").toLowerCase().includes(q)
       );
     });
-  }, [rowsWithCategory, search, filterCategory, filterType]);
+  }, [rowsWithCategory, search, filterCategory, filterType, filterReview]);
 
   const monthGroups = useMemo(() => {
     const groups = new Map<
@@ -500,11 +520,13 @@ export function TransactionsTable({
   const net = totalIn - totalOut;
   const incomeCount = filtered.filter((tx) => tx.amount >= 0).length;
   const expenseCount = filtered.length - incomeCount;
+  const visibleNeedsReview = filtered.filter((tx) => tx.health.status === "needs_review").length;
+  const visibleReady = filtered.filter((tx) => tx.health.status === "ready").length;
 
   return (
     <div className="space-y-5">
       <div className="rounded-[24px] border border-[var(--line)] bg-white p-4 shadow-[var(--shadow-sm)]">
-        <div className="mb-4 grid gap-4 lg:grid-cols-4">
+        <div className="mb-4 grid gap-4 lg:grid-cols-5">
           {[
             {
               label: "Visible lines",
@@ -516,6 +538,12 @@ export function TransactionsTable({
               label: "Uncategorised",
               value: stats.uncategorisedCount.toString(),
               sub: "These still need a bookkeeping category.",
+              icon: Tag,
+            },
+            {
+              label: "Needs review",
+              value: visibleNeedsReview.toString(),
+              sub: `${visibleReady} visible transaction${visibleReady !== 1 ? "s" : ""} look ready.`,
               icon: Tag,
             },
             {
@@ -583,6 +611,30 @@ export function TransactionsTable({
                   key={label}
                   type="button"
                   onClick={() => setFilterType(val)}
+                  className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
+                    active
+                      ? "bg-white text-[var(--color-foreground)] shadow-sm"
+                      : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] p-1">
+            {[
+              ["all", "All status"],
+              ["needs_review", "Needs review"],
+              ["ready", "Ready"],
+            ].map(([value, label]) => {
+              const active = filterReview === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setFilterReview(value as ReviewFilter)}
                   className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
                     active
                       ? "bg-white text-[var(--color-foreground)] shadow-sm"
@@ -693,6 +745,7 @@ export function TransactionsTable({
                 <th className="px-5 py-3">Date</th>
                 <th className="px-5 py-3">Description</th>
                 <th className="px-5 py-3">Category</th>
+                <th className="px-5 py-3">Review status</th>
                 <th className="px-5 py-3">Type</th>
                 <th className="px-5 py-3">VAT</th>
                 <th className="px-5 py-3 text-right">Amount</th>
@@ -702,7 +755,7 @@ export function TransactionsTable({
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-5 py-10 text-center text-sm text-[var(--color-muted-foreground)]"
                   >
                     No transactions match your filters.
@@ -712,7 +765,7 @@ export function TransactionsTable({
                 monthGroups.map((group) => (
                   <Fragment key={group.label}>
                     <tr className="bg-[#f6f4ee]">
-                      <td colSpan={6} className="px-5 py-3">
+                      <td colSpan={7} className="px-5 py-3">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
                             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
@@ -764,6 +817,20 @@ export function TransactionsTable({
                                 {tx.description}
                               </span>
                             )}
+                          </td>
+
+                          <td className="px-5 py-3.5">
+                            <span
+                              className={`inline-flex max-w-[190px] items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${HEALTH_CLASSES[tx.health.tone]}`}
+                              title={tx.health.detail}
+                            >
+                              {tx.health.label}
+                            </span>
+                            {tx.health.issues.length > 1 ? (
+                              <p className="mt-1 text-[10px] text-[var(--color-muted-foreground)]">
+                                +{tx.health.issues.length - 1} more check{tx.health.issues.length - 1 !== 1 ? "s" : ""}
+                              </p>
+                            ) : null}
                           </td>
 
                           <td className="px-5 py-3.5">

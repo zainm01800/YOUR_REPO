@@ -44,7 +44,7 @@ export async function lockAccountTypeChoice(_prevState: State, formData: FormDat
   if (existingChoice && existingChoice !== selectedAccountType) {
     return {
       error:
-        "This account type has already been locked. ClearMatch only allows one permanent account type per login.",
+      "This account type has already been locked. Zentra only allows one permanent account type per login.",
     };
   }
 

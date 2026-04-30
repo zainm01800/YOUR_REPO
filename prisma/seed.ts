@@ -2,7 +2,7 @@ import { hashSync } from "bcryptjs";
 
 function main() {
   const demoUser = {
-    email: "owner@clearmatch.app",
+  email: "owner@zentra.app",
     passwordHash: hashSync("DemoFinance123!", 10),
   };
 

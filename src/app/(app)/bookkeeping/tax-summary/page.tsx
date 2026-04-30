@@ -85,11 +85,11 @@ export default async function BookkeepingTaxSummaryPage({
     return (
       <>
         <PageHeader
-          eyebrow="Bookkeeping"
-          title="Tax summary"
+          eyebrow={isSoleTrader ? "Sole trader accounts" : "Bookkeeping"}
+          title={isSoleTrader ? "Tax year summary" : "Tax summary"}
           description={
             isSoleTrader
-              ? "Practical profit, VAT, and owner-level tax estimates built from the same categorised bookkeeping data that powers the rest of the sole-trader workflow."
+              ? "A simple owner-friendly view of income, claimable expenses, taxable profit, and estimated tax to set aside."
               : "Practical profit, VAT, and estimated tax figures built from the same categorised bookkeeping data that powers the reports."
           }
         />

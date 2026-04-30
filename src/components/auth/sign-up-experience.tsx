@@ -89,10 +89,10 @@ export function SignUpExperience() {
               Choose your setup
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight">
-              Create the right ClearMatch experience from day one.
+            Create the right Zentra experience from day one.
             </h1>
             <p className="mt-3 text-sm leading-7 text-[var(--color-muted-foreground)]">
-              Pick whether you&apos;re using ClearMatch for your own business or as an accountant.
+            Pick whether you&apos;re using Zentra for your own business or as an accountant.
               We&apos;ll shape the workspace around that choice. Your account type is permanent and
               can&apos;t be changed later.
             </p>

@@ -1,6 +1,6 @@
 import type { CountryOption } from "@/lib/domain/types";
 
-export const runPresetStorageKey = "clearmatch-run-presets";
+export const runPresetStorageKey = "zentra-run-presets";
 
 export const europeanCountryOptions: CountryOption[] = [
   { code: "GB", label: "United Kingdom", currency: "GBP" },
@@ -52,4 +52,3 @@ export function getDefaultCurrencyForCountry(countryCode: string) {
     "EUR"
   );
 }
-

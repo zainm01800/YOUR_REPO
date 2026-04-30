@@ -1,6 +1,6 @@
-# ClearMatch
+# Zentra
 
-ClearMatch is a reconciliation-first SaaS MVP for finance teams, accountants, bookkeepers, and SMEs working from transaction exports plus batches of receipts or invoices.
+Zentra is a reconciliation-first SaaS MVP for finance teams, accountants, bookkeepers, and SMEs working from transaction exports plus batches of receipts or invoices.
 
 Core outcome:
 
@@ -31,7 +31,7 @@ The differentiators in this MVP are:
 
 ## Recommended Product Name
 
-Recommended name: `ClearMatch`
+Recommended name: `Zentra`
 
 Alternative options:
 
@@ -40,7 +40,7 @@ Alternative options:
 - CloseMatch
 - LedgerReview
 
-Why `ClearMatch`:
+Why `Zentra`:
 
 - Speaks to reconciliation and clarity instead of OCR
 - Feels like a SaaS workflow product rather than a utility
@@ -108,7 +108,7 @@ Core tables:
 
 ## Demo Credentials
 
-- Email: `owner@clearmatch.app`
+- Email: `owner@zentra.app`
 - Password: `DemoFinance123!`
 
 ## Running Locally
@@ -214,7 +214,7 @@ With Vercel Git integration:
 
 ### Live VAT-rate sync
 
-ClearMatch can now sync VAT rules into your own database instead of hardcoding them forever.
+Zentra can now sync VAT rules into your own database instead of hardcoding them forever.
 
 Current sync sources:
 

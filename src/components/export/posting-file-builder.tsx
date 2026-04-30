@@ -205,7 +205,7 @@ export function PostingFileBuilder({
         <div>
           <h2 className="text-2xl font-semibold">Posting workbook template</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-            Upload a real ERP import workbook, map its columns to ClearMatch fields, then download a filled copy of that same workbook.
+            Upload a real ERP import workbook, map its columns to Zentra fields, then download a filled copy of that same workbook.
           </p>
         </div>
 
@@ -217,7 +217,7 @@ export function PostingFileBuilder({
             <div>
               <div className="font-semibold">Upload template workbook (.xlsx)</div>
               <div className="text-sm text-[var(--color-muted-foreground)]">
-                {templateFileName || "Choose the workbook you want ClearMatch to fill"}
+              {templateFileName || "Choose the workbook you want Zentra to fill"}
               </div>
             </div>
           </div>
@@ -293,7 +293,7 @@ export function PostingFileBuilder({
           <div>
             <h2 className="text-2xl font-semibold">Template mapping</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--color-muted-foreground)]">
-              Review each workbook column, choose the ClearMatch field that should fill it, or set a constant value for required ERP defaults.
+              Review each workbook column, choose the Zentra field that should fill it, or set a constant value for required ERP defaults.
             </p>
           </div>
           <div className="rounded-2xl bg-[var(--color-panel)] px-4 py-2 text-sm font-medium text-[var(--color-muted-foreground)]">

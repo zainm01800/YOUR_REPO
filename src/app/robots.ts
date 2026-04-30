@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/api/', '/sign-in', '/sign-up'],
     },
-    sitemap: 'https://clearmatch.finance/sitemap.xml',
+    sitemap: 'https://zentra.finance/sitemap.xml',
   };
 }

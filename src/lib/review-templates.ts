@@ -4,7 +4,7 @@ import type {
   ReviewTableTemplate,
 } from "@/lib/domain/types";
 
-export const reviewTemplateStorageKey = "clearmatch.reviewTemplates";
+export const reviewTemplateStorageKey = "zentra.reviewTemplates";
 export const defaultReviewTemplateId = "default";
 
 export const defaultReviewColumns: ReviewGridColumnLayout[] = [
