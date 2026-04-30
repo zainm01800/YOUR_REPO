@@ -12,10 +12,13 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import {
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  CheckCircle2,
   Copy,
   Download,
+  FileText,
   Layers3,
   Search,
   Tag,
@@ -293,6 +296,7 @@ export function TransactionsTable({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [bulkPrompt, setBulkPrompt] = useState<BulkPrompt | null>(null);
   const [bulkApplying, setBulkApplying] = useState(false);
+  const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalTransactions(transactions);
@@ -335,6 +339,14 @@ export function TransactionsTable({
       );
     });
   }, [rowsWithCategory, search, filterCategory, filterType, filterReview]);
+
+  const selectedTransaction = useMemo(() => {
+    if (selectedTxId) {
+      const match = rowsWithCategory.find((tx) => tx.id === selectedTxId);
+      if (match) return match;
+    }
+    return rowsWithCategory.find((tx) => tx.health.status === "needs_review") ?? rowsWithCategory[0] ?? null;
+  }, [rowsWithCategory, selectedTxId]);
 
   const monthGroups = useMemo(() => {
     const groups = new Map<
@@ -737,15 +749,90 @@ export function TransactionsTable({
         ))}
       </div>
 
+      {selectedTransaction && (
+        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-[24px] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-sm)]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                  Selected transaction
+                </p>
+                <h2 className="mt-1 text-xl font-bold tracking-[-0.03em] text-[var(--color-foreground)]">
+                  {selectedTransaction.merchant || selectedTransaction.description || "Unknown transaction"}
+                </h2>
+                <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+                  {fmtDate(selectedTransaction.transactionDate)} - {selectedTransaction.description}
+                </p>
+              </div>
+              <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-bold ${HEALTH_CLASSES[selectedTransaction.health.tone]}`}>
+                {selectedTransaction.health.status === "ready" ? "Matched" : selectedTransaction.health.tone === "danger" ? "Issue" : "Needs review"}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <DetailMetric label="Amount" value={new Intl.NumberFormat("en-GB", { style: "currency", currency: selectedTransaction.currency }).format(selectedTransaction.amount)} />
+              <DetailMetric label="Suggested category" value={selectedTransaction.resolvedCategory || "Uncategorised"} />
+              <DetailMetric label="VAT" value={selectedTransaction.vatCode || selectedTransaction.taxTreatment || "Not set"} />
+            </div>
+
+            <div className="mt-4 rounded-2xl bg-[var(--color-panel)] p-4">
+              <p className="text-sm font-semibold text-[var(--color-foreground)]">Action required</p>
+              <p className="mt-1 text-sm leading-6 text-[var(--color-muted-foreground)]">
+                {selectedTransaction.health.detail}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedTransaction.health.issues.length === 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Ready to export
+                  </span>
+                ) : (
+                  selectedTransaction.health.issues.map((issue) => (
+                    <span
+                      key={`${selectedTransaction.id}-${issue.code}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${HEALTH_CLASSES[issue.tone]}`}
+                      title={issue.detail}
+                    >
+                      {issue.tone === "danger" ? <AlertTriangle className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
+                      {issue.label}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-sm)]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+              Receipt and confidence
+            </p>
+            <div className="mt-4 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-panel)] p-5 text-center">
+              <ReceiptIcon />
+              <p className="mt-3 text-sm font-semibold text-[var(--color-foreground)]">
+                {selectedTransaction.runId ? "Document data may be linked in the reconciliation run" : "No receipt linked yet"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-[var(--color-muted-foreground)]">
+                Attach or match a receipt to populate net, VAT, gross, supplier, and confidence.
+              </p>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <DetailMetric label="Confidence" value={selectedTransaction.confidenceScore != null ? `${Math.round(selectedTransaction.confidenceScore * 100)}%` : selectedTransaction.categoryConfidence || "Not scored"} />
+              <DetailMetric label="Source" value={selectedTransaction.bankStatementName || selectedTransaction.runName || "Imported transaction"} />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-[24px] border border-[var(--color-border)] bg-white shadow-[var(--shadow-sm)]">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
             <thead>
               <tr className="bg-[var(--color-panel)] text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
                 <th className="px-5 py-3">Date</th>
-                <th className="px-5 py-3">Description</th>
-                <th className="px-5 py-3">Category</th>
-                <th className="px-5 py-3">Review status</th>
+                <th className="px-5 py-3">Transaction</th>
+                <th className="px-5 py-3">Suggested category</th>
+                <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3">Action required</th>
                 <th className="px-5 py-3">Type</th>
                 <th className="px-5 py-3">VAT</th>
                 <th className="px-5 py-3 text-right">Amount</th>
@@ -755,7 +842,7 @@ export function TransactionsTable({
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-5 py-10 text-center text-sm text-[var(--color-muted-foreground)]"
                   >
                     No transactions match your filters.
@@ -765,7 +852,7 @@ export function TransactionsTable({
                 monthGroups.map((group) => (
                   <Fragment key={group.label}>
                     <tr className="bg-[#f6f4ee]">
-                      <td colSpan={7} className="px-5 py-3">
+                      <td colSpan={8} className="px-5 py-3">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
                             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
@@ -797,7 +884,13 @@ export function TransactionsTable({
                         : "Needs Review";
 
                       return (
-                        <tr key={tx.id} className="transition-colors hover:bg-[var(--color-panel)]/50">
+                        <tr
+                          key={tx.id}
+                          onClick={() => setSelectedTxId(tx.id)}
+                          className={`cursor-pointer transition-colors hover:bg-[var(--color-panel)]/50 ${
+                            selectedTransaction?.id === tx.id ? "bg-[var(--color-accent-soft)]/50" : ""
+                          }`}
+                        >
                           <td className="whitespace-nowrap px-5 py-3.5 text-sm text-[var(--color-muted-foreground)]">
                             {fmtDate(tx.transactionDate, "short")}
                           </td>
@@ -820,20 +913,6 @@ export function TransactionsTable({
                           </td>
 
                           <td className="px-5 py-3.5">
-                            <span
-                              className={`inline-flex max-w-[190px] items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${HEALTH_CLASSES[tx.health.tone]}`}
-                              title={tx.health.detail}
-                            >
-                              {tx.health.label}
-                            </span>
-                            {tx.health.issues.length > 1 ? (
-                              <p className="mt-1 text-[10px] text-[var(--color-muted-foreground)]">
-                                +{tx.health.issues.length - 1} more check{tx.health.issues.length - 1 !== 1 ? "s" : ""}
-                              </p>
-                            ) : null}
-                          </td>
-
-                          <td className="px-5 py-3.5">
                             {isEditing && canManageOperationalData ? (
                               <CategoryPicker
                                 sections={pickerSections}
@@ -848,7 +927,8 @@ export function TransactionsTable({
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => {
+                                onClick={(event) => {
+                                  event.stopPropagation();
                                   if (!canManageOperationalData) return;
                                   setEditingId(tx.id);
                                   setEditValue(tx.resolvedCategory || "");
@@ -870,6 +950,26 @@ export function TransactionsTable({
                                 </span>
                               </button>
                             )}
+                          </td>
+
+                          <td className="px-5 py-3.5">
+                            <span
+                              className={`inline-flex max-w-[190px] items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${HEALTH_CLASSES[tx.health.tone]}`}
+                              title={tx.health.detail}
+                            >
+                              {tx.health.label}
+                            </span>
+                            {tx.health.issues.length > 1 ? (
+                              <p className="mt-1 text-[10px] text-[var(--color-muted-foreground)]">
+                                +{tx.health.issues.length - 1} more check{tx.health.issues.length - 1 !== 1 ? "s" : ""}
+                              </p>
+                            ) : null}
+                          </td>
+
+                          <td className="max-w-xs px-5 py-3.5">
+                            <p className="line-clamp-2 text-xs leading-5 text-[var(--color-muted-foreground)]">
+                              {tx.health.detail}
+                            </p>
                           </td>
 
                           <td className="px-5 py-3.5">
@@ -959,6 +1059,27 @@ export function TransactionsTable({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function DetailMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[var(--color-border)] bg-white px-4 py-3">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+        {label}
+      </p>
+      <p className="mt-1 truncate text-sm font-semibold text-[var(--color-foreground)]" title={value}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function ReceiptIcon() {
+  return (
+    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[var(--color-accent)] shadow-sm">
+      <FileText className="h-5 w-5" />
     </div>
   );
 }

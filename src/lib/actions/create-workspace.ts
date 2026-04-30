@@ -162,5 +162,5 @@ export async function createWorkspace(
   cookieStore.delete(PENDING_ACCOUNT_TYPE_COOKIE);
   cookieStore.delete(PENDING_BUSINESS_TYPE_COOKIE);
 
-  redirect("/dashboard");
+  redirect("/bookkeeping/review-queue");
 }

@@ -37,7 +37,7 @@ export async function lockAccountTypeChoice(_prevState: State, formData: FormDat
   }
 
   if (isWebsiteOwnerEmail(email)) {
-    redirect("/dashboard");
+    redirect("/bookkeeping/review-queue");
   }
 
   const existingChoice = getLockedAccountTypeFromClerkUser(clerkUser);
@@ -98,5 +98,5 @@ export async function lockAccountTypeChoice(_prevState: State, formData: FormDat
     sameSite: "lax",
   });
 
-  redirect("/dashboard");
+  redirect("/bookkeeping/review-queue");
 }

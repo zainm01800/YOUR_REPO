@@ -70,8 +70,9 @@ function buildNavigation(
   if (!viewerAccess.isAccountantView && businessType === "sole_trader") {
     return [
       {
-        label: "Overview",
+        label: "Start here",
         items: [
+          { href: "/bookkeeping/review-queue", label: "Review Queue", icon: ListChecks },
           { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         ],
       },
@@ -87,7 +88,6 @@ function buildNavigation(
         items: [
           { href: "/bank-statements", label: "Bank Statements", icon: Landmark },
           { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
-          { href: "/bookkeeping/review-queue", label: "Review Queue", icon: ListChecks },
         ],
       },
       {
@@ -126,8 +126,9 @@ function buildNavigation(
   if (!viewerAccess.isAccountantView) {
     return [
       {
-        label: "Overview",
+        label: "Start here",
         items: [
+          { href: "/bookkeeping/review-queue", label: "Review Queue", icon: ListChecks },
           { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         ],
       },
@@ -144,7 +145,6 @@ function buildNavigation(
         label: "Review",
         items: [
           { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
-          { href: "/bookkeeping/review-queue", label: "Review Queue", icon: ListChecks },
           { href: "/bookkeeping/budget", label: "Budget vs. Actual", icon: Target },
           ...(viewerAccess.canSeeFinancialReports
             ? [{ href: "/bookkeeping/reports", label: "Business Reports", icon: BarChart3 }]
@@ -174,8 +174,9 @@ function buildNavigation(
   // bookkeeping, reconciliation, reporting, and delivery/config at the bottom.
   return [
     {
-      label: "Overview",
+      label: "Start here",
       items: [
+        { href: "/bookkeeping/review-queue", label: "Review Queue", icon: ListChecks },
         { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       ],
     },
@@ -190,7 +191,6 @@ function buildNavigation(
       label: "Bookkeeping",
       items: [
         { href: "/bookkeeping/transactions", label: "Transactions", icon: Table2 },
-        { href: "/bookkeeping/review-queue", label: "Review Queue", icon: ListChecks },
         { href: "/expenses", label: "Expenses", icon: Receipt },
         { href: "/bookkeeping/missing-receipts", label: "Missing Receipts", icon: Receipt },
         { href: "/mileage", label: "Mileage", icon: Car },

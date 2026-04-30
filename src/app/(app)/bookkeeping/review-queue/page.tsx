@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AlertTriangle, CheckCircle2, FileText, Receipt, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
 import { getCachedBookkeepingDataset } from "@/lib/data/cached-reads";
@@ -19,6 +20,13 @@ const TONE_CLASSES: Record<TransactionHealthTone, string> = {
   warning: "border-amber-200 bg-amber-50 text-amber-800",
   danger: "border-red-200 bg-red-50 text-red-700",
   muted: "border-[var(--line)] bg-[var(--color-panel)] text-[var(--muted)]",
+};
+
+const STATUS_SYMBOLS: Record<TransactionHealthTone, string> = {
+  success: "OK",
+  warning: "Check",
+  danger: "Issue",
+  muted: "Info",
 };
 
 function formatDate(value?: string) {
@@ -103,15 +111,54 @@ export default async function ReviewQueuePage() {
     },
   ];
 
+  const highRiskRows = rows.filter((row) => row.health.tone === "danger").length;
+
   return (
     <>
       <PageHeader
         eyebrow={viewerAccess.isAccountantView ? "Accountant review" : "Records"}
         title="Review queue"
-        description="A focused list of transactions that need a category, receipt, VAT check, or duplicate review before reports and exports are trusted."
+        description="Start here. Zentra only shows the transactions that need a human decision before your records are clean enough to export."
       />
 
       <div className="space-y-5">
+        <div className="rounded-[28px] border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)]">
+          <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
+                Problems to review to fixed records to clean data
+              </p>
+              <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-[var(--ink)]">
+                {rows.length} item{rows.length !== 1 ? "s" : ""} need review
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+                Fix these before trusting tax estimates, VAT summaries, or accountant exports.
+                Ready transactions stay out of the way.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-[var(--panel-2)] p-4">
+                <div className="flex items-center gap-2 text-[var(--color-danger)]">
+                  <ShieldAlert className="h-4 w-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.14em]">Issues</span>
+                </div>
+                <p className="mt-2 text-2xl font-extrabold text-[var(--ink)]">{highRiskRows}</p>
+                <p className="text-xs text-[var(--muted)]">Duplicates or VAT risks</p>
+              </div>
+              <div className="rounded-2xl bg-[var(--panel-2)] p-4">
+                <div className="flex items-center gap-2 text-amber-700">
+                  <Receipt className="h-4 w-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.14em]">Evidence</span>
+                </div>
+                <p className="mt-2 text-2xl font-extrabold text-[var(--ink)]">
+                  {issueCounts.get("missing_receipt") ?? 0}
+                </p>
+                <p className="text-xs text-[var(--muted)]">Receipts to attach or dismiss</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {summaryCards.map((card) => (
             <div key={card.label} className={`rounded-2xl border p-4 ${TONE_CLASSES[card.tone]}`}>
@@ -126,10 +173,10 @@ export default async function ReviewQueuePage() {
           <div className="flex flex-col gap-3 border-b border-[var(--line)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-bold tracking-[-0.03em] text-[var(--ink)]">
-                Items to clear
+                Fix list
               </h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                Clear these first to make the dashboard, tax summary, and export pack more reliable.
+                Each row says what is wrong and the next action to take.
               </p>
             </div>
             <Link
@@ -154,8 +201,9 @@ export default async function ReviewQueuePage() {
                   <tr className="bg-[var(--color-panel)] text-left text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
                     <th className="px-5 py-3">Date</th>
                     <th className="px-5 py-3">Transaction</th>
-                    <th className="px-5 py-3">Main issue</th>
-                    <th className="px-5 py-3">Category</th>
+                    <th className="px-5 py-3">Suggested category</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3">Action required</th>
                     <th className="px-5 py-3 text-right">Amount</th>
                   </tr>
                 </thead>
@@ -172,17 +220,28 @@ export default async function ReviewQueuePage() {
                         <p className="truncate text-xs text-[var(--muted)]">
                           {tx.description}
                         </p>
-                      </td>
-                      <td className="px-5 py-3">
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${TONE_CLASSES[health.tone]}`}>
-                          {health.label}
-                        </span>
-                        <p className="mt-1 max-w-xs text-xs text-[var(--muted)]">
-                          {health.detail}
-                        </p>
+                        <details className="mt-2 md:hidden">
+                          <summary className="cursor-pointer text-xs font-semibold text-[var(--accent-ink)]">
+                            View checks
+                          </summary>
+                          <IssueList health={health} />
+                        </details>
                       </td>
                       <td className="px-5 py-3 text-sm text-[var(--muted)]">
                         {health.resolvedCategory || "Uncategorised"}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${TONE_CLASSES[health.tone]}`}>
+                          {STATUS_SYMBOLS[health.tone]} - {health.label}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <p className="max-w-xs text-xs font-medium leading-5 text-[var(--ink)]">
+                          {health.detail}
+                        </p>
+                        <div className="mt-2 hidden md:block">
+                          <IssueList health={health} compact />
+                        </div>
                       </td>
                       <td className="whitespace-nowrap px-5 py-3 text-right font-semibold tabular-nums text-[var(--ink)]">
                         {formatCurrency(tx.amount, tx.currency)}
@@ -196,5 +255,43 @@ export default async function ReviewQueuePage() {
         </div>
       </div>
     </>
+  );
+}
+
+function IssueList({
+  health,
+  compact = false,
+}: {
+  health: ReturnType<typeof getTransactionHealth>;
+  compact?: boolean;
+}) {
+  if (health.issues.length === 0) {
+    return (
+      <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700">
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        Ready
+      </p>
+    );
+  }
+
+  return (
+    <div className={compact ? "flex flex-wrap gap-1.5" : "mt-2 space-y-1.5"}>
+      {health.issues.slice(0, compact ? 3 : 6).map((issue) => (
+        <span
+          key={`${issue.code}-${issue.label}`}
+          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${TONE_CLASSES[issue.tone]}`}
+          title={issue.detail}
+        >
+          {issue.tone === "danger" ? (
+            <AlertTriangle className="h-3 w-3" />
+          ) : issue.code === "missing_receipt" ? (
+            <FileText className="h-3 w-3" />
+          ) : (
+            <CheckCircle2 className="h-3 w-3" />
+          )}
+          {issue.label}
+        </span>
+      ))}
+    </div>
   );
 }

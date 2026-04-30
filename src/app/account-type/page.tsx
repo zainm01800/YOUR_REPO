@@ -26,12 +26,12 @@ export default async function AccountTypePage() {
   }
 
   if (isWebsiteOwnerEmail(email)) {
-    redirect("/dashboard");
+    redirect("/bookkeeping/review-queue");
   }
 
   const lockedAccountType = getLockedAccountTypeFromClerkUser(clerkUser);
   if (lockedAccountType) {
-    redirect("/dashboard");
+    redirect("/bookkeeping/review-queue");
   }
 
   const cookieStore = await cookies();

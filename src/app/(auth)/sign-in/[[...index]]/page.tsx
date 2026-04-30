@@ -19,11 +19,11 @@ export default async function SignInPage() {
               Finance review workflow
             </p>
             <h1 className="text-4xl font-semibold tracking-tight">
-              Sign in to continue your reconciliation runs.
+              Sign in to continue cleaning your records.
             </h1>
             <p className="max-w-xl text-sm leading-7 text-white/75">
-              Use your Clerk account to access the hosted finance workflow, review
-              exceptions, and export reconciled outputs.
+              Use your Clerk account to open the review queue, fix missing receipts
+              and categories, then export clean records.
             </p>
           </div>
         </Card>

@@ -185,7 +185,7 @@ export function SignUpExperience() {
       </div>
 
       <Card className="flex items-center justify-center">
-        <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" forceRedirectUrl="/dashboard" />
+        <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" forceRedirectUrl="/bookkeeping/review-queue" />
       </Card>
     </div>
   );
