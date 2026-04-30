@@ -45,7 +45,7 @@ export function ExpenseForm({ categoryRules, vatCodes, currency, defaultIsMileag
 
     const body = {
       date: fd.get("date") as string,
-      description: fd.get("description") as string,
+      description: isMileage ? (fd.get("businessPurpose") as string) : fd.get("description") as string,
       merchant: (fd.get("merchant") as string) || undefined,
       category: (fd.get("category") as string) || undefined,
       vatCode: (fd.get("vatCode") as string) || undefined,
@@ -54,7 +54,7 @@ export function ExpenseForm({ categoryRules, vatCodes, currency, defaultIsMileag
       isMileage,
       mileageMiles: isMileage ? parseFloat(miles) || undefined : undefined,
       mileageRatePerMile: isMileage ? parseFloat(rate) || undefined : undefined,
-      notes: (fd.get("notes") as string) || undefined,
+      notes: isMileage ? `${fd.get("fromLocation")} → ${fd.get("toLocation")}${fd.get("notes") ? ` · ${fd.get("notes")}` : ""}` : (fd.get("notes") as string) || undefined,
     };
 
     try {
@@ -117,20 +117,50 @@ export function ExpenseForm({ categoryRules, vatCodes, currency, defaultIsMileag
             className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
           />
         </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">
-            {isMileage ? "Trip description" : "Description"} <span className="text-[var(--color-danger)]">*</span>
-          </label>
-          <input
-            name="description"
-            required
-            placeholder={isMileage ? "Client meeting — London to Birmingham" : "Office supplies from Amazon"}
-            className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
-          />
-        </div>
+
+        {!isMileage && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">
+              Description <span className="text-[var(--color-danger)]">*</span>
+            </label>
+            <input
+              name="description"
+              required
+              placeholder="Office supplies from Amazon"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+            />
+          </div>
+        )}
 
         {isMileage ? (
           <>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">
+                Business purpose <span className="text-[var(--color-danger)]">*</span>
+              </label>
+              <input
+                name="businessPurpose"
+                required
+                placeholder="e.g. Client meeting with Acme Ltd"
+                className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">From</label>
+              <input
+                name="fromLocation"
+                placeholder="Start location e.g. Manchester"
+                className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">To</label>
+              <input
+                name="toLocation"
+                placeholder="Destination e.g. London"
+                className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+              />
+            </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium">Miles <span className="text-[var(--color-danger)]">*</span></label>
               <input
@@ -156,8 +186,23 @@ export function ExpenseForm({ categoryRules, vatCodes, currency, defaultIsMileag
                   onChange={(e) => setRate(e.target.value)}
                   className="w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
                 />
+                <button
+                  type="button"
+                  onClick={() => setRate("0.45")}
+                  className="shrink-0 rounded-lg border border-[var(--color-border)] bg-white px-2 py-1 text-xs font-medium text-[var(--color-muted-foreground)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                >
+                  45p
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRate("0.25")}
+                  className="shrink-0 rounded-lg border border-[var(--color-border)] bg-white px-2 py-1 text-xs font-medium text-[var(--color-muted-foreground)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                  title="after 10k miles"
+                >
+                  25p
+                </button>
               </div>
-              <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">HMRC approved rate: £0.45/mile (first 10,000 miles)</p>
+              <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">HMRC advisory: £0.45/mile (first 10,000 miles), then £0.25/mile. Bikes: £0.24/mile.</p>
             </div>
             {miles && (
               <div className="sm:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
@@ -226,7 +271,9 @@ export function ExpenseForm({ categoryRules, vatCodes, currency, defaultIsMileag
         )}
 
         <div className="sm:col-span-2">
-          <label className="mb-1.5 block text-sm font-medium">Notes</label>
+          <label className="mb-1.5 block text-sm font-medium">
+            {isMileage ? "Trip notes" : "Notes"}
+          </label>
           <input
             name="notes"
             placeholder="Any additional notes…"

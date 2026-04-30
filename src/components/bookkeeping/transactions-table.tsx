@@ -19,10 +19,7 @@ import {
   Copy,
   Download,
   FileText,
-  Layers3,
   Search,
-  Tag,
-  WalletCards,
   X,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -273,8 +270,6 @@ export function TransactionsTable({
   pickerCategoryRules,
   vatRegistered,
   stats,
-  totalIn,
-  totalOut,
   pagination,
   canManageOperationalData = true,
 }: Props) {
@@ -529,63 +524,9 @@ export function TransactionsTable({
       maximumFractionDigits: 0,
     }).format(n);
 
-  const net = totalIn - totalOut;
-  const incomeCount = filtered.filter((tx) => tx.amount >= 0).length;
-  const expenseCount = filtered.length - incomeCount;
-  const visibleNeedsReview = filtered.filter((tx) => tx.health.status === "needs_review").length;
-  const visibleReady = filtered.filter((tx) => tx.health.status === "ready").length;
-
   return (
     <div className="space-y-5">
       <div className="rounded-[24px] border border-[var(--line)] bg-white p-4 shadow-[var(--shadow-sm)]">
-        <div className="mb-4 grid gap-4 lg:grid-cols-5">
-          {[
-            {
-              label: "Visible lines",
-              value: filtered.length.toString(),
-              sub: `${incomeCount} income / ${expenseCount} expenses`,
-              icon: Layers3,
-            },
-            {
-              label: "Uncategorised",
-              value: stats.uncategorisedCount.toString(),
-              sub: "These still need a bookkeeping category.",
-              icon: Tag,
-            },
-            {
-              label: "Needs review",
-              value: visibleNeedsReview.toString(),
-              sub: `${visibleReady} visible transaction${visibleReady !== 1 ? "s" : ""} look ready.`,
-              icon: Tag,
-            },
-            {
-              label: "Money in",
-              value: fmt(totalIn),
-              sub: "Across imported statement activity",
-              icon: WalletCards,
-            },
-            {
-              label: "Money out",
-              value: fmt(totalOut),
-              sub: "Potential expenses and balance sheet movements",
-              icon: WalletCards,
-            },
-          ].map((card) => (
-            <div key={card.label} className="rounded-2xl bg-[var(--panel-2)] px-4 py-4">
-              <div className="flex items-center gap-2">
-                <card.icon className="h-4 w-4 text-[var(--accent-ink)]" />
-                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
-                  {card.label}
-                </span>
-              </div>
-              <div className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-[var(--ink)]">
-                {card.value}
-              </div>
-              <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{card.sub}</p>
-            </div>
-          ))}
-        </div>
-
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-48 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
@@ -724,30 +665,6 @@ export function TransactionsTable({
           </div>
         </div>
       )}
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {[
-          { label: "TOTAL IN", value: fmt(totalIn), color: "text-emerald-600" },
-          { label: "TOTAL OUT", value: fmt(totalOut), color: "text-[var(--color-danger)]" },
-          {
-            label: "NET",
-            value: fmt(net),
-            color: net >= 0 ? "text-emerald-600" : "text-[var(--color-danger)]",
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="rounded-2xl border border-[var(--color-border)] bg-white px-6 py-5 shadow-[var(--shadow-sm)]"
-          >
-            <div className="mb-2 flex items-center gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                {s.label}
-              </span>
-            </div>
-            <p className={`text-3xl font-bold tabular-nums ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
-      </div>
 
       {selectedTransaction && (
         <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">

@@ -14,6 +14,81 @@ import { RunStatusPill } from "@/components/ui/status-pill";
 import { getRepository } from "@/lib/data";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
+// ─── Cash flow types ──────────────────────────────────────────────────────────
+
+interface CashFlowMonth {
+  month: string; // "Jan", "Feb", etc.
+  income: number;
+  expenses: number;
+}
+
+// ─── Cash Flow Chart (pure SVG, no external library) ─────────────────────────
+
+function CashFlowChart({ data }: { data: CashFlowMonth[] }) {
+  const last6 = data.slice(-6);
+  const maxVal = Math.max(...last6.flatMap((m) => [m.income, m.expenses]), 1);
+
+  const CHART_H = 80;
+  const BAR_W = 10;
+  const GAP = 4;   // gap between twin bars
+  const GROUP_W = BAR_W * 2 + GAP;
+  const GROUP_GAP = 12;
+  const LABEL_H = 16;
+  const SVG_H = CHART_H + LABEL_H;
+  const SVG_W = last6.length * (GROUP_W + GROUP_GAP) - GROUP_GAP + 2;
+
+  return (
+    <div>
+      <svg
+        viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+        width="100%"
+        height={SVG_H}
+        aria-label="Cash flow chart"
+        role="img"
+      >
+        {last6.map((m, i) => {
+          const x = i * (GROUP_W + GROUP_GAP) + 1;
+          const incH = Math.max((m.income / maxVal) * CHART_H, m.income > 0 ? 2 : 0);
+          const expH = Math.max((m.expenses / maxVal) * CHART_H, m.expenses > 0 ? 2 : 0);
+          const incY = CHART_H - incH;
+          const expY = CHART_H - expH;
+          const labelX = x + GROUP_W / 2;
+          return (
+            <g key={m.month}>
+              {/* Income bar */}
+              <rect x={x} y={incY} width={BAR_W} height={incH} rx={2} fill="#10b981" opacity={0.85} />
+              {/* Expenses bar */}
+              <rect x={x + BAR_W + GAP} y={expY} width={BAR_W} height={expH} rx={2} fill="#ef4444" opacity={0.85} />
+              {/* Month label */}
+              <text
+                x={labelX}
+                y={SVG_H - 2}
+                textAnchor="middle"
+                fontSize={9}
+                fill="currentColor"
+                className="text-[var(--color-muted-foreground)]"
+                opacity={0.7}
+              >
+                {m.month}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      <div className="mt-2 flex items-center gap-4 text-xs text-[var(--color-muted-foreground)]">
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500 opacity-85" />
+          Income
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-500 opacity-85" />
+          Expenses
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function KpiCard({
   label,
   value,
@@ -65,7 +140,11 @@ function KpiCard({
   return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
-export async function ReconciliationDashboard() {
+export async function ReconciliationDashboard({
+  cashFlowData,
+}: {
+  cashFlowData?: CashFlowMonth[];
+} = {}) {
   const repository = await getRepository();
   const snapshot = await repository.getDashboardSnapshot();
 
@@ -152,6 +231,55 @@ export async function ReconciliationDashboard() {
         </div>
       </div>
       </div>
+
+      {/* ── Key actions ─────────────────────────────────────────────────────── */}
+      <Card className="p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+          Key actions
+        </p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Link
+            href="/bank-statements"
+            className="inline-flex items-center gap-2 rounded-xl border border-[var(--line-2)] bg-[var(--color-panel)] px-4 py-2 text-sm font-semibold text-[var(--color-foreground)] transition hover:border-[var(--color-border-strong)] hover:bg-white"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+            Import bank statements
+          </Link>
+          <Link
+            href="/bookkeeping/transactions"
+            className="inline-flex items-center gap-2 rounded-xl border border-[var(--line-2)] bg-[var(--color-panel)] px-4 py-2 text-sm font-semibold text-[var(--color-foreground)] transition hover:border-[var(--color-border-strong)] hover:bg-white"
+          >
+            <TrendingUp className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+            Review transactions
+          </Link>
+          <Link
+            href="/bookkeeping/reports"
+            className="inline-flex items-center gap-2 rounded-xl border border-[var(--line-2)] bg-[var(--color-panel)] px-4 py-2 text-sm font-semibold text-[var(--color-foreground)] transition hover:border-[var(--color-border-strong)] hover:bg-white"
+          >
+            <PlusCircle className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+            View financial reports
+          </Link>
+        </div>
+      </Card>
+
+      {/* ── Cash flow ────────────────────────────────────────────────────────── */}
+      <Card className="p-5">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+              Overview
+            </p>
+            <h2 className="mt-1 text-base font-bold text-[var(--color-foreground)]">Cash flow</h2>
+          </div>
+        </div>
+        {cashFlowData && cashFlowData.length > 0 ? (
+          <CashFlowChart data={cashFlowData} />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-[var(--line-2)] bg-white px-4 py-8 text-center text-sm text-[var(--color-muted-foreground)]">
+            Import bank statements to see your cash flow trend.
+          </div>
+        )}
+      </Card>
 
       {!hasRuns ? (
         <div className="space-y-6">

@@ -39,6 +39,7 @@ import { WorkspaceSwitcher } from "./workspace-switcher";
 import { ToastProvider } from "@/components/ui/toast";
 import type { ViewAsMode } from "@/app/actions/view-as-actions";
 import { InviteMemberDialog } from "@/components/invitations/invite-member-dialog";
+import { CommandPalette } from "@/components/search/command-palette";
 
 interface WorkspaceInfo {
   id: string;
@@ -72,7 +73,6 @@ function buildNavigation(
       {
         label: "Start here",
         items: [
-          { href: "/bookkeeping/review-queue", label: "Review Queue", icon: ListChecks },
           { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         ],
       },
@@ -102,9 +102,6 @@ function buildNavigation(
         label: "Tax",
         items: [
           { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
-          ...(canSeeVatTools
-            ? [{ href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt }]
-            : []),
         ],
       },
       {
@@ -128,7 +125,6 @@ function buildNavigation(
       {
         label: "Start here",
         items: [
-          { href: "/bookkeeping/review-queue", label: "Review Queue", icon: ListChecks },
           { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         ],
       },
@@ -155,9 +151,6 @@ function buildNavigation(
         label: "Reports",
         items: [
           { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
-          ...(canSeeVatTools
-            ? [{ href: "/bookkeeping/vat-reconciliation", label: "VAT Reconciliation", icon: Receipt }]
-            : []),
         ],
       },
       {
@@ -354,6 +347,85 @@ function ViewAsSwitcher({
   );
 }
 
+// ── Notification bell ──────────────────────────────────────────────────────────
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+
+  // Static system notifications — real-time ones can be wired via a future /api/notifications endpoint
+  const notifications = [
+    {
+      id: "mtd-2026",
+      type: "info" as const,
+      title: "MTD Income Tax — April 2026",
+      body: "Making Tax Digital for Income Tax starts April 2026. Quarterly updates to HMRC will be required.",
+      link: "/bookkeeping/tax-summary",
+    },
+    {
+      id: "review-reminder",
+      type: "warn" as const,
+      title: "Keep your review queue clear",
+      body: "Categorise transactions regularly so your tax estimate stays accurate.",
+      link: "/bookkeeping/review-queue",
+    },
+  ];
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="relative hidden h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--line)] bg-white text-[var(--ink-2)] shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)] lg:flex"
+        aria-label="Notifications"
+      >
+        <Bell className="h-4 w-4" />
+        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-400 ring-1 ring-white" />
+      </button>
+
+      {open && (
+        <>
+          {/* Click-away backdrop */}
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          {/* Dropdown */}
+          <div className="absolute right-0 top-12 z-40 w-80 overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow-panel)]">
+            <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-2)]">
+                Notifications
+              </p>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="text-[var(--muted)] hover:text-[var(--ink)]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="divide-y divide-[var(--line)]">
+              {notifications.map((n) => (
+                <Link
+                  key={n.id}
+                  href={n.link}
+                  onClick={() => setOpen(false)}
+                  className="flex gap-3 px-4 py-3 transition hover:bg-[var(--bg)]"
+                >
+                  <span
+                    className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
+                      n.type === "warn" ? "bg-amber-400" : "bg-[var(--accent)]"
+                    }`}
+                  />
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--ink)]">{n.title}</p>
+                    <p className="mt-0.5 text-xs leading-5 text-[var(--muted)]">{n.body}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function AppShell({
   children,
   workspaceName,
@@ -501,13 +573,17 @@ export function AppShell({
 
             {/* Global search bar - desktop */}
             <div className="hidden flex-1 justify-end lg:flex">
-              <div className="flex w-full max-w-[360px] cursor-text items-center gap-2 rounded-[10px] border border-[var(--line)] bg-white px-3 py-2 text-[13px] text-[var(--muted)] shadow-[var(--shadow-sm)] transition-colors hover:border-[var(--color-border-strong)]">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))}
+                className="flex w-full max-w-[360px] cursor-text items-center gap-2 rounded-[10px] border border-[var(--line)] bg-white px-3 py-2 text-[13px] text-[var(--muted)] shadow-[var(--shadow-sm)] transition-colors hover:border-[var(--color-border-strong)]"
+              >
                 <Search className="h-4 w-4 shrink-0" />
-                <span className="flex-1 select-none">Search transactions, clients, invoices...</span>
+                <span className="flex-1 text-left select-none">Search transactions, clients, invoices...</span>
                 <kbd className="hidden h-5 items-center gap-0.5 rounded bg-[#f4f2ed] px-1.5 font-mono text-[10px] text-[var(--muted)] sm:inline-flex">
                   Ctrl K
                 </kbd>
-              </div>
+              </button>
             </div>
 
             <div className="flex items-center gap-2">
@@ -529,13 +605,7 @@ export function AppShell({
                 </div>
               )}
               {/* Notification bell */}
-              <button
-                type="button"
-                className="hidden h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--line)] bg-white text-[var(--ink-2)] shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)] lg:flex"
-                aria-label="Notifications"
-              >
-                <Bell className="h-4 w-4" />
-              </button>
+              <NotificationBell />
               <UserButton />
             </div>
         </div>
@@ -545,6 +615,7 @@ export function AppShell({
       </main>
     </div>
       <InviteMemberDialog open={inviteOpen} onOpenChange={setInviteOpen} />
+      <CommandPalette />
     </ToastProvider>
   );
 }

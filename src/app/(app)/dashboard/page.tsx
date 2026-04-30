@@ -9,6 +9,7 @@ import type { Metadata } from "next";
 
 // ── Reconciliation dashboard (for non-sole-trader workspaces) ──────────────
 import { ReconciliationDashboard } from "@/components/dashboard/reconciliation-dashboard";
+import { TaxDeadlineWidget } from "@/components/dashboard/tax-deadline-widget";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -705,8 +706,8 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      {/* ── Two panels ──────────────────────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      {/* ── Three panels: Tax Estimate · Budget · Deadlines ────────────── */}
+      <div className="grid gap-4 lg:grid-cols-3">
 
         {/* Live SA Estimate */}
         <div className="rounded-2xl border border-[var(--color-border)] bg-white p-6 shadow-sm">
@@ -870,6 +871,9 @@ export default async function DashboardPage() {
             </>
           )}
         </div>
+
+        {/* Tax Deadlines */}
+        <TaxDeadlineWidget vatRegistered={workspace.vatRegistered ?? false} showMtd={false} />
       </div>
 
       {/* ── Recent Invoices ──────────────────────────────────────────────── */}

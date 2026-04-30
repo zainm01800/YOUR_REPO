@@ -3,15 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowRight,
-  Car,
-  CircleHelp,
-  FileText,
-  FolderInput,
-  Plus,
-  Receipt,
-} from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExpenseForm } from "./expense-form";
 import { ExpensesList, type ExpenseEntry } from "./expenses-list";
@@ -37,9 +29,6 @@ export function ExpensesPageClient({
   categoryRules,
   vatCodes,
   currency,
-  totalExpenses,
-  totalMileage,
-  totalMiles,
   initialTab = "expenses",
   canManageOperationalData = true,
 }: Props) {
@@ -92,54 +81,6 @@ export function ExpensesPageClient({
   const manualExpenseCount = cashExpenses.filter(
     (entry) => entry.source !== "transaction",
   ).length;
-  const mileageClaimableTotal = mileageEntries.reduce(
-    (sum, entry) => sum + entry.amount,
-    0,
-  );
-
-  const helperCards =
-    activeTab === "expenses"
-      ? [
-          {
-            icon: FolderInput,
-            title: "Imported from transactions",
-            detail: `${importedExpenseCount} categorised bank items are already feeding this page.`,
-          },
-          {
-            icon: FileText,
-            title: "Manual additions",
-            detail: `${manualExpenseCount} manual item${
-              manualExpenseCount === 1 ? "" : "s"
-            } cover cash spend and missing statement lines.`,
-          },
-          {
-            icon: CircleHelp,
-            title: "Claimability",
-            detail:
-              "Claimable vs non-claimable follows your category library, with manual overrides where needed.",
-          },
-        ]
-      : [
-          {
-            icon: Car,
-            title: "Trips logged",
-            detail: `${mileageEntries.length} mileage entr${
-              mileageEntries.length === 1 ? "y is" : "ies are"
-            } recorded in this workspace.`,
-          },
-          {
-            icon: Receipt,
-            title: "Estimated value",
-            detail: `${fmt(mileageClaimableTotal)} currently flows into your deductible travel total.`,
-          },
-          {
-            icon: CircleHelp,
-            title: "Separate from cash expenses",
-            detail:
-              "Mileage claims stay outside supplier spend so tax summaries are easier to understand.",
-          },
-        ];
-
   const sectionTabs: Array<{
     id: SectionTab;
     label: string;
@@ -239,99 +180,6 @@ export function ExpensesPageClient({
 
       {section === "overview" ? (
         <div className="space-y-5">
-          <section className="grid gap-4 xl:grid-cols-[1.15fr_0.95fr]">
-            <div className="rounded-[26px] border border-[var(--line)] bg-white px-6 py-6 shadow-[var(--shadow-sm)]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
-                Working area
-              </p>
-              <h2 className="mt-2 text-[26px] font-semibold tracking-[-0.03em] text-[var(--ink)]">
-                {activeTab === "expenses"
-                  ? "Expense claims and imported costs"
-                  : "Business mileage claims"}
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-                {activeTab === "expenses"
-                  ? "Imported bank transactions feed this page automatically once they are categorised as P&L expenses. Manual entries are for cash costs or anything missing from the statement feed."
-                  : "Mileage stays separate from supplier spend so you can track business travel claims clearly without mixing them into normal expense categories."}
-              </p>
-            </div>
-
-            <div className="rounded-[26px] border border-[var(--line)] bg-[linear-gradient(135deg,#faf8f2_0%,#f3ecde_100%)] px-6 py-6 shadow-[var(--shadow-sm)]">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-2)]">
-                    How this page works
-                  </p>
-                  <h3 className="mt-2 text-lg font-semibold text-[var(--ink)]">
-                    {activeTab === "expenses"
-                      ? "Imported and manual costs work together"
-                      : "Mileage stays standalone by design"}
-                  </h3>
-                </div>
-                <ArrowRight className="mt-1 h-4 w-4 text-[var(--accent-ink)]" />
-              </div>
-              <div className="mt-5 space-y-3">
-                {helperCards.map((item) => (
-                  <div
-                    key={item.title}
-                    className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-[var(--shadow-sm)]"
-                  >
-                    <div className="flex items-center gap-2">
-                      <item.icon className="h-4 w-4 text-[var(--accent-ink)]" />
-                      <span className="text-sm font-semibold text-[var(--ink)]">
-                        {item.title}
-                      </span>
-                    </div>
-                    <p className="mt-1.5 text-xs leading-5 text-[var(--muted)]">
-                      {item.detail}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[
-              {
-                icon: Receipt,
-                label: "Cash expenses",
-                value: fmt(totalExpenses),
-                sub: `${cashExpenses.length} entries`,
-              },
-              {
-                icon: Car,
-                label: "Mileage deductions",
-                value: fmt(totalMileage),
-                sub: `${mileageEntries.length} trips`,
-              },
-              {
-                icon: Car,
-                label: "Total miles",
-                value: `${totalMiles.toFixed(0)} mi`,
-                sub: "business travel",
-              },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="flex flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-5 py-4"
-              >
-                <div className="mb-2 flex items-center gap-2">
-                  <stat.icon className="h-4 w-4 text-[var(--color-muted-foreground)]" />
-                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
-                    {stat.label}
-                  </span>
-                </div>
-                <span className="text-2xl font-bold tabular-nums text-[var(--color-foreground)]">
-                  {stat.value}
-                </span>
-                <span className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
-                  {stat.sub}
-                </span>
-              </div>
-            ))}
-          </div>
-
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div
               className="cm-kpi cursor-pointer transition-shadow hover:shadow-md"
