@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -19,52 +19,52 @@ const CONTACT_EMAIL = "zentra.finance@outlook.com";
 const services = [
   {
     title: "Bookkeeping",
-    description: "Stay organised, track income and expenses, and keep clean records all year.",
+    description: "Stay organised, track income and expenses, and keep clean records.",
     icon: BookOpenCheck,
   },
   {
     title: "Tax Returns",
-    description: "File confidently and on time with clear figures and simple explanations.",
+    description: "Prepare clear figures and file confidently before deadlines.",
     icon: Calculator,
   },
   {
     title: "Tax Saving Advice",
-    description: "Understand allowable expenses and keep more of what you earn.",
+    description: "Understand allowable expenses and avoid paying more than you need to.",
     icon: PiggyBank,
   },
 ];
 
-const reasons = [
-  "Simple & stress-free",
-  "Fast response times",
-  "Focused on small businesses",
-];
-
 const pricing = [
   {
-    name: "Starter Bookkeeping",
+    name: "Starter",
     price: "£30",
     cadence: "per month",
-    description: "For sole traders who want basic monthly records kept tidy.",
-    features: ["Income and expense tracking", "Basic category review", "Monthly summary"],
+    description: "Basic bookkeeping support for tidy monthly records.",
+    features: ["Income and expense tracking", "Category review", "Monthly summary"],
     highlight: false,
   },
   {
-    name: "Standard Support",
+    name: "Standard",
     price: "£60",
     cadence: "per month",
-    description: "For growing sole traders or small businesses with more regular activity.",
-    features: ["Bookkeeping review", "Receipt checks", "Tax saving pointers", "Priority replies"],
+    description: "More regular support for busy sole traders and small businesses.",
+    features: ["Bookkeeping review", "Receipt checks", "Tax saving pointers"],
     highlight: true,
   },
   {
     name: "Self Assessment",
     price: "£120",
     cadence: "one-time",
-    description: "For annual tax return preparation support from organised records.",
-    features: ["Profit summary", "Allowable expense review", "Tax return figures"],
+    description: "One-off tax return support from organised records.",
+    features: ["Profit summary", "Expense review", "Tax return figures"],
     highlight: false,
   },
+];
+
+const reasons = [
+  "Simple and stress-free",
+  "Fast response times",
+  "Focused on small businesses",
 ];
 
 export default function Home() {
@@ -114,77 +114,41 @@ export default function Home() {
       <LandingNav accentColor={ACCENT} mode="services" />
 
       <main className="mx-auto max-w-6xl px-5 sm:px-8 lg:px-10">
-        <section className="grid gap-10 pb-16 pt-16 lg:grid-cols-[1fr_0.82fr] lg:items-center lg:pb-24 lg:pt-24">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#BDAE98] bg-[#EFE8DC] px-4 py-1.5 text-xs font-bold text-[#263242] shadow-sm">
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: ACCENT }} />
-              UK sole traders and small businesses
-            </div>
-
-            <h1 className="mt-6 max-w-3xl text-[clamp(2.65rem,6vw,4.8rem)] font-extrabold leading-[1.01] tracking-tight text-[#0B1220]">
-              Accounting for Sole Traders & Small Businesses
-            </h1>
-
-            <p className="mt-5 max-w-2xl text-xl font-extrabold leading-8 text-[#28477F]">
-              Simple, stress-free bookkeeping and tax services from £30/month
-            </p>
-
-            <p className="mt-4 max-w-xl text-base leading-8 text-[#344054]">
-              Zentra helps clients stay organised, understand their numbers, and avoid overpaying
-              tax with clear bookkeeping, tax return support, and practical advice.
-            </p>
-
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <Link
-                href="#contact"
-                className="inline-flex h-12 items-center gap-2 rounded-xl px-6 text-sm font-bold !text-white shadow-md transition hover:brightness-110"
-                style={{ background: ACCENT }}
-              >
-                Get Started
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="#contact"
-                className="inline-flex h-12 items-center rounded-xl border border-[#B49F83] bg-[#EFE8DC] px-6 text-sm font-bold text-[#1F2937] transition hover:bg-[#F8F5EF]"
-              >
-                Contact Us
-              </Link>
-            </div>
-
-            <div className="mt-5 grid gap-2 text-sm font-semibold text-[#344054] sm:grid-cols-3">
-              {["Simple pricing", "No hidden fees", "Clear advice"].map((item) => (
-                <span key={item} className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-700" />
-                  {item}
-                </span>
-              ))}
-            </div>
+        <section className="pb-16 pt-16 text-center lg:pb-20 lg:pt-24">
+          <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-[#BDAE98] bg-[#EFE8DC] px-4 py-1.5 text-xs font-bold text-[#263242] shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: ACCENT }} />
+            UK sole traders and small businesses
           </div>
 
-          <div className="rounded-[30px] border border-[#BDAE98] bg-[#EFE8DC] p-6 shadow-[0_24px_70px_rgba(55,46,34,0.18)]">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#667085]">
-              Simple pricing
-            </p>
-            <div className="mt-5 space-y-3">
-              {[
-                ["Monthly support", "from £30"],
-                ["Self Assessment", "from £120"],
-                ["Hidden fees", "none"],
-              ].map(([label, value]) => (
-                <div key={label} className="flex items-center justify-between rounded-2xl bg-[#FAF8F4] px-4 py-4">
-                  <span className="text-sm font-semibold text-[#344054]">{label}</span>
-                  <span className="text-lg font-extrabold text-[#28477F]">{value}</span>
-                </div>
-              ))}
-            </div>
+          <h1 className="mx-auto mt-6 max-w-4xl text-[clamp(2.65rem,6vw,5rem)] font-extrabold leading-[1.01] tracking-tight text-[#0B1220]">
+            Accounting for Sole Traders & Small Businesses
+          </h1>
+
+          <p className="mx-auto mt-5 max-w-2xl text-xl font-extrabold leading-8 text-[#28477F]">
+            Bookkeeping and tax support from £30/month
+          </p>
+
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-[#344054]">
+            Clear records, practical tax guidance, and no confusing accounting jargon.
+          </p>
+
+          <div className="mt-8 flex justify-center">
+            <Link
+              href="#contact"
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl px-6 text-sm font-bold !text-white shadow-md transition hover:brightness-110 sm:w-auto"
+              style={{ background: ACCENT }}
+            >
+              Get Started
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </section>
 
-        <section id="services" className="pb-16 lg:pb-24">
+        <section id="services" className="pb-14 lg:pb-18">
           <SectionHeading
             eyebrow="Services"
             title="Straightforward help for your accounts."
-            description="Simple services for staying organised, filing on time, and understanding what you can claim."
+            description="Three simple services for staying organised, filing on time, and keeping more of what you earn."
           />
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -203,13 +167,13 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="pricing" className="pb-16 lg:pb-24">
+        <section id="pricing" className="pb-14 lg:pb-18">
           <div className="rounded-[32px] border border-[#BDAE98] bg-[#EFE8DC] p-5 shadow-[0_24px_70px_rgba(55,46,34,0.16)] sm:p-7">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <SectionHeading
                 eyebrow="Pricing"
-                title="Choose monthly support or one-off help."
-                description="Clear options so you know what is ongoing, what is one-time, and what each service includes."
+                title="Monthly support or one-off help."
+                description="Clear prices, clear scope, and no hidden fees."
               />
               <div className="rounded-2xl border border-[#BDAE98] bg-[#FAF8F4] px-4 py-3 text-sm font-bold text-[#344054]">
                 Simple pricing, no hidden fees
@@ -258,7 +222,7 @@ export default function Home() {
                     }`}
                     style={plan.highlight ? { background: ACCENT } : undefined}
                   >
-                    Enquire about this
+                    Get Started
                   </Link>
                 </article>
               ))}
@@ -266,7 +230,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="pb-16 lg:pb-24">
+        <section className="pb-14 lg:pb-18">
           <div className="rounded-[28px] border border-[#BDAE98] bg-[#0B1220] p-6 text-white shadow-[0_24px_70px_rgba(55,46,34,0.24)] lg:p-8">
             <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
               <div>
@@ -289,7 +253,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="about" className="pb-16 lg:pb-24">
+        <section id="about" className="pb-14 lg:pb-18">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
               About
@@ -314,13 +278,12 @@ export default function Home() {
                 Get started with Zentra.
               </h2>
               <p className="mt-4 text-sm leading-7 text-[#4B5563]">
-                Send a short message about what you need help with and I’ll reply with the next steps.
+                Send a short message about what you need help with and I&apos;ll reply with the next steps.
               </p>
               <div className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-[#BDAE98] bg-[#EFE8DC] px-4 py-3 text-sm font-bold text-[#0B1220]">
                 <Mail className="h-4 w-4 text-[#28477F]" />
                 {CONTACT_EMAIL}
               </div>
-              <p className="mt-4 text-sm text-[#667085]">Phone number available on request.</p>
             </div>
 
             <ContactForm
@@ -421,7 +384,7 @@ function ContactForm({
           minLength={10}
           rows={5}
           className="mt-2 w-full resize-none rounded-xl border border-[#BDAE98] bg-[#FAF8F4] px-4 py-3 text-sm outline-none transition focus:border-[#28477F] focus:ring-4 focus:ring-[#28477F]/15"
-          placeholder="Tell us what you need help with."
+          placeholder="Tell me what you need help with."
         />
       </Field>
 
@@ -443,7 +406,7 @@ function ContactForm({
         className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl px-6 text-sm font-extrabold !text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
         style={{ background: ACCENT }}
       >
-        {submitState === "sending" ? "Sending..." : "Send enquiry"}
+        {submitState === "sending" ? "Sending..." : "Get Started"}
         <ArrowRight className="h-4 w-4" />
       </button>
     </form>
@@ -457,7 +420,7 @@ function Field({
 }: {
   label: string;
   className?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <label className={`block ${className}`}>

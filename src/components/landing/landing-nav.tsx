@@ -30,8 +30,8 @@ export function LandingNav({ accentColor, mode = "product" }: LandingNavProps) {
           <Link href={isServices ? "#services" : "#features"} className="text-sm font-semibold text-[#475467] transition hover:text-[#111827]">
             {isServices ? "Services" : "Features"}
           </Link>
-          <Link href={isServices ? "#process" : "#pricing"} className="text-sm font-semibold text-[#475467] transition hover:text-[#111827]">
-            {isServices ? "How it works" : "Pricing"}
+          <Link href="#pricing" className="text-sm font-semibold text-[#475467] transition hover:text-[#111827]">
+            Pricing
           </Link>
           {isServices && (
             <Link href="#contact" className="text-sm font-semibold text-[#475467] transition hover:text-[#111827]">
