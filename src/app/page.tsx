@@ -4,14 +4,11 @@ import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  Banknote,
+  BookOpenCheck,
   Calculator,
   CheckCircle2,
-  FileSpreadsheet,
   Mail,
-  ReceiptText,
-  ShieldCheck,
-  UploadCloud,
+  PiggyBank,
 } from "lucide-react";
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { LandingNav } from "@/components/landing/landing-nav";
@@ -21,55 +18,59 @@ const CONTACT_EMAIL = "zentra.finance@outlook.com";
 
 const services = [
   {
-    title: "Sole trader bookkeeping",
-    description:
-      "Bank statement review, income and expense categorisation, receipt checks, and clean records for the tax year.",
-    icon: FileSpreadsheet,
+    title: "Bookkeeping",
+    description: "Stay organised, track income and expenses, and keep clean records all year.",
+    icon: BookOpenCheck,
   },
   {
-    title: "Self Assessment preparation support",
-    description:
-      "Organised figures for profit, allowable expenses, tax to set aside, and the records needed before submitting.",
+    title: "Tax Returns",
+    description: "File confidently and on time with clear figures and simple explanations.",
     icon: Calculator,
   },
   {
-    title: "Receipt and bank matching",
-    description:
-      "I help match receipts and invoices to bank transactions, flag missing evidence, and tidy unclear spending.",
-    icon: ReceiptText,
-  },
-  {
-    title: "VAT records support",
-    description:
-      "For VAT-registered businesses, I can help prepare VAT summaries from categorised transactions and receipts.",
-    icon: Banknote,
-  },
-  {
-    title: "Small business record clean-up",
-    description:
-      "If your bookkeeping is messy or behind, I can help turn statements, receipts, and notes into usable records.",
-    icon: UploadCloud,
-  },
-  {
-    title: "Accountant-ready export pack",
-    description:
-      "Clean transaction exports, missing receipt lists, review notes, and summaries you can share with an accountant.",
-    icon: ShieldCheck,
+    title: "Tax Saving Advice",
+    description: "Understand allowable expenses and keep more of what you earn.",
+    icon: PiggyBank,
   },
 ];
 
-const process = [
-  "Tell me what help you need",
-  "Send statements, receipts, or current records",
-  "I review, categorise, and flag missing information",
-  "You get clean summaries and next steps",
+const reasons = [
+  "Simple & stress-free",
+  "Fast response times",
+  "Focused on small businesses",
+];
+
+const pricing = [
+  {
+    name: "Starter Bookkeeping",
+    price: "£30",
+    cadence: "per month",
+    description: "For sole traders who want basic monthly records kept tidy.",
+    features: ["Income and expense tracking", "Basic category review", "Monthly summary"],
+    highlight: false,
+  },
+  {
+    name: "Standard Support",
+    price: "£60",
+    cadence: "per month",
+    description: "For growing sole traders or small businesses with more regular activity.",
+    features: ["Bookkeeping review", "Receipt checks", "Tax saving pointers", "Priority replies"],
+    highlight: true,
+  },
+  {
+    name: "Self Assessment",
+    price: "£120",
+    cadence: "one-time",
+    description: "For annual tax return preparation support from organised records.",
+    features: ["Profit summary", "Allowable expense review", "Tax return figures"],
+    highlight: false,
+  },
 ];
 
 export default function Home() {
-  const [service, setService] = useState("Sole trader bookkeeping");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [details, setDetails] = useState("");
+  const [message, setMessage] = useState("");
   const [submitState, setSubmitState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [submitMessage, setSubmitMessage] = useState("");
 
@@ -82,20 +83,22 @@ export default function Home() {
       const response = await fetch("/api/enquiries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ service, name, email, details }),
+        body: JSON.stringify({
+          service: "Website enquiry",
+          name,
+          email,
+          details: message,
+        }),
       });
 
       const result = (await response.json().catch(() => ({}))) as { error?: string };
-
-      if (!response.ok) {
-        throw new Error(result.error || "Could not send your enquiry.");
-      }
+      if (!response.ok) throw new Error(result.error || "Could not send your enquiry.");
 
       setSubmitState("sent");
-      setSubmitMessage("Thanks. Your enquiry has been sent and I will get back to you soon.");
+      setSubmitMessage("Thanks. Your enquiry has been sent. I will get back to you soon.");
       setName("");
       setEmail("");
-      setDetails("");
+      setMessage("");
     } catch (err) {
       setSubmitState("error");
       setSubmitMessage(
@@ -107,25 +110,28 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F0EDE8]">
+    <div className="min-h-screen bg-[#DCD3C5] text-[#101828]">
       <LandingNav accentColor={ACCENT} mode="services" />
 
       <main className="mx-auto max-w-6xl px-5 sm:px-8 lg:px-10">
-        <section className="grid gap-10 pb-16 pt-16 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:pb-24 lg:pt-24">
+        <section className="grid gap-10 pb-16 pt-16 lg:grid-cols-[1fr_0.82fr] lg:items-center lg:pb-24 lg:pt-24">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#D7D1C7] bg-white px-4 py-1.5 text-xs font-bold text-[#344054] shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#BDAE98] bg-[#EFE8DC] px-4 py-1.5 text-xs font-bold text-[#263242] shadow-sm">
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: ACCENT }} />
-              Bookkeeping help for sole traders and small businesses
+              UK sole traders and small businesses
             </div>
 
-            <h1 className="mt-6 max-w-2xl text-[clamp(2.6rem,6vw,4.45rem)] font-extrabold leading-[1.03] tracking-tight text-[#111827]">
-              Get your accounts organised without the spreadsheet stress.
+            <h1 className="mt-6 max-w-3xl text-[clamp(2.65rem,6vw,4.8rem)] font-extrabold leading-[1.01] tracking-tight text-[#0B1220]">
+              Accounting for Sole Traders & Small Businesses
             </h1>
 
-            <p className="mt-5 max-w-xl text-lg leading-8 text-[#344054]">
-              I help sole traders and small businesses clean up bank statements, receipts,
-              expenses, VAT records, and tax-year summaries so the numbers are easier to understand
-              and ready for review.
+            <p className="mt-5 max-w-2xl text-xl font-extrabold leading-8 text-[#28477F]">
+              Simple, stress-free bookkeeping and tax services from £30/month
+            </p>
+
+            <p className="mt-4 max-w-xl text-base leading-8 text-[#344054]">
+              Zentra helps clients stay organised, understand their numbers, and avoid overpaying
+              tax with clear bookkeeping, tax return support, and practical advice.
             </p>
 
             <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -134,67 +140,62 @@ export default function Home() {
                 className="inline-flex h-12 items-center gap-2 rounded-xl px-6 text-sm font-bold !text-white shadow-md transition hover:brightness-110"
                 style={{ background: ACCENT }}
               >
-                Tell me what you need
+                Get Started
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="#contact-form"
-                className="inline-flex h-12 items-center rounded-xl border border-[#D7D1C7] bg-white px-6 text-sm font-bold text-[#1F2937] transition hover:bg-[#F8F6F1]"
+                href="#contact"
+                className="inline-flex h-12 items-center rounded-xl border border-[#B49F83] bg-[#EFE8DC] px-6 text-sm font-bold text-[#1F2937] transition hover:bg-[#F8F5EF]"
               >
-                Use enquiry form
+                Contact Us
               </Link>
             </div>
 
-            <div className="mt-5 grid gap-2 text-sm font-medium text-[#344054] sm:grid-cols-3">
-              {["Sole traders", "Small businesses", "Records clean-up"].map((item) => (
+            <div className="mt-5 grid gap-2 text-sm font-semibold text-[#344054] sm:grid-cols-3">
+              {["Simple pricing", "No hidden fees", "Clear advice"].map((item) => (
                 <span key={item} className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <CheckCircle2 className="h-4 w-4 text-emerald-700" />
                   {item}
                 </span>
               ))}
             </div>
           </div>
 
-          <ContactCard
-            service={service}
-            setService={setService}
-            name={name}
-            setName={setName}
-            email={email}
-            setEmail={setEmail}
-            details={details}
-            setDetails={setDetails}
-            submitState={submitState}
-            submitMessage={submitMessage}
-            onSubmit={handleSubmit}
-          />
+          <div className="rounded-[30px] border border-[#BDAE98] bg-[#EFE8DC] p-6 shadow-[0_24px_70px_rgba(55,46,34,0.18)]">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#667085]">
+              Simple pricing
+            </p>
+            <div className="mt-5 space-y-3">
+              {[
+                ["Monthly support", "from £30"],
+                ["Self Assessment", "from £120"],
+                ["Hidden fees", "none"],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between rounded-2xl bg-[#FAF8F4] px-4 py-4">
+                  <span className="text-sm font-semibold text-[#344054]">{label}</span>
+                  <span className="text-lg font-extrabold text-[#28477F]">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section id="services" className="pb-16 lg:pb-24">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
-                Services
-              </p>
-              <h2 className="mt-2 max-w-2xl text-3xl font-extrabold tracking-tight text-gray-900 lg:text-4xl">
-                Practical accounts support focused on clean records.
-              </h2>
-            </div>
-            <p className="max-w-xl text-sm leading-6 text-[#4B5563]">
-              The private Zentra workspace is the tool I use behind the scenes to organise,
-              review, and export records. Customers do not need an account to enquire.
-            </p>
-          </div>
+          <SectionHeading
+            eyebrow="Services"
+            title="Straightforward help for your accounts."
+            description="Simple services for staying organised, filing on time, and understanding what you can claim."
+          />
 
-          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
             {services.map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.title} className="rounded-[24px] border border-gray-200 bg-white p-5 shadow-sm">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EEF2FF] text-[#28477F]">
+                <div key={item.title} className="rounded-[24px] border border-[#BDAE98] bg-[#EFE8DC] p-5 shadow-sm">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E7ECFA] text-[#28477F]">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <h3 className="mt-4 text-lg font-extrabold text-gray-900">{item.title}</h3>
+                  <h3 className="mt-4 text-lg font-extrabold text-[#0B1220]">{item.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-[#4B5563]">{item.description}</p>
                 </div>
               );
@@ -202,26 +203,85 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="process" className="pb-16 lg:pb-24">
-          <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-[0_20px_60px_rgba(0,0,0,0.08)] lg:p-7">
-            <div className="grid gap-7 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
-                  How it works
-                </p>
-                <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-gray-900">
-                  Simple, private, and built around your records.
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-[#4B5563]">
-                  In the beginning, this is not a public self-service app. You contact me, I review
-                  what you need, and I use my private workspace to organise the accounting work.
-                </p>
+        <section id="pricing" className="pb-16 lg:pb-24">
+          <div className="rounded-[32px] border border-[#BDAE98] bg-[#EFE8DC] p-5 shadow-[0_24px_70px_rgba(55,46,34,0.16)] sm:p-7">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <SectionHeading
+                eyebrow="Pricing"
+                title="Choose monthly support or one-off help."
+                description="Clear options so you know what is ongoing, what is one-time, and what each service includes."
+              />
+              <div className="rounded-2xl border border-[#BDAE98] bg-[#FAF8F4] px-4 py-3 text-sm font-bold text-[#344054]">
+                Simple pricing, no hidden fees
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {process.map((step, index) => (
-                  <div key={step} className="rounded-2xl bg-[#F8F6F1] p-4">
-                    <span className="text-xs font-bold text-[#667085]">0{index + 1}</span>
-                    <p className="mt-3 text-sm font-bold text-gray-900">{step}</p>
+            </div>
+
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
+              {pricing.map((plan) => (
+                <article
+                  key={plan.name}
+                  className={`relative rounded-[26px] border p-5 ${
+                    plan.highlight
+                      ? "border-[#28477F] bg-[#E7ECFA] shadow-[0_20px_50px_rgba(40,71,127,0.16)]"
+                      : "border-[#BDAE98] bg-[#FAF8F4]"
+                  }`}
+                >
+                  {plan.highlight && (
+                    <span className="absolute right-4 top-4 rounded-full bg-[#28477F] px-3 py-1 text-xs font-extrabold text-white">
+                      Popular
+                    </span>
+                  )}
+                  <p className="pr-20 text-lg font-extrabold text-[#0B1220]">{plan.name}</p>
+                  <div className="mt-5 flex items-end gap-2">
+                    <span className="text-5xl font-black tracking-tight text-[#0B1220]">
+                      {plan.price}
+                    </span>
+                    <span className="pb-2 text-sm font-extrabold uppercase tracking-[0.12em] text-[#28477F]">
+                      {plan.cadence}
+                    </span>
+                  </div>
+                  <p className="mt-4 text-sm leading-6 text-[#4B5563]">{plan.description}</p>
+                  <div className="mt-5 space-y-2">
+                    {plan.features.map((feature) => (
+                      <div key={feature} className="flex gap-2 text-sm font-semibold text-[#344054]">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                        {feature}
+                      </div>
+                    ))}
+                  </div>
+                  <Link
+                    href="#contact"
+                    className={`mt-6 inline-flex h-11 w-full items-center justify-center rounded-xl text-sm font-extrabold transition ${
+                      plan.highlight
+                        ? "!text-white hover:brightness-110"
+                        : "border border-[#BDAE98] bg-[#EFE8DC] text-[#0B1220] hover:bg-[#E7DDCF]"
+                    }`}
+                    style={plan.highlight ? { background: ACCENT } : undefined}
+                  >
+                    Enquire about this
+                  </Link>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="pb-16 lg:pb-24">
+          <div className="rounded-[28px] border border-[#BDAE98] bg-[#0B1220] p-6 text-white shadow-[0_24px_70px_rgba(55,46,34,0.24)] lg:p-8">
+            <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#BFD0FF]">
+                  Why Zentra
+                </p>
+                <h2 className="mt-3 text-3xl font-extrabold tracking-tight lg:text-4xl">
+                  Built for clarity, not accounting jargon.
+                </h2>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {reasons.map((reason) => (
+                  <div key={reason} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <CheckCircle2 className="h-5 w-5 text-[#BFD0FF]" />
+                    <p className="mt-4 text-sm font-bold">{reason}</p>
                   </div>
                 ))}
               </div>
@@ -229,51 +289,51 @@ export default function Home() {
           </div>
         </section>
 
+        <section id="about" className="pb-16 lg:pb-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
+              About
+            </p>
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-[#0B1220] lg:text-4xl">
+              Accounting that feels calm and understandable.
+            </h2>
+            <p className="mt-4 text-base leading-8 text-[#4B5563]">
+              Zentra helps sole traders and small businesses manage their finances without
+              confusion or stress. We focus on clarity, simplicity, and saving you time.
+            </p>
+          </div>
+        </section>
+
         <section id="contact" className="pb-20">
-          <div className="overflow-hidden rounded-[28px] bg-[#111827] shadow-[0_20px_60px_rgba(0,0,0,0.16)]">
-            <div className="grid gap-8 p-7 text-white lg:grid-cols-[1fr_0.9fr] lg:p-10">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#CBD5E1]">
-                  Contact
-                </p>
-                <h2 className="mt-3 text-3xl font-extrabold tracking-tight lg:text-4xl">
-                  Tell me what service you need.
-                </h2>
-                <p className="mt-4 max-w-2xl text-sm leading-7 text-[#D1D5DB]">
-                  Use the form to draft an email with your details, or email me directly. Include
-                  the type of work you need, how far behind the records are, and whether you have
-                  bank statements, receipts, invoices, or VAT records ready.
-                </p>
-                <div className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-white">
-                  <Mail className="h-4 w-4" />
-                  {CONTACT_EMAIL}
-                </div>
+          <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
+                Contact
+              </p>
+              <h2 className="mt-3 text-4xl font-extrabold tracking-tight text-[#0B1220]">
+                Get started with Zentra.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-[#4B5563]">
+                Send a short message about what you need help with and I’ll reply with the next steps.
+              </p>
+              <div className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-[#BDAE98] bg-[#EFE8DC] px-4 py-3 text-sm font-bold text-[#0B1220]">
+                <Mail className="h-4 w-4 text-[#28477F]" />
+                {CONTACT_EMAIL}
               </div>
-              <div className="rounded-2xl bg-white p-5 text-gray-900">
-                <p className="text-sm font-extrabold">Quick enquiry checklist</p>
-                <div className="mt-4 space-y-3">
-                  {[
-                    "What service do you need?",
-                    "Are you a sole trader or small business?",
-                    "Do you have bank statements and receipts ready?",
-                    "Do you need VAT help?",
-                    "What deadline are you working towards?",
-                  ].map((item) => (
-                    <div key={item} className="flex gap-2 text-sm text-gray-700">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                      {item}
-                    </div>
-                  ))}
-                </div>
-                <a
-                  href="#contact-form"
-                  className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-xl text-sm font-bold !text-white"
-                  style={{ background: ACCENT }}
-                >
-                  Fill in enquiry form
-                </a>
-              </div>
+              <p className="mt-4 text-sm text-[#667085]">Phone number available on request.</p>
             </div>
+
+            <ContactForm
+              name={name}
+              setName={setName}
+              email={email}
+              setEmail={setEmail}
+              message={message}
+              setMessage={setMessage}
+              submitState={submitState}
+              submitMessage={submitMessage}
+              onSubmit={handleSubmit}
+            />
           </div>
         </section>
       </main>
@@ -283,124 +343,128 @@ export default function Home() {
   );
 }
 
-function ContactCard({
-  service,
-  setService,
+function SectionHeading({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="max-w-3xl">
+      <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
+        {eyebrow}
+      </p>
+      <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-[#0B1220] lg:text-4xl">
+        {title}
+      </h2>
+      <p className="mt-3 text-sm leading-7 text-[#4B5563]">{description}</p>
+    </div>
+  );
+}
+
+function ContactForm({
   name,
   setName,
   email,
   setEmail,
-  details,
-  setDetails,
+  message,
+  setMessage,
   submitState,
   submitMessage,
   onSubmit,
 }: {
-  service: string;
-  setService: (value: string) => void;
   name: string;
   setName: (value: string) => void;
   email: string;
   setEmail: (value: string) => void;
-  details: string;
-  setDetails: (value: string) => void;
+  message: string;
+  setMessage: (value: string) => void;
   submitState: "idle" | "sending" | "sent" | "error";
   submitMessage: string;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <div id="contact-form" className="rounded-[28px] border border-[#D7D1C7] bg-white p-5 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#667085]">
-        Enquiry form
-      </p>
-      <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-gray-900">
-        What do you need help with?
-      </h2>
-      <p className="mt-2 text-sm leading-6 text-[#4B5563]">
-        This sends your enquiry directly through the website. No customer login is needed.
-      </p>
-
-      <form onSubmit={onSubmit} className="mt-5 space-y-3">
-        <label className="block">
-          <span className="text-xs font-bold uppercase tracking-[0.14em] text-[#475467]">Service</span>
-          <select
-            value={service}
-            onChange={(event) => setService(event.target.value)}
-            disabled={submitState === "sending"}
-            className="mt-1 h-11 w-full rounded-xl border border-[#D7D1C7] bg-white px-3 text-sm text-[#111827] outline-none focus:border-[#28477F] focus:ring-2 focus:ring-[#28477F]/15"
-          >
-            {services.map((item) => (
-              <option key={item.title} value={item.title}>
-                {item.title}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block">
-          <span className="text-xs font-bold uppercase tracking-[0.14em] text-[#475467]">Your name</span>
+    <form onSubmit={onSubmit} className="rounded-[28px] border border-[#BDAE98] bg-[#EFE8DC] p-5 shadow-[0_24px_70px_rgba(55,46,34,0.18)] sm:p-7">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Name">
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
             disabled={submitState === "sending"}
-            className="mt-1 h-11 w-full rounded-xl border border-[#D7D1C7] bg-white px-3 text-sm text-[#111827] outline-none placeholder:text-[#667085] focus:border-[#28477F] focus:ring-2 focus:ring-[#28477F]/15"
-            placeholder="Your name"
             required
+            className="mt-2 h-12 w-full rounded-xl border border-[#BDAE98] bg-[#FAF8F4] px-4 text-sm outline-none transition focus:border-[#28477F] focus:ring-4 focus:ring-[#28477F]/15"
+            placeholder="Your name"
           />
-        </label>
-
-        <label className="block">
-          <span className="text-xs font-bold uppercase tracking-[0.14em] text-[#475467]">Your email</span>
+        </Field>
+        <Field label="Email">
           <input
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             disabled={submitState === "sending"}
-            className="mt-1 h-11 w-full rounded-xl border border-[#D7D1C7] bg-white px-3 text-sm text-[#111827] outline-none placeholder:text-[#667085] focus:border-[#28477F] focus:ring-2 focus:ring-[#28477F]/15"
-            placeholder="you@example.com"
+            required
             type="email"
-            required
+            className="mt-2 h-12 w-full rounded-xl border border-[#BDAE98] bg-[#FAF8F4] px-4 text-sm outline-none transition focus:border-[#28477F] focus:ring-4 focus:ring-[#28477F]/15"
+            placeholder="you@example.com"
           />
-        </label>
+        </Field>
+      </div>
 
-        <label className="block">
-          <span className="text-xs font-bold uppercase tracking-[0.14em] text-[#475467]">More information</span>
-          <textarea
-            value={details}
-            onChange={(event) => setDetails(event.target.value)}
-            disabled={submitState === "sending"}
-            rows={5}
-            className="mt-1 w-full resize-none rounded-xl border border-[#D7D1C7] bg-white px-3 py-2 text-sm text-[#111827] outline-none placeholder:text-[#667085] focus:border-[#28477F] focus:ring-2 focus:ring-[#28477F]/15"
-            placeholder="Tell me what records you have, what needs doing, and any deadlines."
-            minLength={10}
-            required
-          />
-          <span className="mt-1 block text-xs font-medium text-[#667085]">
-            Please add at least 10 characters so I know what you need help with.
-          </span>
-        </label>
-
-        {submitMessage && (
-          <div
-            className={`rounded-xl border px-3 py-2 text-sm font-semibold ${
-              submitState === "sent"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-red-200 bg-red-50 text-red-800"
-            }`}
-          >
-            {submitMessage}
-          </div>
-        )}
-
-        <button
-          type="submit"
+      <Field label="Message" className="mt-4">
+        <textarea
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
           disabled={submitState === "sending"}
-          className="mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold !text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
-          style={{ background: ACCENT }}
+          required
+          minLength={10}
+          rows={5}
+          className="mt-2 w-full resize-none rounded-xl border border-[#BDAE98] bg-[#FAF8F4] px-4 py-3 text-sm outline-none transition focus:border-[#28477F] focus:ring-4 focus:ring-[#28477F]/15"
+          placeholder="Tell us what you need help with."
+        />
+      </Field>
+
+      {submitMessage && (
+        <div
+          className={`mt-4 rounded-xl border px-4 py-3 text-sm font-bold ${
+            submitState === "sent"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-red-200 bg-red-50 text-red-800"
+          }`}
         >
-          {submitState === "sending" ? "Sending enquiry..." : "Send enquiry"}
-          <ArrowRight className="h-4 w-4" />
-        </button>
-      </form>
-    </div>
+          {submitMessage}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={submitState === "sending"}
+        className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl px-6 text-sm font-extrabold !text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+        style={{ background: ACCENT }}
+      >
+        {submitState === "sending" ? "Sending..." : "Send enquiry"}
+        <ArrowRight className="h-4 w-4" />
+      </button>
+    </form>
+  );
+}
+
+function Field({
+  label,
+  className = "",
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#475467]">
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }

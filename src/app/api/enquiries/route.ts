@@ -92,8 +92,23 @@ export async function POST(request: Request) {
   if (!response.ok) {
     const errorText = await response.text();
     console.error("[Enquiries] Failed to send email:", errorText);
+
+    let resendMessage = "";
+    try {
+      const parsedError = JSON.parse(errorText) as { message?: string; error?: string };
+      resendMessage = parsedError.message || parsedError.error || "";
+    } catch {
+      resendMessage = errorText;
+    }
+
+    const friendlyMessage = resendMessage.toLowerCase().includes("verify a domain")
+      ? "Email sending is almost ready, but the sender domain needs to be verified in Resend first."
+      : resendMessage.toLowerCase().includes("own email address")
+        ? "Resend test mode can only send to your verified account email. Verify a sending domain to receive customer enquiries at Outlook."
+        : "I could not send the enquiry right now. Please try again or email directly.";
+
     return NextResponse.json(
-      { error: "I could not send the enquiry right now. Please try again or email directly." },
+      { error: friendlyMessage },
       { status: 502 },
     );
   }
