@@ -5,7 +5,7 @@ const enquirySchema = z.object({
   service: z.string().trim().min(2).max(120),
   name: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(200),
-  details: z.string().trim().min(10).max(4_000),
+  details: z.string().trim().min(10, "Please add at least 10 characters about what you need help with.").max(4_000),
 });
 
 const DEFAULT_TO_EMAIL = "zentra.finance@outlook.com";
@@ -30,8 +30,9 @@ export async function POST(request: Request) {
 
   const parsed = enquirySchema.safeParse(body);
   if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0]?.message;
     return NextResponse.json(
-      { error: "Please complete your name, email, service, and enquiry details." },
+      { error: firstIssue || "Please complete your name, email, service, and enquiry details." },
       { status: 400 },
     );
   }

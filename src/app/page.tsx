@@ -371,8 +371,12 @@ function ContactCard({
             rows={5}
             className="mt-1 w-full resize-none rounded-xl border border-[#D7D1C7] bg-white px-3 py-2 text-sm text-[#111827] outline-none placeholder:text-[#667085] focus:border-[#28477F] focus:ring-2 focus:ring-[#28477F]/15"
             placeholder="Tell me what records you have, what needs doing, and any deadlines."
+            minLength={10}
             required
           />
+          <span className="mt-1 block text-xs font-medium text-[#667085]">
+            Please add at least 10 characters so I know what you need help with.
+          </span>
         </label>
 
         {submitMessage && (
