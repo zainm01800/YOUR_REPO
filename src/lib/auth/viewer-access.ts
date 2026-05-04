@@ -71,10 +71,13 @@ export function buildViewerAccessProfile(
     isWebsiteOwner ||
     user.accountType === "accountant" ||
     workspaceRole !== "owner";
+  const isClientOwnerView =
+    !isWebsiteOwner &&
+    user.accountType === "business_user" &&
+    workspaceRole === "owner";
   const canSeeFinancialReports =
     isWebsiteOwner ||
-    rolePermissions.canSeeFinancialReports ||
-    workspace.businessType === "general_small_business";
+    (!isClientOwnerView && rolePermissions.canSeeFinancialReports);
 
   return {
     accountType: isWebsiteOwner ? "accountant" : user.accountType,
@@ -86,14 +89,17 @@ export function buildViewerAccessProfile(
     canManageMembers: isWebsiteOwner || rolePermissions.canManageMembers,
     canDeleteWorkspace: isWebsiteOwner || rolePermissions.canDeleteWorkspace,
     canManageBusinessSettings: isWebsiteOwner || rolePermissions.canManageBusinessSettings,
-    canManageAccountingSettings: isWebsiteOwner || rolePermissions.canManageAccountingSettings,
+    canManageAccountingSettings:
+      isWebsiteOwner || (!isClientOwnerView && rolePermissions.canManageAccountingSettings),
     canManageOperationalData: isWebsiteOwner || rolePermissions.canManageOperationalData,
     canReviewTax: isWebsiteOwner || rolePermissions.canReviewTax,
     canUseExportPack: isWebsiteOwner || rolePermissions.canUseExportPack,
     canSeeFinancialReports,
-    canSeeTemplates: isWebsiteOwner || rolePermissions.canManageTemplates,
-    canSeePostingBuilder: isWebsiteOwner || rolePermissions.canSeePostingBuilder,
-    canSeeFullAccounting: isWebsiteOwner || rolePermissions.canSeeFullAccounting,
+    canSeeTemplates: isWebsiteOwner || (!isClientOwnerView && rolePermissions.canManageTemplates),
+    canSeePostingBuilder:
+      isWebsiteOwner || (!isClientOwnerView && rolePermissions.canSeePostingBuilder),
+    canSeeFullAccounting:
+      isWebsiteOwner || (!isClientOwnerView && rolePermissions.canSeeFullAccounting),
     canSeeSettings:
       isWebsiteOwner ||
       rolePermissions.canManageMembers ||

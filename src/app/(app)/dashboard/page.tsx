@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { currentUser } from "@clerk/nextjs/server";
-import { getRepository } from "@/lib/data";
 import { buildCategoryRuleMap, classifyTransaction } from "@/lib/accounting/classifier";
 import { resolveCategory } from "@/lib/categories/suggester";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { buildDuplicateCounts, getDuplicateKey, getTransactionHealth } from "@/lib/bookkeeping/transaction-health";
 import type { Metadata } from "next";
+import { SubmitReviewCard } from "@/components/review/submit-review-card";
 
 // ── Reconciliation dashboard (for non-sole-trader workspaces) ──────────────
 import { ReconciliationDashboard } from "@/components/dashboard/reconciliation-dashboard";
 import { TaxDeadlineWidget } from "@/components/dashboard/tax-deadline-widget";
+import { getServerViewerAccess } from "@/lib/auth/server-viewer-access";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -189,14 +189,10 @@ function KpiCard({
 
 // ── Main page ──────────────────────────────────────────────────────────────
 export default async function DashboardPage() {
-  const clerkUser = await currentUser();
-  const firstName = clerkUser?.firstName ?? "there";
+  const { repository, workspace, currentUser, viewerAccess } = await getServerViewerAccess();
+  const firstName = currentUser.name?.split(" ")[0] ?? "there";
 
-  const repository = await getRepository();
-  const [workspace, categoryRules] = await Promise.all([
-    repository.getWorkspace(),
-    repository.getCategoryRules(),
-  ]);
+  const categoryRules = await repository.getCategoryRules();
   const businessType = workspace.businessType;
 
   // ── Non-sole-trader: hand off to reconciliation dashboard ─────────────
@@ -598,6 +594,14 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      <SubmitReviewCard
+        period={`${taxYear}/${String(taxYear + 1).slice(2)}`}
+        readinessPercent={readinessPercent}
+        reviewIssueCount={reviewIssueCount}
+        missingReceiptCount={missingReceiptCount}
+        canMarkReviewed={viewerAccess.isAccountantView && viewerAccess.canReviewTax}
+      />
 
       {/* ── Alert banner (most overdue invoice) ─────────────────────────── */}
       {mostOverdue?.dueDate && (

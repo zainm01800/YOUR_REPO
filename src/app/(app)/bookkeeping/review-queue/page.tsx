@@ -117,8 +117,12 @@ export default async function ReviewQueuePage() {
     <>
       <PageHeader
         eyebrow={viewerAccess.isAccountantView ? "Accountant review" : "Records"}
-        title="Review queue"
-        description="Start here. Zentra only shows the transactions that need a human decision before your records are clean enough to export."
+        title={viewerAccess.isAccountantView ? "Review queue" : "Things to fix"}
+        description={
+          viewerAccess.isAccountantView
+            ? "Start here. Zentra only shows the transactions that need a human decision before records are clean enough to export."
+            : "Start here. Fix missing receipts, categories, VAT checks, and duplicates before sending the records for review."
+        }
       />
 
       <div className="space-y-5">

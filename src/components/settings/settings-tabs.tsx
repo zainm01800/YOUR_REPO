@@ -13,6 +13,7 @@ import { VatRuleManager } from "@/components/settings/vat-rule-manager";
 import { MemberManager } from "@/components/settings/member-manager";
 import { DeleteWorkspaceCard } from "@/components/settings/delete-workspace-card";
 import { ClientUploadCard } from "@/components/settings/client-upload-card";
+import { PermissionsExplainer } from "@/components/settings/permissions-explainer";
 
 interface SettingsTabsProps {
   settings: SettingsSnapshot;
@@ -44,6 +45,8 @@ export function SettingsTabs({ settings, isOwner, viewerAccess, uploadUrl }: Set
 
   return (
     <div className="space-y-6">
+      <PermissionsExplainer viewerAccess={viewerAccess} />
+
       {/* Tab bar */}
       <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-[var(--line)] bg-white p-1 shadow-[var(--shadow-sm)] w-fit">
         {tabs.map((tab) => {

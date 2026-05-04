@@ -36,6 +36,7 @@ import {
   bulkUpdateTransactionCategoryAction,
   updateTransactionCategoryAction,
 } from "@/app/actions/bookkeeping";
+import { TransactionComments } from "@/components/review/transaction-comments";
 
 interface Props {
   transactions: TransactionRecord[];
@@ -736,6 +737,7 @@ export function TransactionsTable({
               <DetailMetric label="Confidence" value={selectedTransaction.confidenceScore != null ? `${Math.round(selectedTransaction.confidenceScore * 100)}%` : selectedTransaction.categoryConfidence || "Not scored"} />
               <DetailMetric label="Source" value={selectedTransaction.bankStatementName || selectedTransaction.runName || "Imported transaction"} />
             </div>
+            <TransactionComments transactionId={selectedTransaction.id} />
           </div>
         </div>
       )}

@@ -71,9 +71,10 @@ function buildNavigation(
   if (!viewerAccess.isAccountantView && businessType === "sole_trader") {
     return [
       {
-        label: "Start here",
+        label: "Prep tasks",
         items: [
-          { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+          { href: "/bookkeeping/review-queue", label: "Things To Fix", icon: ListChecks },
+          { href: "/dashboard", label: "Simple Summary", icon: LayoutDashboard },
         ],
       },
       {
@@ -99,21 +100,21 @@ function buildNavigation(
         ],
       },
       {
-        label: "Tax",
+        label: "Estimate",
         items: [
-          { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
+          { href: "/bookkeeping/tax-summary", label: "Tax To Set Aside", icon: Calculator },
         ],
       },
       {
-        label: "Download",
+        label: "Share",
         items: viewerAccess.canUseExportPack
-          ? [{ href: "/export/period-pack", label: "Period Export Pack", icon: PackageOpen }]
+          ? [{ href: "/export/period-pack", label: "Send Records Pack", icon: PackageOpen }]
           : [],
       },
       {
-        label: "Settings",
+        label: "Accountant",
         items: viewerAccess.canSeeSettings
-          ? [{ href: "/settings", label: "Settings & Members", icon: Settings2 }]
+          ? [{ href: "/settings", label: "Invite / Settings", icon: Settings2 }]
           : [],
       },
     ].filter((section) => section.items.length > 0);
@@ -123,9 +124,10 @@ function buildNavigation(
   if (!viewerAccess.isAccountantView) {
     return [
       {
-        label: "Start here",
+        label: "Prep tasks",
         items: [
-          { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+          { href: "/bookkeeping/review-queue", label: "Things To Fix", icon: ListChecks },
+          { href: "/dashboard", label: "Simple Summary", icon: LayoutDashboard },
         ],
       },
       {
@@ -150,7 +152,7 @@ function buildNavigation(
       {
         label: "Reports",
         items: [
-          { href: "/bookkeeping/tax-summary", label: "Tax Summary", icon: Calculator },
+          { href: "/bookkeeping/tax-summary", label: "Tax To Set Aside", icon: Calculator },
         ],
       },
       {

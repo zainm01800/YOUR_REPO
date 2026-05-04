@@ -23,10 +23,10 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: {
     template: `%s | ${appConfig.name}`,
-    default: `${appConfig.name} | Reconciliation for finance teams`,
+    default: `${appConfig.name} | Bookkeeping help for sole traders`,
   },
   description:
-    "Upload transactions and receipts, reconcile them, review exceptions, and export finance-ready outputs.",
+    "Bookkeeping, receipt matching, VAT record support, and tidy finance summaries for sole traders and small businesses.",
 };
 
 export default function RootLayout({
