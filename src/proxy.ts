@@ -12,6 +12,7 @@ const isPublicRoute = createRouteMatcher([
   "/upload/(.*)",         // Client bank-statement upload (token-auth, not Clerk)
   "/invitations/(.*)",    // Invitation acceptance (public link)
   "/api/upload/(.*)",     // Client upload API (token-auth, not Clerk)
+  "/api/enquiries",       // Public contact form submission
   "/api/health",          // Health check (monitoring probes)
 ]);
 

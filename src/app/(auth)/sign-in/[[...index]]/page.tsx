@@ -32,7 +32,7 @@ export default async function SignInPage() {
           <SignIn
             routing="path"
             path="/sign-in"
-            signUpUrl="/sign-up"
+            signUpUrl="/"
             forceRedirectUrl="/account-type"
           />
         </Card>

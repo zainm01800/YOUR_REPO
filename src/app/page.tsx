@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -70,19 +70,41 @@ export default function Home() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [details, setDetails] = useState("");
+  const [submitState, setSubmitState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [submitMessage, setSubmitMessage] = useState("");
 
-  const mailtoHref = useMemo(() => {
-    const subject = `Zentra enquiry - ${service || "Accounting help"}`;
-    const body = [
-      `Name: ${name}`,
-      `Email: ${email}`,
-      `Service needed: ${service}`,
-      "",
-      "More information:",
-      details,
-    ].join("\n");
-    return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  }, [details, email, name, service]);
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitState("sending");
+    setSubmitMessage("");
+
+    try {
+      const response = await fetch("/api/enquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ service, name, email, details }),
+      });
+
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(result.error || "Could not send your enquiry.");
+      }
+
+      setSubmitState("sent");
+      setSubmitMessage("Thanks. Your enquiry has been sent and I will get back to you soon.");
+      setName("");
+      setEmail("");
+      setDetails("");
+    } catch (err) {
+      setSubmitState("error");
+      setSubmitMessage(
+        err instanceof Error
+          ? err.message
+          : "I could not send the enquiry right now. Please try again.",
+      );
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#F0EDE8]">
@@ -115,12 +137,12 @@ export default function Home() {
                 Tell me what you need
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <a
-                href={`mailto:${CONTACT_EMAIL}`}
+              <Link
+                href="#contact-form"
                 className="inline-flex h-12 items-center rounded-xl border border-[#D7D1C7] bg-white px-6 text-sm font-bold text-[#1F2937] transition hover:bg-[#F8F6F1]"
               >
-                Email me directly
-              </a>
+                Use enquiry form
+              </Link>
             </div>
 
             <div className="mt-5 grid gap-2 text-sm font-medium text-[#344054] sm:grid-cols-3">
@@ -142,7 +164,9 @@ export default function Home() {
             setEmail={setEmail}
             details={details}
             setDetails={setDetails}
-            mailtoHref={mailtoHref}
+            submitState={submitState}
+            submitMessage={submitMessage}
+            onSubmit={handleSubmit}
           />
         </section>
 
@@ -220,13 +244,10 @@ export default function Home() {
                   the type of work you need, how far behind the records are, and whether you have
                   bank statements, receipts, invoices, or VAT records ready.
                 </p>
-                <a
-                  href={`mailto:${CONTACT_EMAIL}`}
-                  className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-white underline decoration-white/30 underline-offset-4 hover:decoration-white"
-                >
+                <div className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-white">
                   <Mail className="h-4 w-4" />
                   {CONTACT_EMAIL}
-                </a>
+                </div>
               </div>
               <div className="rounded-2xl bg-white p-5 text-gray-900">
                 <p className="text-sm font-extrabold">Quick enquiry checklist</p>
@@ -271,7 +292,9 @@ function ContactCard({
   setEmail,
   details,
   setDetails,
-  mailtoHref,
+  submitState,
+  submitMessage,
+  onSubmit,
 }: {
   service: string;
   setService: (value: string) => void;
@@ -281,7 +304,9 @@ function ContactCard({
   setEmail: (value: string) => void;
   details: string;
   setDetails: (value: string) => void;
-  mailtoHref: string;
+  submitState: "idle" | "sending" | "sent" | "error";
+  submitMessage: string;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
     <div id="contact-form" className="rounded-[28px] border border-[#D7D1C7] bg-white p-5 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
@@ -292,15 +317,16 @@ function ContactCard({
         What do you need help with?
       </h2>
       <p className="mt-2 text-sm leading-6 text-[#4B5563]">
-        This opens an email to me with your answers filled in. No customer login is needed.
+        This sends your enquiry directly through the website. No customer login is needed.
       </p>
 
-      <div className="mt-5 space-y-3">
+      <form onSubmit={onSubmit} className="mt-5 space-y-3">
         <label className="block">
           <span className="text-xs font-bold uppercase tracking-[0.14em] text-[#475467]">Service</span>
           <select
             value={service}
             onChange={(event) => setService(event.target.value)}
+            disabled={submitState === "sending"}
             className="mt-1 h-11 w-full rounded-xl border border-[#D7D1C7] bg-white px-3 text-sm text-[#111827] outline-none focus:border-[#28477F] focus:ring-2 focus:ring-[#28477F]/15"
           >
             {services.map((item) => (
@@ -316,8 +342,10 @@ function ContactCard({
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
+            disabled={submitState === "sending"}
             className="mt-1 h-11 w-full rounded-xl border border-[#D7D1C7] bg-white px-3 text-sm text-[#111827] outline-none placeholder:text-[#667085] focus:border-[#28477F] focus:ring-2 focus:ring-[#28477F]/15"
             placeholder="Your name"
+            required
           />
         </label>
 
@@ -326,9 +354,11 @@ function ContactCard({
           <input
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            disabled={submitState === "sending"}
             className="mt-1 h-11 w-full rounded-xl border border-[#D7D1C7] bg-white px-3 text-sm text-[#111827] outline-none placeholder:text-[#667085] focus:border-[#28477F] focus:ring-2 focus:ring-[#28477F]/15"
             placeholder="you@example.com"
             type="email"
+            required
           />
         </label>
 
@@ -337,21 +367,36 @@ function ContactCard({
           <textarea
             value={details}
             onChange={(event) => setDetails(event.target.value)}
+            disabled={submitState === "sending"}
             rows={5}
             className="mt-1 w-full resize-none rounded-xl border border-[#D7D1C7] bg-white px-3 py-2 text-sm text-[#111827] outline-none placeholder:text-[#667085] focus:border-[#28477F] focus:ring-2 focus:ring-[#28477F]/15"
             placeholder="Tell me what records you have, what needs doing, and any deadlines."
+            required
           />
         </label>
-      </div>
 
-      <a
-        href={mailtoHref}
-        className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold !text-white shadow-md transition hover:brightness-110"
-        style={{ background: ACCENT }}
-      >
-        Send enquiry by email
-        <ArrowRight className="h-4 w-4" />
-      </a>
+        {submitMessage && (
+          <div
+            className={`rounded-xl border px-3 py-2 text-sm font-semibold ${
+              submitState === "sent"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-800"
+            }`}
+          >
+            {submitMessage}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={submitState === "sending"}
+          className="mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold !text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+          style={{ background: ACCENT }}
+        >
+          {submitState === "sending" ? "Sending enquiry..." : "Send enquiry"}
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </form>
     </div>
   );
 }
